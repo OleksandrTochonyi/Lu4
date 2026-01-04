@@ -1,18 +1,18 @@
-import { ApplicationConfig, importProvidersFrom } from '@angular/core';
+import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { provideRouter } from '@angular/router';
-import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { routes } from './app.routes';
 
-import { provideFirebaseApp, initializeApp } from '@angular/fire/app';
-import { environment } from '../environments/environment';
-import { provideFirestore, getFirestore } from '@angular/fire/firestore';
+import { routes } from './app.routes';
+import { providePrimeNG } from 'primeng/config';
+import Aura from '@primeuix/themes/aura';
 
 export const appConfig: ApplicationConfig = {
   providers: [
+    provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
-    provideNoopAnimations(),
-
-    importProvidersFrom(provideFirebaseApp(() => initializeApp(environment.firebase))),
-    importProvidersFrom(provideFirestore(() => getFirestore())),
-  ],
+            providePrimeNG({
+            theme: {
+                preset: Aura
+            }
+        })
+  ]
 };
