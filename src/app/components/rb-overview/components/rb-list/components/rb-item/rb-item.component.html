@@ -19,7 +19,7 @@
                 </div>
             </div>
 
-            <div class="time-info flex flex-col sm:flex-row sm:items-end gap-3 w-full">
+            <div class="time-info flex flex-col sm:flex-row sm:items-end gap-6 w-full">
                 <div class="w-full sm:w-56">
                     <label class="block font-bold mb-2" for="dead-time">Время убийства</label>
                     <div class="flex items-center gap-2">
@@ -31,24 +31,24 @@
                     </div>
                 </div>
 
-                <div class="w-full grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div class="w-full flex gap-3">
                     @if(showDetails()) {
                     <div>
                         <label class="block font-bold mb-2">Мин. респ</label>
-                        <div class="border border-surface rounded bg-emphasis text-muted-color text-sm px-3 py-2">
+                        <div class="time-item border border-surface rounded bg-emphasis text-muted-color text-sm px-3 py-2">
                             {{ displayMinResp() ? (displayMinResp() | date : 'HH:mm' : 'Europe/Kyiv') : '—' }}
                         </div>
                     </div>
                     <div>
                         <label class="block font-bold mb-2">Макс. респ</label>
-                        <div class="border border-surface rounded bg-emphasis text-muted-color text-sm px-3 py-2">
+                        <div class="time-item border border-surface rounded bg-emphasis text-muted-color text-sm px-3 py-2">
                             {{ displayMaxResp() ? (displayMaxResp() | date : 'HH:mm' : 'Europe/Kyiv') : '—' }}
                         </div>
                     </div>
                     }
                     <div>
                         <label class="block font-bold mb-2">{{ timeLeftLabel() }}</label>
-                        <div class="border border-surface rounded bg-emphasis text-muted-color text-sm px-3 py-2">
+                        <div class="time-item border border-surface rounded bg-emphasis text-muted-color text-sm px-3 py-2">
                             {{ timeLeftLabel() ? (respElapsedLabel() != null ? respElapsedLabel() : (timeLeft() ?
                             (timeLeft() | date : 'HH:mm:ss') : '—')) : '' }}
                         </div>

@@ -282,6 +282,7 @@ export class RbItemComponent implements OnInit {
   setKillTimeNowKyiv(): void {
     const nowKyiv = this.nowInKyivAsLocalDate();
     this.deadTime = nowKyiv;
+    this.commitDeadTime();
   }
 
   private nowInKyivAsLocalDate(): Date {

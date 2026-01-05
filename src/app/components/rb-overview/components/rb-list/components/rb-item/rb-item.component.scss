@@ -38,6 +38,13 @@
   margin-right: 12px;
 }
 
+.time-item {
+  height: 42px;
+  background: #f3f3f3;
+  display: flex;
+  align-items: center;
+}
+
 @media (max-width: 800px) {
   .rb-img {
     width: 200px;
