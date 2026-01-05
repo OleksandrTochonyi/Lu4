@@ -15,16 +15,25 @@
             <div class="flex flex-col sm:flex-row sm:items-end gap-3 w-full">
                 <div class="w-full sm:w-56">
                     <label class="block font-bold mb-2" for="dead-time">Время убийства</label>
-                    <p-datepicker
-                        inputId="dead-time"
-                        class="date-input w-full"
-                        [(ngModel)]="deadTime"
-                        (ngModelChange)="onDeadTimeDraftChange($event)"
-                        (onBlur)="commitDeadTime()"
-                        (onHide)="commitDeadTime()"
-                        [showTime]="true"
-                        [hourFormat]="'24'"
-                    />
+                    <div class="flex items-center gap-2">
+                        <p-datepicker
+                            inputId="dead-time"
+                            class="date-input flex-1 w-full"
+                            [(ngModel)]="deadTime"
+                            (ngModelChange)="onDeadTimeDraftChange($event)"
+                            [showTime]="true"
+                            [hourFormat]="'24'"
+                        />
+
+                        <p-button
+                            *ngIf="hasDeadTimeChanges()"
+                            icon="pi pi-check"
+                            [text]="true"
+                            [severity]="'success'"
+                            ariaLabel="Save"
+                            (onClick)="commitDeadTime()"
+                        ></p-button>
+                    </div>
                 </div>
 
                 <div class="w-full grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -43,7 +52,7 @@
                     <div>
                         <label class="block font-bold mb-2">{{ timeLeftLabel() }}</label>
                         <div class="border border-surface rounded bg-emphasis text-muted-color text-sm px-3 py-2">
-                            {{ timeLeftLabel() ? (timeLeft() ? (timeLeft() | date : 'HH:mm:ss') : '—') : '' }}
+                            {{ timeLeftLabel() ? (respElapsedLabel() != null ? respElapsedLabel() : (timeLeft() ? (timeLeft() | date : 'HH:mm:ss') : '—')) : '' }}
                         </div>
                     </div>
                 </div>

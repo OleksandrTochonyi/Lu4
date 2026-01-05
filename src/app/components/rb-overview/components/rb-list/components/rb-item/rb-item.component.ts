@@ -33,16 +33,42 @@ export class RbItemComponent implements OnInit {
 
   private now = signal(Date.now());
 
-  status = computed((): string => {
+  private derivedStatus = computed<RbStatus>(() => {
     const rb = this.rb();
-    const value = rb?.status;
-    return typeof value === 'string' ? value : '';
+    if (!rb) return RbStatus.Unknown;
+
+    const minResp: Date | null = rb.minResp ?? null;
+    const maxResp: Date | null = rb.maxResp ?? null;
+    const secondMinResp: Date | null = rb.secondMinResp ?? null;
+    const secondMaxResp: Date | null = rb.secondMaxResp ?? null;
+    if (!minResp || !maxResp || !secondMinResp || !secondMaxResp) return RbStatus.Unknown;
+
+    const now = this.now();
+    const hourMs = 60 * 60 * 1000;
+    const min = minResp.getTime();
+    const max = maxResp.getTime();
+    const secondMin = secondMinResp.getTime();
+    const secondMax = secondMaxResp.getTime();
+
+    if (now < min) {
+      if (min - now <= hourMs) return RbStatus.SoonResp;
+      return RbStatus.NotInResp;
+    }
+    if (now >= min && now <= max) return RbStatus.InResp;
+    if (now > max && now < secondMin) {
+      if (secondMin - now <= hourMs) return RbStatus.SoonResp;
+      return RbStatus.FirstRespPassed;
+    }
+    if (now >= secondMin && now <= secondMax) return RbStatus.SecondResp;
+    return RbStatus.Missed;
   });
+
+  status = computed((): string => this.derivedStatus());
 
   tagSeverity = computed<
     'secondary' | 'success' | 'info' | 'warn' | 'danger' | 'contrast'
   >(() => {
-    const s = this.status();
+    const s = this.derivedStatus();
     if (s === RbStatus.NotInResp) return 'info';
     if (s === RbStatus.InResp) return 'success';
     if (s === RbStatus.SecondResp) return 'success';
@@ -53,7 +79,7 @@ export class RbItemComponent implements OnInit {
   });
 
   isSecondRespWindow = computed(() => {
-    const s = this.status();
+    const s = this.derivedStatus();
     return s === RbStatus.FirstRespPassed || s === RbStatus.SecondResp;
   });
 
@@ -69,12 +95,44 @@ export class RbItemComponent implements OnInit {
     return this.isSecondRespWindow() ? rb.secondMaxResp ?? null : rb.maxResp ?? null;
   });
 
+  private respStart = computed<Date | null>(() => {
+    const rb = this.rb();
+    if (!rb) return null;
+
+    const s = this.derivedStatus();
+    if (s === RbStatus.InResp) return rb.minResp ?? null;
+    if (s === RbStatus.SecondResp) return rb.secondMinResp ?? null;
+    return null;
+  });
+
+  respElapsedMinutes = computed<number | null>(() => {
+    const start = this.respStart();
+    if (!start) return null;
+
+    const diffMs = Math.max(0, this.now() - start.getTime());
+    return Math.floor(diffMs / (60 * 1000));
+  });
+
+  respElapsedLabel = computed<string | null>(() => {
+    const totalMinutes = this.respElapsedMinutes();
+    if (totalMinutes == null) return null;
+    if (totalMinutes < 60) return `${totalMinutes} ${this.pluralizeRu(totalMinutes, 'минута', 'минуты', 'минут')}`;
+
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    const hoursLabel = `${hours} ${this.pluralizeRu(hours, 'час', 'часа', 'часов')}`;
+    if (minutes === 0) return hoursLabel;
+    const minutesLabel = `${minutes} ${this.pluralizeRu(minutes, 'минута', 'минуты', 'минут')}`;
+    return `${hoursLabel} ${minutesLabel}`;
+  });
+
   timeLeftLabel = computed((): string => {
-    const s = this.status();
+    const s = this.derivedStatus();
     if (s === RbStatus.Missed) return 'Ну вот.. все проебали';
-    if (s === RbStatus.InResp) return 'До макс. респа';
+    if (s === RbStatus.InResp) return 'В респе уже';
     if (s === RbStatus.FirstRespPassed) return 'До 2-го мин. респа';
-    if (s === RbStatus.SecondResp) return 'До 2-го макс. респа';
+    if (s === RbStatus.SecondResp) return 'Во 2м респе уже';
     if (s === RbStatus.SoonResp) return 'Скоро респ';
     return 'До мин. респа';
   });
@@ -83,7 +141,7 @@ export class RbItemComponent implements OnInit {
     const rb = this.rb();
     if (!rb) return null;
 
-    const s = this.status();
+    const s = this.derivedStatus();
     if (s === RbStatus.Missed) return null;
     if (s === RbStatus.InResp) return rb.maxResp ?? null;
     if (s === RbStatus.FirstRespPassed) return rb.secondMinResp ?? null;
@@ -102,7 +160,9 @@ export class RbItemComponent implements OnInit {
   constructor() {
     effect(() => {
       const rb = this.rb();
-      this.deadTime = rb?.deadTime ?? this.toDate(rb?.lastDeadTime);
+      const committed = rb?.deadTime ?? this.toDate(rb?.lastDeadTime);
+      this.deadTime = committed;
+      this.lastCommittedMs = committed ? committed.getTime() : null;
     });
 
     effect(() => {
@@ -182,9 +242,18 @@ export class RbItemComponent implements OnInit {
     return new Date(date.getTime() + hoursNumber * 60 * 60 * 1000);
   }
 
+  private pluralizeRu(value: number, one: string, few: string, many: string): string {
+    const n = Math.abs(Math.trunc(value));
+    const lastTwo = n % 100;
+    if (lastTwo >= 11 && lastTwo <= 14) return many;
+    const last = n % 10;
+    if (last === 1) return one;
+    if (last >= 2 && last <= 4) return few;
+    return many;
+  }
+
   onDeadTimeDraftChange(value: Date | null): void {
     this.deadTime = value;
-    this.deadTimeDraftChanged.emit({ rb: this.rb(), deadTime: value });
   }
 
   commitDeadTime(): void {
@@ -195,10 +264,15 @@ export class RbItemComponent implements OnInit {
     this.deadTimeChanged.emit({ rb: this.rb(), deadTime: current });
   }
 
+  hasDeadTimeChanges(): boolean {
+    const current = this.deadTime;
+    const currentMs = current ? current.getTime() : null;
+    return currentMs !== this.lastCommittedMs;
+  }
+
   setKillTimeNowKyiv(): void {
     const nowKyiv = this.nowInKyivAsLocalDate();
     this.deadTime = nowKyiv;
-    this.commitDeadTime();
   }
 
   private nowInKyivAsLocalDate(): Date {
@@ -235,6 +309,24 @@ export class RbItemComponent implements OnInit {
   }
 
   private playRespStartSound(): void {
+    const rb = this.rb();
+    const rbName = String(rb?.displayName ?? rb?.name ?? '').trim();
+    const voiceText = `РБ - ${rbName || '???'} вошел в респ! Хули сидишь? Пиздуй Чекать!`;
+    console.log('[rb] playRespStartSound voiceText:', voiceText);
+
+    // Best-effort TTS (may require prior user interaction in the browser).
+    try {
+      const synth = (window as any).speechSynthesis as SpeechSynthesis | undefined;
+      if (synth && typeof (window as any).SpeechSynthesisUtterance === 'function') {
+        synth.cancel();
+        const utter = new SpeechSynthesisUtterance(voiceText);
+        utter.lang = 'ru-RU';
+        synth.speak(utter);
+      }
+    } catch {
+      // ignore
+    }
+
     // Best-effort: browsers may block autoplay until user interaction.
     try {
       const AudioContextCtor = (window as any).AudioContext || (window as any).webkitAudioContext;
