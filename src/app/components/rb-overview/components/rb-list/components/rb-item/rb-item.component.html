@@ -58,9 +58,50 @@
         </div>
         <div class="actions flex flex-col md:items-end gap-8">
             <div class="actions flex md:flex-row gap-2">
+                <p-button
+                    icon="pi pi-info-circle"
+                    [text]="true"
+                    [severity]="'secondary'"
+                    ariaLabel="Info"
+                    (onClick)="lootPanel.toggle($event)"
+                ></p-button>
+
                 <p-button icon="pi pi-refresh" class="flex-auto md:flex-initial whitespace-nowrap" label="Обновить респ"
                     (onClick)="setKillTimeNowKyiv()"></p-button>
             </div>
         </div>
     </div>
 </div>
+
+<p-popover #lootPanel>
+    <div class="flex flex-col gap-3 min-w-64">
+        <div class="text-sm font-medium text-surface-900 dark:text-surface-0">Лут</div>
+
+        @if ((rb()?.loot?.length ?? 0) > 0) {
+            <div class="flex flex-col gap-2">
+                @for (loot of (rb()?.loot ?? []); track $index) {
+                    <div class="flex items-center gap-2">
+                        <img
+                            class="w-8 h-8 rounded border border-surface bg-surface-0 dark:bg-surface-900 object-contain"
+                            [src]="loot?.imgUrl"
+                            [alt]="loot?.displayName"
+                        />
+                        <div class="text-sm text-surface-900 dark:text-surface-0">{{ loot?.displayName }}</div>
+                    </div>
+                }
+            </div>
+        } @else {
+            <div class="text-sm text-muted-color">Нет лута</div>
+        }
+
+        <div class="pt-2 border-t border-surface flex justify-end">
+            <p-button
+                label="Подробнее"
+                [text]="true"
+                [severity]="'secondary'"
+                [disabled]="!rb()?.meta?.infoLink"
+                (onClick)="openInfoLink()"
+            ></p-button>
+        </div>
+    </div>
+</p-popover>

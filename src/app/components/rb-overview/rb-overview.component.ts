@@ -4,7 +4,7 @@ import { Timestamp } from 'firebase/firestore';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
-import { OverlayPanelModule } from 'primeng/overlaypanel';
+import { PopoverModule } from 'primeng/popover';
 import { MessageService } from 'primeng/api';
 
 import { RbData } from '../../services/rb-data';
@@ -19,7 +19,7 @@ import { environment } from '../../environments/environment';
     FormsModule,
     ButtonModule,
     CheckboxModule,
-    OverlayPanelModule,
+    PopoverModule,
   ],
   templateUrl: './rb-overview.component.html',
   styleUrl: './rb-overview.component.scss'

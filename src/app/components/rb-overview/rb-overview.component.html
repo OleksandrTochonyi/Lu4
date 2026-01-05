@@ -19,7 +19,7 @@
 		></p-button>
 	</div>
 
-	<p-overlayPanel #filterPanel>
+	<p-popover #filterPanel>
 		<div class="flex flex-col gap-3 min-w-64">
 			<div class="text-sm font-medium text-surface-900 dark:text-surface-0">Фильтры</div>
 
@@ -37,7 +37,7 @@
 				</label>
 			</div>
 		</div>
-	</p-overlayPanel>
+	</p-popover>
 
 	<div class="flex-1 min-h-0 overflow-auto p-2 sm:p-3">
 		<app-rb-list

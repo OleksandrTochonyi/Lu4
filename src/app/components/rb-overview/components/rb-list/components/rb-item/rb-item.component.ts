@@ -4,6 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { DatePickerModule } from 'primeng/datepicker';
+import { PopoverModule } from 'primeng/popover';
 import { TagModule } from 'primeng/tag';
 import { timer } from 'rxjs';
 
@@ -12,7 +13,7 @@ import { RbStatus } from '../../../../../../constants/status';
 @Component({
   selector: 'app-rb-item',
   standalone: true,
-  imports: [CommonModule, TagModule, DatePickerModule, FormsModule, ButtonModule],
+  imports: [CommonModule, TagModule, DatePickerModule, FormsModule, ButtonModule, PopoverModule],
   templateUrl: './rb-item.component.html',
   styleUrl: './rb-item.component.scss',
 })
@@ -215,6 +216,13 @@ export class RbItemComponent implements OnInit {
       .subscribe(() => {
         this.now.set(Date.now());
       });
+  }
+
+  openInfoLink(): void {
+    const url: string | undefined = this.rb()?.meta?.infoLink;
+    console.log(url)
+    if (!url) return;
+    window.open(url, '_blank', 'noopener');
   }
 
   toDate(value: any): Date | null {
