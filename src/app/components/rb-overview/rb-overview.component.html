@@ -1,5 +1,14 @@
 	<div class="rb-overview flex flex-col h-full border border-surface rounded bg-surface-0 dark:bg-surface-900 overflow-hidden">
-	<div class="flex items-center justify-end p-2 sm:p-3 border-b">
+	<div class="flex items-center justify-between p-2 sm:p-3 border-b">
+		<p-button
+			[icon]="showDetails() ? 'pi pi-eye-slash' : 'pi pi-eye'"
+			[label]="showDetails() ? 'Скрыть детали' : 'Показать детали'"
+			[text]="true"
+			[severity]="'secondary'"
+			(onClick)="showDetails.set(!showDetails())"
+			ariaLabel="Toggle details"
+		></p-button>
+
 		<p-button
 			icon="pi pi-sliders-h"
 			label="Фильтры"
@@ -33,6 +42,7 @@
 	<div class="flex-1 min-h-0 overflow-auto p-2 sm:p-3">
 		<app-rb-list
 			[items]="visibleItems()"
+			[showDetails]="showDetails()"
 			(deadTimeDraftChanged)="onDeadTimeDraftChanged($event)"
 			(deadTimeChanged)="onDeadTimeChanged($event)"
 		></app-rb-list>

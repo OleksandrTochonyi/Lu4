@@ -5,6 +5,7 @@
             <div class="rounded border border-surface bg-surface-0 dark:bg-surface-900 shadow-sm">
                 <app-rb-item
                     [rb]="rb"
+                           [showDetails]="showDetails()"
                     (deadTimeDraftChanged)="deadTimeDraftChanged.emit($event)"
                     (deadTimeChanged)="deadTimeChanged.emit($event)"
                 />

@@ -29,6 +29,8 @@ export class RbOverviewComponent {
   private rbDataService = inject(RbData);
   private messageService = inject(MessageService);
 
+  showDetails = signal(true);
+
   items = signal<any[]>([]);
 
   showOnlyResp = signal(false);

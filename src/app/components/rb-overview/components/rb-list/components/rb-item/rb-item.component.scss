@@ -30,9 +30,12 @@
   align-self: flex-start;
 }
 
-
 .rb-img {
   width: 100px;
+}
+
+.rb-name {
+  margin-right: 12px;
 }
 
 @media (max-width: 800px) {
@@ -41,3 +44,43 @@
   }
 }
 
+.small-details {
+  padding: 8px 16px !important;
+
+  .rb-lvl {
+    margin-left: 16px;
+  }
+
+  .content-wrapper {
+    align-items: center !important;
+  }
+
+  .title-wrapper {
+    display: flex;
+    align-items: center;
+    flex: 1.5;
+  }
+
+  .rb-content {
+    display: flex;
+    flex-direction: row !important;
+  }
+
+  .time-info {
+    flex: 3;
+    place-items: flex-start;
+  }
+
+  .actions {
+    align-self: center !important;
+  }
+
+  @media (max-width: 800px) {
+    .rb-content {
+      flex-direction: column !important;
+    }
+    .title-wrapper {
+      text-align: center;
+    }
+  }
+}

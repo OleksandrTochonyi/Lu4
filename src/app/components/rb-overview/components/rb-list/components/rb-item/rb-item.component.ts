@@ -20,6 +20,7 @@ export class RbItemComponent implements OnInit {
   private destroyRef = inject(DestroyRef);
 
   rb: any = input();
+  showDetails = input(true);
   deadTimeDraftChanged = output<{ rb: any; deadTime: Date | null }>();
   deadTimeChanged = output<{ rb: any; deadTime: Date | null }>();
   deadTime: Date | null = null;
