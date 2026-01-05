@@ -1,0 +1,63 @@
+<div class="flex flex-col sm:flex-row sm:items-center p-6 gap-4">
+    <div class="md:w-40 relative">
+        <img class="rb-img block xl:block mx-auto rounded-border" [src]="rb()?.meta?.imageUrl" />
+    </div>
+    <div class="flex flex-col md:flex-row justify-between md:items-center flex-1 gap-6">
+        <div class="flex flex-col gap-3 w-full">
+            <div>
+                <div class="text-lg font-medium text-surface-900 dark:text-surface-0">
+                    <span>[{{rb().lvl}}] </span>
+                    {{ rb()?.displayName }}
+                    <p-tag [value]="status()" [severity]="tagSeverity()" class="dark:!bg-surface-900" />
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row sm:items-end gap-3 w-full">
+                <div class="w-full sm:w-56">
+                    <label class="block font-bold mb-2" for="dead-time">Время убийства</label>
+                    <p-datepicker
+                        inputId="dead-time"
+                        class="date-input w-full"
+                        [(ngModel)]="deadTime"
+                        (ngModelChange)="onDeadTimeDraftChange($event)"
+                        (onBlur)="commitDeadTime()"
+                        (onHide)="commitDeadTime()"
+                        [showTime]="true"
+                        [hourFormat]="'24'"
+                    />
+                </div>
+
+                <div class="w-full grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block font-bold mb-2">Мин. респ</label>
+                        <div class="border border-surface rounded bg-emphasis text-muted-color text-sm px-3 py-2">
+                            {{ displayMinResp() ? (displayMinResp() | date : 'HH:mm') : '—' }}
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-bold mb-2">Макс. респ</label>
+                        <div class="border border-surface rounded bg-emphasis text-muted-color text-sm px-3 py-2">
+                            {{ displayMaxResp() ? (displayMaxResp() | date : 'HH:mm') : '—' }}
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-bold mb-2">{{ timeLeftLabel() }}</label>
+                        <div class="border border-surface rounded bg-emphasis text-muted-color text-sm px-3 py-2">
+                            {{ timeLeftLabel() ? (timeLeft() ? (timeLeft() | date : 'HH:mm:ss') : '—') : '' }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="actions flex flex-col md:items-end gap-8">
+            <div class="actions flex md:flex-row gap-2">
+                <p-button
+                    icon="pi pi-refresh"
+                    class="flex-auto md:flex-initial whitespace-nowrap"
+                    label="Обновить респ"
+                    (onClick)="setKillTimeNowKyiv()"
+                ></p-button>
+            </div>
+        </div>
+    </div>
+</div>

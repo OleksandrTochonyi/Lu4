@@ -1,0 +1,40 @@
+	<div class="rb-overview flex flex-col h-full border border-surface rounded bg-surface-0 dark:bg-surface-900 overflow-hidden">
+	<div class="flex items-center justify-end p-2 sm:p-3 border-b">
+		<p-button
+			icon="pi pi-sliders-h"
+			label="Фильтры"
+			[text]="true"
+			[severity]="'secondary'"
+			(onClick)="filterPanel.toggle($event)"
+			ariaLabel="Filters"
+		></p-button>
+	</div>
+
+	<p-overlayPanel #filterPanel>
+		<div class="flex flex-col gap-3 min-w-64">
+			<div class="text-sm font-medium text-surface-900 dark:text-surface-0">Фильтры</div>
+
+			<div class="flex items-center gap-2">
+				<p-checkbox inputId="only-resp" [(ngModel)]="showOnlyRespValue" [binary]="true"></p-checkbox>
+				<label for="only-resp" class="text-sm text-surface-900 dark:text-surface-0 select-none">
+					Только в респе (1 или 2)
+				</label>
+			</div>
+
+			<div class="flex items-center gap-2">
+				<p-checkbox inputId="one-hour" [(ngModel)]="showOneHourToRespValue" [binary]="true"></p-checkbox>
+				<label for="one-hour" class="text-sm text-surface-900 dark:text-surface-0 select-none">
+					1 час до респа (1 или 2)
+				</label>
+			</div>
+		</div>
+	</p-overlayPanel>
+
+	<div class="flex-1 min-h-0 overflow-auto p-2 sm:p-3">
+		<app-rb-list
+			[items]="visibleItems()"
+			(deadTimeDraftChanged)="onDeadTimeDraftChanged($event)"
+			(deadTimeChanged)="onDeadTimeChanged($event)"
+		></app-rb-list>
+	</div>
+</div>

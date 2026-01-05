@@ -1,18 +1,28 @@
-import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
+import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
+import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideRouter } from '@angular/router';
+import Aura from '@primeng/themes/aura';
+import { MessageService } from 'primeng/api';
+import { providePrimeNG } from 'primeng/config';
 
 import { routes } from './app.routes';
-import { providePrimeNG } from 'primeng/config';
-import Aura from '@primeuix/themes/aura';
+import { initializeApp, provideFirebaseApp } from '@angular/fire/app';
+import { getAuth, provideAuth } from '@angular/fire/auth';
+import { getFirestore, provideFirestore } from '@angular/fire/firestore';
+import { environment } from './environments/environment';
 
 export const appConfig: ApplicationConfig = {
   providers: [
-    provideBrowserGlobalErrorListeners(),
+    provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
-            providePrimeNG({
-            theme: {
-                preset: Aura
-            }
-        })
+    provideAnimations(),
+    MessageService,
+    providePrimeNG({
+      ripple: true,
+      theme: {
+        preset: Aura
+      }
+    }), provideFirebaseApp(() => initializeApp(environment.firebase
+    )), provideAuth(() => getAuth()), provideFirestore(() => getFirestore())
   ]
 };

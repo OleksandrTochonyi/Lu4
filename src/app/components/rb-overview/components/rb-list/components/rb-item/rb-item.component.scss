@@ -1,0 +1,43 @@
+.rb-item {
+  width: 100%;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: lightgray;
+  border-radius: 12px;
+  padding: 8px 16px;
+}
+
+.info-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rb-status {
+  height: 25px;
+}
+
+.title-block {
+  flex: 1;
+}
+
+.info-block {
+  flex: 3;
+}
+
+.actions {
+  align-self: flex-start;
+}
+
+
+.rb-img {
+  width: 100px;
+}
+
+@media (max-width: 800px) {
+  .rb-img {
+    width: 200px;
+  }
+}
+
