@@ -1,0 +1,195 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  flex: 1;
+  min-height: 0;
+}
+
+.party-page,
+.party-shell {
+  height: 100%;
+}
+
+.party-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+
+.party-shell {
+  flex: 1;
+  min-height: 0;
+}
+
+.party-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 16px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.create-actions {
+  display: flex;
+}
+
+.party-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  padding: 16px;
+}
+
+.party-title {
+  font-weight: 700;
+}
+
+.party-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.info-btn {
+  width: 34px;
+  height: 34px;
+}
+
+:host {
+  ::ng-deep {
+    .info-btn.p-button {
+      padding: 0;
+    }
+
+    .info-btn.p-button.p-button-icon-only .p-button-icon {
+      margin: 0;
+    }
+
+    .info-popover.p-overlaypanel {
+      background: transparent;
+      border: none;
+      box-shadow: none;
+    }
+
+    .info-popover.p-overlaypanel::before,
+    .info-popover.p-overlaypanel::after {
+      display: none;
+    }
+
+    .info-popover .p-overlaypanel-content {
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      padding: 0;
+    }
+  }
+}
+
+.info-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 240px;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.create-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.groups {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+:host {
+  ::ng-deep {
+    .p-accordionpanel {
+      border: none;
+    }
+
+    .p-accordionheader {
+      border: 1px solid gainsboro !important;
+      background: #f8f9fa;
+    }
+
+    .p-accordioncontent-content {
+      padding: 0 !important;
+    }
+  }
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+}
+
+.group-header-left {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.group-badge {
+  margin-left: 16px;
+}
+
+.group-edit {
+  width: 100%;
+  max-width: 420px;
+}
+
+.group-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.group-name {
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .create-form {
+    grid-template-columns: 1fr;
+  }
+
+  .buttons {
+    justify-content: flex-start;
+  }
+}

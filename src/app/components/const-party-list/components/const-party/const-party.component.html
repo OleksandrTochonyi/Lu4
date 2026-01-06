@@ -1,0 +1,151 @@
+<div class="group rounded border border-surface bg-surface-0 dark:bg-surface-900 shadow-sm p-3">
+  <div class="leader" *ngIf="leaders().length">
+    <div class="title">Лидеры</div>
+
+    <div class="user-card user-card--leader" *ngFor="let l of leaders()">
+      <ng-container *ngIf="editingUser() !== l; else editUserTpl">
+        <div class="left">
+          <div class="name">{{ l.name }}</div>
+           <div class="role" *ngIf="displayRole(l) as roleText">{{ roleText }}</div>
+        </div>
+        <div class="actions">
+          <p-button
+            type="button"
+            icon="pi pi-pencil"
+            [rounded]="true"
+            [text]="true"
+            ariaLabel="Редактировать"
+            (onClick)="startEdit(l)"
+          ></p-button>
+          <p-button
+            type="button"
+            icon="pi pi-trash"
+            [rounded]="true"
+            [text]="true"
+            [severity]="'danger'"
+            ariaLabel="Удалить"
+            (onClick)="deleteUser(l)"
+          ></p-button>
+        </div>
+      </ng-container>
+    </div>
+  </div>
+
+  <p-divider></p-divider>
+
+  <div class="members">
+    <div class="title">Участники</div>
+    <div class="empty" *ngIf="members().length === 0">Пока никого нет</div>
+    <div class="user-card" *ngFor="let m of members()">
+      <ng-container *ngIf="editingUser() !== m; else editUserTpl">
+        <div class="left">
+          <div class="name">{{ m.name }}</div>
+           <div class="role" *ngIf="displayRole(m) as roleText">{{ roleText }}</div>
+        </div>
+        <div class="actions">
+          <p-button
+            type="button"
+            icon="pi pi-pencil"
+            [rounded]="true"
+            [text]="true"
+            ariaLabel="Редактировать"
+            (onClick)="startEdit(m)"
+          ></p-button>
+          <p-button
+            type="button"
+            icon="pi pi-trash"
+            [rounded]="true"
+            [text]="true"
+            [severity]="'danger'"
+            ariaLabel="Удалить"
+            (onClick)="deleteUser(m)"
+          ></p-button>
+        </div>
+      </ng-container>
+    </div>
+  </div>
+
+  <p-divider></p-divider>
+
+  <div class="add-actions" *ngIf="!showAddForm()">
+    <p-button
+      class="add-user"
+      type="button"
+      icon="pi pi-plus"
+      [rounded]="true"
+      [text]="true"
+      ariaLabel="Добавить участника"
+      (onClick)="showAddForm.set(true)"
+    ></p-button>
+  </div>
+
+  <form *ngIf="showAddForm()" class="add-form" [formGroup]="addForm" (ngSubmit)="addUser()">
+    <div class="field">
+      <label for="userName">Имя</label>
+      <input id="userName" pInputText formControlName="name" />
+    </div>
+
+    <div class="field">
+      <label for="userRole">Роль</label>
+      <p-dropdown
+        inputId="userRole"
+        [options]="roleOptions"
+        optionLabel="label"
+        optionValue="value"
+        formControlName="role"
+        [appendTo]="'body'"
+        [showClear]="false"
+      ></p-dropdown>
+    </div>
+
+    <div class="buttons">
+      <p-button type="submit" label="Добавить" [loading]="isAdding()" [disabled]="isAdding()"></p-button>
+      <p-button type="button" label="Отмена" [text]="true" [severity]="'secondary'" (onClick)="cancelAdd()"></p-button>
+    </div>
+  </form>
+</div>
+
+<ng-template #editUserTpl>
+  <div class="user-card edit">
+    <form class="edit-form" [formGroup]="editForm" (ngSubmit)="saveEdit()">
+      <div class="field">
+        <label for="editName">Имя</label>
+        <input id="editName" pInputText formControlName="name" />
+      </div>
+
+      <div class="field">
+        <label for="editRole">Роль</label>
+        <p-dropdown
+          inputId="editRole"
+          [options]="roleOptions"
+          optionLabel="label"
+          optionValue="value"
+          formControlName="role"
+          [appendTo]="'body'"
+          [showClear]="false"
+        ></p-dropdown>
+      </div>
+
+      <div class="actions">
+        <p-button
+          type="submit"
+          icon="pi pi-check"
+          [rounded]="true"
+          [text]="true"
+          ariaLabel="Сохранить"
+          [loading]="isEditing()"
+          [disabled]="isEditing()"
+        ></p-button>
+        <p-button
+          type="button"
+          icon="pi pi-times"
+          [rounded]="true"
+          [text]="true"
+          [severity]="'secondary'"
+          ariaLabel="Отмена"
+          (onClick)="cancelEdit()"
+        ></p-button>
+      </div>
+    </form>
+  </div>
+</ng-template>

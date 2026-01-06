@@ -1,0 +1,105 @@
+<div class="party-page">
+    <div class="party-shell flex flex-col h-full border border-surface rounded bg-surface-0 dark:bg-surface-900 overflow-hidden">
+        <div class="party-header border-b">
+            <div class="party-title-row">
+                <div class="party-title">Список всех пачек Shaders</div>
+
+                <button
+                    type="button"
+                    pButton
+                    icon="pi pi-info-circle"
+                    class="info-btn p-button-text p-button-secondary"
+                    (mouseenter)="showInfo($event, infoPanel)"
+                    (mouseleave)="scheduleHideInfo(infoPanel)"
+                    (focus)="showInfo($event, infoPanel)"
+                    (blur)="scheduleHideInfo(infoPanel)"
+                    aria-label="Информация"
+                ></button>
+
+                <p-overlayPanel #infoPanel styleClass="info-popover" [dismissable]="false" [showCloseIcon]="false">
+                    <div class="info-content" (mouseenter)="cancelHideInfo()" (mouseleave)="scheduleHideInfo(infoPanel)">
+                        <div class="info-row">
+                            <span>Количество паков</span>
+                            <p-badge [value]="groupCount()" [severity]="'secondary'"></p-badge>
+                        </div>
+                        <div class="info-row">
+                            <span>Количество человек</span>
+                            <p-badge [value]="peopleCount()" [severity]="'secondary'"></p-badge>
+                        </div>
+                    </div>
+                </p-overlayPanel>
+            </div>
+
+            <div class="create-actions" *ngIf="!showCreateForm()">
+                <p-button
+                    type="button"
+                    icon="pi pi-plus"
+                    [rounded]="true"
+                    [text]="true"
+                    ariaLabel="Добавить группу"
+                    (onClick)="showCreateForm.set(true)"
+                ></p-button>
+            </div>
+        </div>
+
+        <div class="party-content">
+        <form *ngIf="showCreateForm()" class="create-form" [formGroup]="createForm" (ngSubmit)="createGroup()">
+            <div class="field">
+                <label for="displayName">Название группы</label>
+                <input id="displayName" pInputText formControlName="displayName" />
+            </div>
+
+            <div class="field">
+                <label for="leaderName">Лидер (имя)</label>
+                <input id="leaderName" pInputText formControlName="leaderName" />
+            </div>
+
+            <div class="buttons">
+                <p-button type="submit" label="Создать" [loading]="isCreating()" [disabled]="isCreating()"></p-button>
+                <p-button type="button" label="Отмена" [text]="true" [severity]="'secondary'"
+                    (onClick)="cancelCreate()"></p-button>
+            </div>
+        </form>
+
+        <p-accordion class="groups" [multiple]="true">
+            <p-accordionTab *ngFor="let group of sortedGroups(); trackBy: trackByGroupId">
+                <ng-template pTemplate="header">
+                    <div class="group-header">
+                        <div class="group-header-left">
+                            <span class="group-name" *ngIf="editingGroupId() !== group.id">{{ group.displayName
+                                }}</span>
+                            <p-badge class="group-badge" [value]="group.users.length" [severity]="'secondary'"></p-badge>
+                            <input *ngIf="editingGroupId() === group.id" type="text" pInputText class="group-edit"
+                                [formControl]="editGroupForm.controls.displayName" (click)="$event.stopPropagation()"
+                                (keydown.enter)="$event.preventDefault(); $event.stopPropagation(); saveGroup(group)" />
+                        </div>
+
+                        <div class="group-header-actions" (click)="$event.stopPropagation()">
+                            <ng-container *ngIf="editingGroupId() === group.id; else viewActions">
+                                <p-button type="button" icon="pi pi-check" [rounded]="true" [text]="true"
+                                    ariaLabel="Сохранить" [loading]="isGroupSaving()" [disabled]="isGroupSaving()"
+                                    (onClick)="$event.stopPropagation(); saveGroup(group)"></p-button>
+
+                                <p-button type="button" icon="pi pi-times" [rounded]="true" [text]="true"
+                                    [severity]="'secondary'" ariaLabel="Отмена"
+                                    (onClick)="$event.stopPropagation(); cancelEditGroup()"></p-button>
+                            </ng-container>
+
+                            <ng-template #viewActions>
+                                <p-button type="button" icon="pi pi-pencil" [rounded]="true" [text]="true"
+                                    ariaLabel="Редактировать группу"
+                                    (onClick)="$event.stopPropagation(); startEditGroup(group)"></p-button>
+
+                                <p-button type="button" icon="pi pi-trash" [rounded]="true" [text]="true"
+                                    [severity]="'danger'" ariaLabel="Удалить группу"
+                                    (onClick)="$event.stopPropagation(); deleteGroup(group)"></p-button>
+                            </ng-template>
+                        </div>
+                    </div>
+                </ng-template>
+                <app-const-party [group]="group"></app-const-party>
+            </p-accordionTab>
+        </p-accordion>
+        </div>
+    </div>
+</div>

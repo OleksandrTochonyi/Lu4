@@ -1,23 +1,51 @@
-    <p-toast></p-toast>
+<p-toast></p-toast>
 
-    <p-menubar [model]="items">
-        <ng-template #start>
-          <img class="main-logo" src="https://static.mw2.global/main_page/assets/logo_w.png" />
-        </ng-template>
-        <ng-template #item let-item let-root="root">
-            <a pRipple class="flex items-center px-4 py-3 cursor-pointer gap-2">
+<p-menubar *ngIf="showMenubar" [model]="items">
+    <ng-template #start>
+        <img class="main-logo" src="https://static.mw2.global/main_page/assets/logo_w.png" />
+    </ng-template>
+    <ng-template #item let-item let-root="root">
+        <ng-container *ngIf="item.routerLink; else plainMenuItem">
+            <a
+                pRipple
+                class="flex items-center px-4 py-3 cursor-pointer gap-2"
+                [routerLink]="item.routerLink"
+                routerLinkActive="menu-link-active"
+                [routerLinkActiveOptions]="{ exact: item.routerLink === '/' }"
+            >
                 <i [ngClass]="['ms-auto', item.icon]"></i>
                 <span>{{ item.label }}</span>
                 <p-badge *ngIf="item.badge" [ngClass]="{ 'ms-auto': !root }" [value]="item.badge" />
-                <span *ngIf="item.shortcut" class="ms-auto border border-surface rounded bg-emphasis text-muted-color text-xs p-1">{{ item.shortcut }}</span>
+                <span *ngIf="item.shortcut"
+                    class="ms-auto border border-surface rounded bg-emphasis text-muted-color text-xs p-1">{{ item.shortcut
+                    }}</span>
+                <i *ngIf="item.items" [ngClass]="['ms-auto pi', root ? 'pi-angle-down' : 'pi-angle-right']"></i>
+            </a>
+        </ng-container>
+
+        <ng-template #plainMenuItem>
+            <a pRipple class="flex items-center px-4 py-3 cursor-pointer gap-2" href="#">
+                <i [ngClass]="['ms-auto', item.icon]"></i>
+                <span>{{ item.label }}</span>
+                <p-badge *ngIf="item.badge" [ngClass]="{ 'ms-auto': !root }" [value]="item.badge" />
+                <span *ngIf="item.shortcut"
+                    class="ms-auto border border-surface rounded bg-emphasis text-muted-color text-xs p-1">{{ item.shortcut
+                    }}</span>
                 <i *ngIf="item.items" [ngClass]="['ms-auto pi', root ? 'pi-angle-down' : 'pi-angle-right']"></i>
             </a>
         </ng-template>
-        <ng-template #end>
-            <div class="flex items-center user-icon">
-                <i [ngClass]="['ms-auto pi pi-user']"></i>
-            </div>
-        </ng-template>
-    </p-menubar>
+    </ng-template>
+    <ng-template #end>
+        <button
+            type="button"
+            class="flex items-center user-icon"
+            (click)="logout()"
+            aria-label="Logout"
+            title="Logout"
+        >
+            <i [ngClass]="['ms-auto pi pi-sign-out']"></i>
+        </button>
+    </ng-template>
+</p-menubar>
 
-<app-rb-overview></app-rb-overview>
+<router-outlet></router-outlet>

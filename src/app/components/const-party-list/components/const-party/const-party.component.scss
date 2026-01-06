@@ -1,0 +1,112 @@
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #f8f9fa;
+}
+
+.title {
+  font-weight: 600;
+}
+
+.name {
+  font-weight: 600;
+}
+
+.role {
+  opacity: 0.8;
+}
+
+.empty {
+  opacity: 0.7;
+}
+
+.add-user {
+  background: white;
+  border-radius: 50%;
+}
+
+.user-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #e9ecef;
+  border: 1px solid gainsboro;
+
+  &--leader {
+    background: #dee2e6;
+  }
+}
+
+.members,
+.leader {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.user-card.edit {
+  align-items: stretch;
+}
+
+.edit-form {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.add-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.add-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+@media (max-width: 900px) {
+  .edit-form {
+    grid-template-columns: 1fr;
+  }
+
+  .add-form {
+    grid-template-columns: 1fr;
+  }
+
+  .buttons {
+    justify-content: flex-start;
+  }
+}

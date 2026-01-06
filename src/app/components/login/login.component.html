@@ -1,0 +1,43 @@
+<div class="login-wrap">
+  <p-card header="Sign in">
+    <form class="login-form" [formGroup]="form" (ngSubmit)="submit()">
+      <div class="field">
+        <label for="email">Email</label>
+        <input
+          id="email"
+          type="email"
+          pInputText
+          formControlName="email"
+          autocomplete="email"
+        />
+        <small class="error" *ngIf="form.controls.email.touched && form.controls.email.invalid">
+          Enter a valid email.
+        </small>
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <p-password
+          inputId="password"
+          formControlName="password"
+          [feedback]="false"
+          [toggleMask]="true"
+          autocomplete="current-password"
+        ></p-password>
+        <small
+          class="error"
+          *ngIf="form.controls.password.touched && form.controls.password.invalid"
+        >
+          Password is required (min 6 chars).
+        </small>
+      </div>
+
+      <p-button
+        type="submit"
+        label="Login"
+        [loading]="isSubmitting"
+        [disabled]="isSubmitting"
+      ></p-button>
+    </form>
+  </p-card>
+</div>
