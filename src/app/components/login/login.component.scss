@@ -43,6 +43,15 @@
   gap: 6px;
 }
 
+:host {
+  ::ng-deep {
+    .p-password,
+    .p-password-input {
+      width: 100%;
+    }
+  }
+}
+
 .error {
   color: var(--p-red-500);
 }
