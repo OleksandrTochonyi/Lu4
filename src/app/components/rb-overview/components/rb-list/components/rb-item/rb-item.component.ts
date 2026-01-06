@@ -9,6 +9,7 @@ import { TagModule } from 'primeng/tag';
 import { timer } from 'rxjs';
 
 import { RbStatus } from '../../../../../../constants/status';
+import { TgService } from '../../../../../../services/tg.service';
 
 @Component({
   selector: 'app-rb-item',
@@ -19,6 +20,7 @@ import { RbStatus } from '../../../../../../constants/status';
 })
 export class RbItemComponent implements OnInit {
   private destroyRef = inject(DestroyRef);
+  private tgService = inject(TgService);
 
   rb: any = input();
   showDetails = input(true);
@@ -58,7 +60,7 @@ export class RbItemComponent implements OnInit {
     }
     if (now >= min && now <= max) return RbStatus.InResp;
     if (now > max && now < secondMin) {
-      if (secondMin - now <= hourMs) return RbStatus.SoonResp;
+      if (secondMin - now <= hourMs) return RbStatus.SoonSecondResp;
       return RbStatus.FirstRespPassed;
     }
     if (now >= secondMin && now <= secondMax) return RbStatus.SecondResp;
@@ -77,6 +79,7 @@ export class RbItemComponent implements OnInit {
     if (s === RbStatus.FirstRespPassed) return 'danger';
     if (s === RbStatus.Missed) return 'contrast';
     if (s === RbStatus.SoonResp) return 'warn';
+    if (s === RbStatus.SoonSecondResp) return 'warn';
     return 'secondary';
   });
 
@@ -135,7 +138,8 @@ export class RbItemComponent implements OnInit {
     if (s === RbStatus.InResp) return 'В респе уже';
     if (s === RbStatus.FirstRespPassed) return 'До 2-го мин. респа';
     if (s === RbStatus.SecondResp) return 'Во 2м респе уже';
-    if (s === RbStatus.SoonResp) return 'Скоро респ';
+    if (s === RbStatus.SoonResp) return 'Первый респ через';
+    if (s === RbStatus.SoonSecondResp) return 'Второй респ через';
     return 'До мин. респа';
   });
 
@@ -144,10 +148,13 @@ export class RbItemComponent implements OnInit {
     if (!rb) return null;
 
     const s = this.derivedStatus();
+    const nowMs = this.now();
     if (s === RbStatus.Missed) return null;
     if (s === RbStatus.InResp) return rb.maxResp ?? null;
     if (s === RbStatus.FirstRespPassed) return rb.secondMinResp ?? null;
     if (s === RbStatus.SecondResp) return this.addHours(rb.secondMaxResp ?? null, rb?.meta?.plusMinusRespTime);
+    if (s === RbStatus.SoonResp) return rb.minResp ?? null;
+    if (s === RbStatus.SoonSecondResp) return rb.secondMinResp ?? null;
     return rb.minResp ?? null;
   });
 
@@ -322,7 +329,10 @@ export class RbItemComponent implements OnInit {
     const rb = this.rb();
     const rbName = String(rb?.displayName ?? rb?.name ?? '').trim();
     const voiceText = `РБ - ${rbName || '???'} вошел в респ! Хули сидишь? Пиздуй Чекать!`;
-    console.log('[rb] playRespStartSound voiceText:', voiceText);
+    console.log(this.rb())
+
+    const tgText = `РБ ${rbName || '???'} ${rb.status === RbStatus.SoonResp ? 'зашел в респ!': 'зашел во второй респ! Чуть менее внимательно, но -'} Пиздуй чекать!`
+    void this.tgService.sendMessageToTg(tgText).catch(() => null);
 
     // Best-effort TTS (may require prior user interaction in the browser).
     try {

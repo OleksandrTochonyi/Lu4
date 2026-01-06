@@ -177,7 +177,7 @@ export class RbOverviewComponent {
     }
     if (now >= min && now <= max) return RbStatus.InResp;
     if (now > max && now < secondMin) {
-      if (secondMin - now <= hourMs) return RbStatus.SoonResp;
+      if (secondMin - now <= hourMs) return RbStatus.SoonSecondResp;
       return RbStatus.FirstRespPassed;
     }
     if (now >= secondMin && now <= secondMax) return RbStatus.SecondResp;
