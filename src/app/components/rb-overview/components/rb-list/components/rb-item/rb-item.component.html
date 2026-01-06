@@ -20,7 +20,7 @@
             </div>
 
             <div class="time-info flex flex-col sm:flex-row sm:items-end gap-6 w-full">
-                <div class="w-full sm:w-56">
+                <div class="dead-time w-full sm:w-56">
                     <label class="block font-bold mb-2" for="dead-time">Время убийства</label>
                     <div class="flex items-center gap-2">
                         <p-datepicker inputId="dead-time" class="date-input flex-1 w-full" [(ngModel)]="deadTime"
@@ -31,7 +31,7 @@
                     </div>
                 </div>
 
-                <div class="w-full flex gap-3">
+                <div class="resps-info w-full flex gap-3">
                     @if(showDetails()) {
                     <div>
                         <label class="block font-bold mb-2">Мин. респ</label>

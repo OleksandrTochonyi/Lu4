@@ -51,6 +51,24 @@
   .rb-img {
     width: 200px;
   }
+
+  .resps-info {
+    flex-direction: column !important;
+    max-width: 207px;
+    place-self: center;
+  }
+
+  .dead-time {
+    justify-items: center !important;
+  }
+
+  .actions {
+    align-self: center !important;
+  }
+
+  .title-wrapper {
+    text-align: center;
+  }
 }
 
 .small-details {
