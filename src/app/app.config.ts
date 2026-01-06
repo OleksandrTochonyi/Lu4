@@ -20,7 +20,12 @@ export const appConfig: ApplicationConfig = {
     providePrimeNG({
       ripple: true,
       theme: {
-        preset: Aura
+        preset: Aura,
+        options: {
+          // Force PrimeNG to stay in light mode even if the OS/browser is in dark mode.
+          // (We never add this class, so dark tokens never activate.)
+          darkModeSelector: '.never-dark',
+        },
       }
     }), provideFirebaseApp(() => initializeApp(environment.firebase
     )), provideAuth(() => getAuth()), provideFirestore(() => getFirestore())
