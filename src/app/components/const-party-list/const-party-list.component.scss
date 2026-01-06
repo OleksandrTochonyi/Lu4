@@ -17,6 +17,7 @@
   gap: 16px;
   flex: 1;
   min-height: 0;
+  padding-bottom: 8px;
 }
 
 .party-shell {
@@ -143,6 +144,7 @@
     .p-accordionheader {
       border: 1px solid gainsboro !important;
       background: #f8f9fa;
+      padding: 12px;
     }
 
     .p-accordioncontent-content {
