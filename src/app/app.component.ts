@@ -12,32 +12,40 @@ import { MenuItem } from 'primeng/api';
 
 @Component({
   selector: 'app-root',
-    imports: [
-        CommonModule,
-        MenubarModule,
-        BadgeModule,
-        InputTextModule,
-        AvatarModule,
-        RippleModule,
-        ToastModule,
-        RbOverviewComponent,
-    ],
+  imports: [
+    CommonModule,
+    MenubarModule,
+    BadgeModule,
+    InputTextModule,
+    AvatarModule,
+    RippleModule,
+    ToastModule,
+    RbOverviewComponent,
+  ],
   templateUrl: './app.component.html',
-  styleUrl: './app.component.scss'
+  styleUrl: './app.component.scss',
 })
 export class AppComponent {
-      items: MenuItem[] | undefined;
+  items: MenuItem[] | undefined;
 
-    ngOnInit() {
-        this.items = [
-            {
-                label: 'Home',
-                icon: 'pi pi-home',
-            },
-            {
-                label: 'Projects',
-                icon: 'pi pi-search',
-            },
-        ];
-    }
+  ngOnInit() {
+    this.items = [
+      {
+        label: 'Home',
+        icon: 'pi pi-home',
+      },
+      {
+        label: 'Warehouse',
+        icon: 'pi pi-warehouse',
+      },
+      {
+        label: 'Clan Info',
+        icon: 'pi pi-info-circle',
+      },
+      {
+        label: 'Statistics',
+        icon: 'pi pi-chart-bar',
+      },
+    ];
+  }
 }
