@@ -139,6 +139,7 @@
                                         icon="pi pi-pencil"
                                         [rounded]="true"
                                         [text]="true"
+                                        styleClass="detail-action detail-action--edit"
                                         ariaLabel="Редактировать группу"
                                         (onClick)="startEditGroup(group)"
                                     ></p-button>
@@ -148,7 +149,7 @@
                                         icon="pi pi-trash"
                                         [rounded]="true"
                                         [text]="true"
-                                        [severity]="'danger'"
+                                        styleClass="detail-action detail-action--delete"
                                         ariaLabel="Удалить группу"
                                         (onClick)="confirmDeleteGroup(group)"
                                     ></p-button>

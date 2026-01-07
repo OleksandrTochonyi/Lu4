@@ -1,0 +1,379 @@
+<div class="session-page">
+  <p-confirmDialog></p-confirmDialog>
+  <div class="session-header">
+    <h1 class="session-title">RB Sessions</h1>
+    <p class="session-subtitle">
+      История убийств рейд-боссов, участники пачек и полученный лут.
+    </p>
+  </div>
+
+  <div class="top-controls" *ngIf="!showForm()">
+    <div class="session-actions">
+      <button
+        pButton
+        type="button"
+        icon="pi pi-cog"
+        class="settings-button"
+        [class.settings-button--active]="hasSavedSettings()"
+        (click)="onToggleSettings()"
+      ></button>
+      <button
+        pButton
+        type="button"
+        label="+ Добавить"
+        class="add-button"
+        (click)="onStartCreate()"
+      ></button>
+    </div>
+    <div class="search-bar">
+      <input
+        type="text"
+        class="search-input"
+        placeholder="Поиск по РБ, группе, участнику или дропу"
+        [value]="searchTerm()"
+        (input)="onSearchEvent($event)"
+      />
+    </div>
+  </div>
+
+  <div class="settings-panel" *ngIf="settingsVisible()">
+    <div class="settings-card">
+      <div class="settings-header">
+        <div class="settings-header__titles">
+          <h3 class="settings-title">Настройки по умолчанию</h3>
+          <p class="settings-subtitle">
+            Отметь участников, которые будут автоматически выбраны при создании нового события.
+          </p>
+        </div>
+      </div>
+
+      <div class="settings-groups" *ngIf="groupOptions().length; else settingsNoGroups">
+        <div class="settings-group" *ngFor="let group of groupOptions(); trackBy: trackByGroup">
+          <div class="settings-group__header">
+            <span class="settings-group__name">{{ group.displayName }}</span>
+            <span class="settings-group__count">
+              {{ settingsSelectedCount(group.id) }}/{{ group.users.length }}
+            </span>
+          </div>
+
+          <div class="settings-users">
+            <label class="settings-user" *ngFor="let user of group.users; trackBy: trackByUser">
+              <input
+                type="checkbox"
+                class="settings-checkbox"
+                [checked]="isSettingsUserSelected(group.id, user)"
+                (change)="onSettingsUserToggle(group.id, user, $event)"
+              />
+              <span class="settings-user__name">{{ user.name }}</span>
+              <span class="settings-user__role">{{ user.role ?? '—' }}</span>
+            </label>
+          </div>
+        </div>
+      </div>
+      <ng-template #settingsNoGroups>
+        <div class="settings-empty">Нет доступных групп.</div>
+      </ng-template>
+
+      <div class="settings-actions">
+        <button
+          pButton
+          type="button"
+          label="Сохранить"
+          class="settings-save"
+          (click)="onSaveSettings()"
+        ></button>
+        <button
+          pButton
+          type="button"
+          label="Отмена"
+          class="settings-cancel"
+          (click)="onCancelSettings()"
+        ></button>
+        <button
+          pButton
+          type="button"
+          label="Сбросить"
+          class="settings-reset"
+          (click)="onResetSettings()"
+        ></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="session-form" *ngIf="showForm()">
+    <div class="form-card">
+      <div class="form-header">
+        <div>
+          <h2 class="form-title">
+            {{ isEditing() ? 'Редактировать событие' : 'Добавить событие' }}
+          </h2>
+          <p class="form-subtitle">
+            {{
+              isEditing()
+                ? 'Измени данные о рейд-боссе, участниках и дропе.'
+                : 'Сохрани время убийства, участвовавшие группы и полученный дроп.'
+            }}
+          </p>
+        </div>
+        <div class="form-meta" *ngIf="selectedRb() as rb">
+          <span class="form-meta__name">{{ rb.displayName }}</span>
+          <span class="form-meta__lvl" *ngIf="rb.lvl as lvl">Lv. {{ lvl }}</span>
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <div class="form-field">
+          <label class="form-label">Рейд-босс</label>
+          <p-dropdown
+            class="form-control"
+            [options]="rbOptions()"
+            optionLabel="displayName"
+            optionValue="id"
+            [filter]="true"
+            filterBy="displayName"
+            placeholder="Выберите рейд-босса"
+            appendTo="body"
+            [(ngModel)]="selectedRbIdValue"
+          ></p-dropdown>
+        </div>
+
+        <div class="form-field">
+          <label class="form-label">Дата и время убийства</label>
+          <p-calendar
+            class="form-control"
+            appendTo="body"
+            [showTime]="true"
+            hourFormat="24"
+            [showIcon]="true"
+            iconDisplay="input"
+            dateFormat="dd.mm.yy"
+            [(ngModel)]="killDateValue"
+          ></p-calendar>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section__header">
+          <h3 class="form-section__title">Участники</h3>
+          <span class="form-section__counter">
+            {{ totalSelectedParticipants() }}
+          </span>
+        </div>
+
+        <div class="participants-form" *ngIf="groupOptions().length; else noGroups">
+          <div
+            class="participant-group"
+            *ngFor="let group of groupOptions(); trackBy: trackByGroup"
+          >
+            <div class="participant-group__header">
+              <span class="participant-group__name">{{ group.displayName }}</span>
+              <span class="participant-group__count">
+                {{ selectedCountForGroup(group.id) }}/{{ group.users.length }}
+              </span>
+            </div>
+
+            <div class="participant-users">
+              <label
+                class="participant-user"
+                *ngFor="let user of group.users; trackBy: trackByUser"
+                [attr.for]="'participant-' + group.id + '-' + user.name"
+              >
+                <input
+                  type="checkbox"
+                  class="participant-checkbox"
+                  [id]="'participant-' + group.id + '-' + user.name"
+                  [checked]="isParticipantSelected(group.id, user)"
+                  (change)="onParticipantToggle(group.id, user, $event)"
+                />
+                <span class="participant-user__name">{{ user.name }}</span>
+                <span class="participant-user__role">{{ user.role }}</span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <ng-template #noGroups>
+          <div class="form-empty">Нет доступных групп.</div>
+        </ng-template>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section__header">
+          <h3 class="form-section__title">Лут</h3>
+          <span class="form-section__hint">Укажите количество предметов</span>
+        </div>
+
+        <div class="loot-form" *ngIf="availableLoot().length; else noLootOptions">
+          <div class="loot-row" *ngFor="let loot of availableLoot(); trackBy: trackByAvailableLoot">
+            <div class="loot-info">
+              <img class="loot-info__img" *ngIf="lootImage(loot) as img" [src]="img" [alt]="lootDisplayName(loot)" />
+              <div class="loot-info__meta">
+                <span class="loot-info__name">{{ lootDisplayName(loot) }}</span>
+                <span class="loot-info__id" *ngIf="lootId(loot) as lootKey">{{ lootKey }}</span>
+              </div>
+            </div>
+
+            <input
+              type="number"
+              class="loot-input"
+              [value]="lootAmount(lootId(loot))"
+              min="0"
+              (input)="onLootAmountInput(lootId(loot), $event)"
+            />
+          </div>
+        </div>
+        <ng-template #noLootOptions>
+          <div class="form-empty">Для выбранного РБ нет списка лута.</div>
+        </ng-template>
+      </div>
+
+      <div class="form-actions">
+        <button
+          pButton
+          type="button"
+          [label]="isEditing() ? 'Обновить событие' : 'Сохранить событие'"
+          class="form-submit"
+          [disabled]="creating() || !hasPayload()"
+          (click)="onSubmit()"
+        ></button>
+        <button
+          pButton
+          type="button"
+          label="Отмена"
+          class="form-cancel"
+          [disabled]="creating()"
+          (click)="onCancelCreate()"
+        ></button>
+        <span class="form-hint" *ngIf="!hasPayload()">
+          Отметьте участников и укажите дроп, чтобы сохранить событие.
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <p-table
+    class="session-table"
+    [value]="filteredSessions()"
+    dataKey="id"
+    [loading]="loading()"
+    [responsiveLayout]="'scroll'"
+  >
+    <ng-template pTemplate="header">
+      <tr>
+        <th>Рейд-босс</th>
+        <th>Время убийства</th>
+        <th class="participants-column">Участники</th>
+        <th>Лут</th>
+        <th class="actions-column">Действия</th>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="body" let-session>
+      <tr>
+        <td>
+          <div class="rb-cell">
+            <b class="rb-lvl" *ngIf="session?.rb?.lvl as lvl">[{{ lvl }}]</b>
+            <span class="rb-name">{{ session?.rb?.displayName ?? '—' }}</span>
+          </div>
+        </td>
+        <td>
+          <span class="rb-kill-date">
+            {{ session?.killDate ? (session.killDate | date : 'd MMMM y, HH:mm' : 'Europe/Kyiv') : '—' }}
+          </span>
+        </td>
+        <td>
+          <div class="participants" *ngIf="session?.participants.length; else noParticipants">
+            <div
+              class="participant"
+              *ngFor="let participant of session.participants; trackBy: trackByParticipant"
+            >
+              <button
+                type="button"
+                class="participant-badge"
+                (click)="panel.toggle($event)"
+              >
+                <span class="participant-name">
+                  {{ participantGroupName(participant) ?? 'Группа' }}
+                </span>
+                <span class="participant-count">
+                  {{ participantUserCount(participant) }}
+                </span>
+              </button>
+
+              <p-overlayPanel
+                #panel
+                appendTo="body"
+                [dismissable]="true"
+                [showTransitionOptions]="'150ms'"
+                [hideTransitionOptions]="'120ms'"
+                [styleClass]="'participant-popover'"
+              >
+                <div class="popover">
+                  <div class="popover-header">
+                    {{ participantGroupName(participant) ?? 'Участники' }}
+                  </div>
+                  <div class="popover-body" *ngIf="participant?.users?.length; else noUsers">
+                    <ul class="popover-list">
+                      <li class="popover-list-item" *ngFor="let user of participant.users">
+                        {{ user }}
+                      </li>
+                    </ul>
+                  </div>
+                  <ng-template #noUsers>
+                    <div class="popover-empty">Участники не указаны</div>
+                  </ng-template>
+                </div>
+              </p-overlayPanel>
+            </div>
+          </div>
+          <ng-template #noParticipants>—</ng-template>
+        </td>
+        <td>
+          <div class="loot-list" *ngIf="session?.loot.length; else noLoot">
+            <div class="loot-item" *ngFor="let loot of session.loot; trackBy: trackByLoot">
+              <span class="loot-amount">{{ loot?.amount ?? 0 }}×</span>
+              <span class="loot-name">
+                {{ loot?.possibleLoot?.displayName ?? loot?.possibleLoot?.name ?? '—' }}
+              </span>
+            </div>
+          </div>
+          <ng-template #noLoot>—</ng-template>
+        </td>
+        <td>
+          <div class="row-actions">
+            <button
+              pButton
+              type="button"
+              class="action-button action-button--edit"
+              icon="pi pi-pencil"
+              (click)="onStartEdit(session)"
+            ></button>
+            <button
+              pButton
+              type="button"
+              class="action-button action-button--delete"
+              icon="pi pi-trash"
+              (click)="onRequestDelete(session)"
+            ></button>
+          </div>
+        </td>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="emptymessage">
+      <tr>
+        <td colspan="5">Пока нет сохранённых сессий.</td>
+      </tr>
+    </ng-template>
+  </p-table>
+
+  <div class="session-empty" *ngIf="!loading() && !sessions().length">
+    Пока нет сохранённых сессий.
+  </div>
+
+  <div class="session-cards" *ngIf="sessions().length">
+    <app-rb-session-item
+      *ngFor="let session of sessions(); trackBy: trackBySession"
+      [session]="session"
+    ></app-rb-session-item>
+  </div>
+</div>

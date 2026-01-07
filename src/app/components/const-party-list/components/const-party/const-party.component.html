@@ -13,6 +13,7 @@
           icon="pi pi-pencil"
           [rounded]="true"
           [text]="true"
+          styleClass="users-action users-action--edit"
           ariaLabel="Редактировать"
           (onClick)="startEdit(l)"
         ></p-button>
@@ -21,7 +22,7 @@
           icon="pi pi-trash"
           [rounded]="true"
           [text]="true"
-          [severity]="'danger'"
+          styleClass="users-action users-action--delete"
           ariaLabel="Удалить"
           (onClick)="confirmDeleteUser(l)"
         ></p-button>
@@ -73,6 +74,7 @@
               icon="pi pi-pencil"
               [rounded]="true"
               [text]="true"
+              styleClass="users-action users-action--edit"
               ariaLabel="Редактировать"
               (onClick)="startEdit(u)"
             ></p-button>
@@ -81,7 +83,7 @@
               icon="pi pi-trash"
               [rounded]="true"
               [text]="true"
-              [severity]="'danger'"
+              styleClass="users-action users-action--delete"
               ariaLabel="Удалить"
               (onClick)="confirmDeleteUser(u)"
             ></p-button>

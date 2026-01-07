@@ -61,6 +61,44 @@
   gap: 4px;
 }
 
+:host {
+  ::ng-deep {
+    .users-action.p-button {
+      border: none;
+      background: transparent;
+      color: inherit;
+      transition: color 120ms ease, background-color 120ms ease;
+      padding: 0.4rem;
+    }
+
+    .users-action.p-button .p-button-icon {
+      margin: 0;
+    }
+
+    .users-action--edit.p-button {
+      color: #f97316;
+    }
+
+    .users-action--edit.p-button:hover {
+      color: #ea580c;
+      background: rgba(249, 115, 22, 0.24);
+    }
+
+    .users-action--delete.p-button {
+      color: #dc2626;
+    }
+
+    .users-action--delete.p-button:hover {
+      color: #b91c1c;
+      background: rgba(220, 38, 38, 0.24);
+    }
+
+    .users-action.p-button:focus-visible {
+      box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35);
+    }
+  }
+}
+
 .user-name {
   font-weight: 600;
 }

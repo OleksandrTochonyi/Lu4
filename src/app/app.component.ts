@@ -87,8 +87,9 @@ export class AppComponent {
         routerLink: '/users',
       },
       {
-        label: 'Warehouse',
-        icon: 'pi pi-warehouse',
+        label: 'Raids',
+        icon: 'pi pi-book',
+        routerLink: '/raids',
       },
       {
         label: 'Statistics',

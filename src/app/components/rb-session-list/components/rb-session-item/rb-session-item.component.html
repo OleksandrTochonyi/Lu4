@@ -1,0 +1,74 @@
+<div class="session-item">
+  <div class="session-item__header">
+    <div class="session-item__title">
+      {{ session().rb?.displayName ?? '—' }}
+      <span class="session-item__lvl" *ngIf="session().rb?.lvl as lvl">[{{ lvl }}]</span>
+    </div>
+
+    <div class="session-item__date" *ngIf="session().killDate as killDate">
+      {{ killDate | date: 'd MMMM y, HH:mm' : 'Europe/Kyiv' }}
+    </div>
+  </div>
+
+  <div class="session-item__section">
+    <div class="section-label">Участники</div>
+    <div class="section-value" *ngIf="session().participants.length; else noParticipants">
+      <div class="participant" *ngFor="let participant of session().participants">
+        <button
+          type="button"
+          class="participant-badge"
+          (click)="panel.toggle($event)"
+        >
+          <span class="participant-badge__name">
+            {{ participantGroupName(participant) ?? 'Группа' }}
+          </span>
+          <span class="participant-badge__count">
+            {{ participantUserCount(participant) }}
+          </span>
+        </button>
+
+        <p-overlayPanel
+          #panel
+          appendTo="body"
+          [dismissable]="true"
+          [showTransitionOptions]="'150ms'"
+          [hideTransitionOptions]="'120ms'"
+          [styleClass]="'participant-popover'"
+        >
+          <div class="popover">
+            <div class="popover-header">
+              {{ participantGroupName(participant) ?? 'Участники' }}
+            </div>
+            <div class="popover-body" *ngIf="participant?.users?.length; else noUsers">
+              <ul class="popover-list">
+                <li class="popover-list-item" *ngFor="let user of participant.users">
+                  {{ user }}
+                </li>
+              </ul>
+            </div>
+            <ng-template #noUsers>
+              <div class="popover-empty">Участники не указаны</div>
+            </ng-template>
+          </div>
+        </p-overlayPanel>
+      </div>
+    </div>
+  </div>
+
+  <div class="session-item__section">
+    <div class="section-label">Лут</div>
+    <div class="section-value" *ngIf="session().loot.length; else noLoot">
+      <div class="loot-row" *ngFor="let loot of session().loot">
+        {{ lootLabel(loot) }}
+      </div>
+    </div>
+  </div>
+
+  <ng-template #noParticipants>
+    <div class="section-placeholder">—</div>
+  </ng-template>
+
+  <ng-template #noLoot>
+    <div class="section-placeholder">—</div>
+  </ng-template>
+</div>
