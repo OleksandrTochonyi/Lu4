@@ -65,7 +65,7 @@
                 (change)="onSettingsUserToggle(group.id, user, $event)"
               />
               <span class="settings-user__name">{{ user.name }}</span>
-              <span class="settings-user__role">{{ user.role ?? '—' }}</span>
+              <span class="settings-user__role">{{ user.role || '—' }}</span>
             </label>
           </div>
         </div>
