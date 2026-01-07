@@ -28,6 +28,10 @@ export class RbItemComponent implements OnInit {
   deadTimeChanged = output<{ rb: any; deadTime: Date | null }>();
   deadTime: Date | null = null;
 
+  rbImageSrc = signal<string | null>(null);
+  private rbImageCandidates: string[] = [];
+  private rbImageCandidateIndex = 0;
+
   private lastCommittedMs: number | null = null;
 
   private lastMinRespMs: number | null = null;
@@ -186,6 +190,20 @@ export class RbItemComponent implements OnInit {
 
     effect(() => {
       const rb = this.rb();
+      const raw =
+        rb?.meta?.imageName ??
+        rb?.meta?.imageKey ??
+        rb?.meta?.image ??
+        rb?.meta?.imageUrl ??
+        null;
+
+      this.rbImageCandidates = this.buildRbImageCandidates(raw);
+      this.rbImageCandidateIndex = 0;
+      this.rbImageSrc.set(this.rbImageCandidates[0] ?? null);
+    });
+
+    effect(() => {
+      const rb = this.rb();
       const minResp: Date | null = rb?.minResp ?? null;
       const secondMinResp: Date | null = rb?.secondMinResp ?? null;
 
@@ -225,6 +243,43 @@ export class RbItemComponent implements OnInit {
         this.playRespStartSound();
       }
     });
+  }
+
+  onRbImageError(): void {
+    if (!this.rbImageCandidates.length) {
+      this.rbImageSrc.set(null);
+      return;
+    }
+
+    this.rbImageCandidateIndex += 1;
+    this.rbImageSrc.set(this.rbImageCandidates[this.rbImageCandidateIndex] ?? null);
+  }
+
+  private buildRbImageCandidates(raw: unknown): string[] {
+    if (typeof raw !== 'string') return [];
+
+    const value = raw.trim();
+    if (!value) return [];
+
+    const lower = value.toLowerCase();
+    if (lower.startsWith('http://') || lower.startsWith('https://') || lower.startsWith('data:') || lower.startsWith('blob:')) {
+      return [value];
+    }
+
+    if (lower.startsWith('assets/')) {
+      return [value];
+    }
+
+    const file = value.split('/').pop() ?? value;
+    if (!file) return [];
+
+    // If backend already sends extension, use it as-is.
+    if (file.includes('.')) {
+      return [`assets/images/${file}`];
+    }
+
+    // Try the common extensions we have in src/assets/images.
+    return [`assets/images/${file}.jpg`, `assets/images/${file}.png`, `assets/images/${file}.jfif`];
   }
 
   ngOnInit(): void {

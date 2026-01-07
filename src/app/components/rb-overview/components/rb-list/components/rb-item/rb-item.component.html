@@ -5,7 +5,11 @@
 >
     @if(showDetails()) {
     <div class="md:w-40 relative">
-        <img class="rb-img block xl:block mx-auto rounded-border" [src]="rb()?.meta?.imageUrl" />
+        <img
+            class="rb-img block xl:block mx-auto rounded-border"
+            [src]="'/assets/images/' + ((rb()?.meta?.imageUrl ?? '').trim() + '.jpg')"
+            [alt]="rb()?.displayName ?? ''"
+        />
     </div>
     }
     <div class="content-wrapper flex flex-col md:flex-row justify-between md:items-center flex-1 gap-6">
