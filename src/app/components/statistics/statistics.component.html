@@ -1,0 +1,282 @@
+<div class="statistics-page">
+  <div class="statistics-header">
+    <div class="header-text">
+      <h1 class="statistics-title">Статистика посещаемости</h1>
+      <p class="statistics-subtitle">
+        Аналитика по группам и участникам рейдов за выбранный период.
+      </p>
+    </div>
+
+    <div class="filter-panel">
+      <span class="filter-title">Период</span>
+      <div class="filter-inputs">
+        <p-calendar
+          [(ngModel)]="startDateModel"
+          dateFormat="dd.mm.yy"
+          [showIcon]="true"
+          placeholder="С даты"
+          [maxDate]="maxDate"
+        ></p-calendar>
+        <span class="filter-separator">—</span>
+        <p-calendar
+          [(ngModel)]="endDateModel"
+          dateFormat="dd.mm.yy"
+          [showIcon]="true"
+          placeholder="По дату"
+          [maxDate]="maxDate"
+        ></p-calendar>
+        <button
+          pButton
+          type="button"
+          label="Сбросить"
+          class="p-button-text p-button-sm"
+          (click)="resetRange()"
+          [disabled]="!startDateModel && !endDateModel"
+        ></button>
+      </div>
+    </div>
+  </div>
+
+  <ng-container *ngIf="!loading(); else loadingState">
+    <div class="summary-grid">
+      <p-card class="summary-card">
+        <ng-template pTemplate="header">
+          <div class="summary-label">Убито РБ</div>
+        </ng-template>
+        <div class="summary-value">{{ totalSessions() }}</div>
+        <div class="summary-extra">{{ periodDescription() }}</div>
+      </p-card>
+
+      <p-card class="summary-card" *ngIf="topParticipantGroup() as leader">
+        <ng-template pTemplate="header">
+          <div class="summary-label">Топ посещаемости по паку</div>
+        </ng-template>
+        <div class="summary-value">{{ leader.participantShare | number: '1.0-1' }}%</div>
+        <div class="summary-extra" >
+          Человек из пати - 
+          <ng-container>
+             {{ leader.name }}
+          </ng-container>
+        </div>
+      </p-card>
+
+      <p-card class="summary-card">
+        <ng-template pTemplate="header">
+          <div class="summary-label">Топ посещаемости по участникам</div>
+        </ng-template>
+        <div class="summary-value">{{ activeUserCount() }}</div>
+        <div class="summary-extra">
+          из {{ userStatistics().length }}
+          <ng-container *ngIf="topUser() as top">
+            · лидер {{ top.name }} ({{ top.percentage | number: '1.0-1' }}%)
+          </ng-container>
+        </div>
+      </p-card>
+    </div>
+
+    <div class="stat-section">
+      <p-card>
+        <ng-template pTemplate="header">
+          <div class="card-header-with-toggle">
+            <span class="card-header-title">
+              {{
+                groupMetricMode() === 'events'
+                  ? 'Участие паков в клановых ивентах'
+                  : 'Количество членов пака участвующих в ивенте'
+              }}
+            </span>
+            <div class="metric-toggle">
+              <button
+                pButton
+                type="button"
+                class="metric-toggle-button"
+                label="Пак"
+                (click)="setGroupMetricMode('events')"
+                [severity]="groupMetricMode() === 'events' ? 'primary' : 'secondary'"
+                [outlined]="groupMetricMode() !== 'events'"
+              ></button>
+              <button
+                pButton
+                type="button"
+                class="metric-toggle-button"
+                label="Люди"
+                (click)="setGroupMetricMode('participants')"
+                [severity]="groupMetricMode() === 'participants' ? 'primary' : 'secondary'"
+                [outlined]="groupMetricMode() !== 'participants'"
+              ></button>
+            </div>
+          </div>
+        </ng-template>
+
+        <ng-container *ngIf="groupStatistics() as groupStats">
+          <p-table
+            [value]="groupStats"
+            [paginator]="groupStats.length > 12"
+            [rows]="12"
+            [rowsPerPageOptions]="[12, 24, 48]"
+            [responsiveLayout]="'stack'"
+            dataKey="id"
+            class="statistics-table"
+          >
+            <ng-template pTemplate="header">
+              <tr>
+                <th>Группа</th>
+                <th class="numeric">Посещения</th>
+                <th class="percentage" *ngIf="groupMetricMode() === 'events'">
+                  Участие пака в ивентах %
+                </th>
+                <th class="participant-share" *ngIf="groupMetricMode() === 'participants'">
+                  Кол-во участвующих %
+                </th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-row>
+              <tr>
+                <td>
+                  <div class="entity-cell">
+                    <span class="entity-name">{{ row.name }}</span>
+                    <p-tag
+                      *ngIf="row.memberCount"
+                      value="{{ row.memberCount }} чел."
+                      severity="info"
+                      rounded
+                    ></p-tag>
+                  </div>
+                </td>
+                <td class="numeric">
+                  <ng-container *ngIf="groupMetricMode() === 'participants'; else eventsAttendance">
+                    <div class="attendance-main">
+                      ~ {{ row.averageParticipants | number: '1.0-1' }} из
+                      {{ (row.memberCount || row.averageParticipants || 0) | number: '1.0-0' }}
+                    </div>
+                  </ng-container>
+                  <ng-template #eventsAttendance>
+                    <div class="attendance-main">{{ row.attended }} из {{ row.totalSessions }}</div>
+                  </ng-template>
+                </td>
+                <td class="percentage" *ngIf="groupMetricMode() === 'events'">
+                  <div class="progress-wrapper">
+                    <p-progressBar
+                      [value]="row.percentage"
+                      [showValue]="false"
+                      [style.flex]="'1'"
+                      [style.height.px]="8"
+                    ></p-progressBar>
+                    <span class="percentage-value">{{ row.percentage | number: '1.0-1' }}%</span>
+                  </div>
+                </td>
+                <td class="participant-share" *ngIf="groupMetricMode() === 'participants'">
+                  <div class="progress-wrapper">
+                    <p-progressBar
+                      [value]="row.participantShare"
+                      [showValue]="false"
+                      [style.flex]="'1'"
+                      [style.height.px]="8"
+                    ></p-progressBar>
+                    <span class="percentage-value">{{ row.participantShare | number: '1.0-1' }}%</span>
+                  </div>
+                </td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr>
+                <td colspan="3" class="empty-message">
+                  Нет подходящих сессий за выбранный период.
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </ng-container>
+      </p-card>
+    </div>
+
+    <div class="stat-section">
+      <p-card header="Посещаемость по участникам">
+        <ng-container *ngIf="userGroupFilters() as groupFilters">
+          <div class="user-filter-bar" *ngIf="groupFilters.length">
+            <button
+              pButton
+              type="button"
+              class="group-filter-button"
+              *ngFor="let option of groupFilters"
+              (click)="selectUserGroupFilter(option.key)"
+              [severity]="activeUserGroupKey() === option.key ? 'primary' : 'secondary'"
+              [outlined]="activeUserGroupKey() !== option.key"
+            >
+              <span class="filter-label">{{ option.label }}</span>
+              <span class="filter-count">{{ option.count }}</span>
+            </button>
+          </div>
+        </ng-container>
+
+        <ng-container *ngIf="filteredUserStatistics() as userStats">
+          <p-table
+            [value]="userStats"
+            [paginator]="userStats.length > 15"
+            [rows]="15"
+            [rowsPerPageOptions]="[15, 30, 60]"
+            [responsiveLayout]="'stack'"
+            dataKey="id"
+            class="statistics-table statistics-table-users"
+          >
+            <ng-template pTemplate="header">
+              <tr>
+                <th>Участник</th>
+                <th>Группа</th>
+                <th class="numeric">Посещения</th>
+                <th class="percentage">Процент</th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-row>
+              <tr>
+                <td>
+                  <div class="entity-cell">
+                    <span class="entity-name">{{ row.name }}</span>
+                  </div>
+                </td>
+                <td>
+                  <p-tag
+                    *ngIf="row.groupName; else noGroup"
+                    [value]="row.groupName"
+                    severity="primary"
+                    rounded
+                  ></p-tag>
+                  <ng-template #noGroup>
+                    <span class="muted">Без группы</span>
+                  </ng-template>
+                </td>
+                <td class="numeric">
+                  {{ row.attended }} / {{ row.totalSessions }}
+                </td>
+                <td class="percentage">
+                  <div class="progress-wrapper">
+                    <p-progressBar
+                      [value]="row.percentage"
+                      [showValue]="false"
+                      [style.flex]="'1'"
+                      [style.height.px]="8"
+                    ></p-progressBar>
+                    <span class="percentage-value">{{ row.percentage | number: '1.0-1' }}%</span>
+                  </div>
+                </td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr>
+                <td colspan="4" class="empty-message">
+                  Нет участников с посещениями за выбранный период.
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </ng-container>
+      </p-card>
+    </div>
+  </ng-container>
+
+  <ng-template #loadingState>
+    <p-card class="loading-card">
+      <div class="loading-message">Загрузка данных...</div>
+    </p-card>
+  </ng-template>
+</div>

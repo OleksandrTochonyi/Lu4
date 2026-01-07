@@ -1,0 +1,444 @@
+.statistics-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  min-height: 100%;
+  background: #f8fafc;
+}
+
+.statistics-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1.5rem;
+}
+
+.header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.statistics-title {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.statistics-subtitle {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #475569;
+  max-width: 560px;
+  line-height: 1.5;
+}
+
+.filter-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  min-width: 280px;
+}
+
+.filter-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+}
+
+.filter-inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.filter-separator {
+  color: #94a3b8;
+}
+
+.summary-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.summary-card ::ng-deep .p-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.summary-label {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+}
+
+.summary-value {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.1;
+}
+
+.summary-extra {
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.stat-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.card-header-with-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 16px 16px 0 16px;
+}
+
+.card-header-title {
+  font-weight: 600;
+  font-size: 1rem;
+  color: #0f172a;
+}
+
+.metric-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.metric-toggle-button {
+  display: inline-flex;
+  align-items: center;
+}
+
+.metric-toggle-button ::ng-deep .p-button-label {
+  font-weight: 600;
+}
+
+.user-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.group-filter-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 8px;
+  padding: 0.35rem 0.75rem;
+}
+
+.group-filter-button ::ng-deep .p-button-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.group-filter-button.p-button {
+  border: none;
+  background: #eff6ff;
+  color: #1d4ed8;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.group-filter-button.p-button:hover {
+  background: #dbeafe;
+}
+
+.group-filter-button.p-button:focus-visible {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
+}
+
+.group-filter-button.p-button-primary {
+  background: #bfdbfe;
+  color: #1e3a8a;
+}
+
+.group-filter-button.p-button-primary:hover {
+  background: #93c5fd;
+}
+
+.group-filter-button.p-button-secondary.p-button-outlined {
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.group-filter-button.p-button-secondary.p-button-outlined:hover {
+  background: #dbeafe;
+}
+
+.filter-label {
+  font-weight: 600;
+}
+
+.filter-count {
+  min-width: 1.75rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  text-align: center;
+  font-weight: 600;
+}
+
+.group-filter-button.p-button-primary .filter-count {
+  background: rgba(30, 64, 175, 0.18);
+  color: #1e3a8a;
+}
+
+.group-filter-button.p-button-secondary.p-button-outlined .filter-count {
+  background: rgba(59, 130, 246, 0.16);
+  color: #1d4ed8;
+}
+
+.statistics-table {
+  width: 100%;
+}
+
+.statistics-table-users {
+  width: 100%;
+  table-layout: auto;
+}
+
+.statistics-table-users ::ng-deep .p-datatable-thead > tr > th:first-child,
+.statistics-table-users ::ng-deep .p-datatable-tbody > tr > td:first-child {
+  width: auto;
+  min-width: 0;
+  white-space: normal;
+}
+
+.statistics-table-users ::ng-deep .p-datatable-thead > tr > th:nth-child(2),
+.statistics-table-users ::ng-deep .p-datatable-tbody > tr > td:nth-child(2) {
+  width: 200px;
+  min-width: 200px;
+  white-space: nowrap;
+}
+
+.statistics-table-users ::ng-deep .p-datatable-thead > tr > th:nth-child(3),
+.statistics-table-users ::ng-deep .p-datatable-tbody > tr > td:nth-child(3) {
+  width: 120px;
+  min-width: 120px;
+  white-space: nowrap;
+}
+
+.statistics-table-users ::ng-deep .p-datatable-thead > tr > th:nth-child(4),
+.statistics-table-users ::ng-deep .p-datatable-tbody > tr > td:nth-child(4) {
+  width: 340px;
+  min-width: 340px;
+  white-space: nowrap;
+}
+
+.statistics-table ::ng-deep .p-datatable-thead > tr > th {
+  background: transparent;
+  font-weight: 600;
+  color: #0f172a;
+  border: none;
+}
+
+.statistics-table-users ::ng-deep .p-datatable-thead {
+  background: #f1f5f9;
+}
+
+.statistics-table ::ng-deep .p-datatable-tbody > tr > td {
+  border: none;
+  padding: 0.85rem 1rem;
+}
+
+
+.statistics-table ::ng-deep .p-datatable-tbody > tr:nth-child(odd) {
+  background: #ffffff;
+}
+
+.statistics-table ::ng-deep .p-datatable-tbody > tr:nth-child(even) {
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.statistics-table ::ng-deep .p-datatable-tbody > tr:first-child {
+  background: #ffffff;
+}
+
+.statistics-table ::ng-deep .p-datatable-tbody > tr:hover {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.statistics-table-users .numeric {
+  width: 120px;
+  min-width: 120px;
+}
+
+.summary-label {
+    padding: 16px 16px 0 16px;
+}
+
+.percentage {
+  min-width: 12rem;
+}
+
+.statistics-table-users .percentage {
+  width: 140px;
+  min-width: 140px;
+}
+
+.attendance-main {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  font-weight: 600;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.attendance-meta {
+  display: flex;
+  justify-content: flex-end;
+  font-size: 0.75rem;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+
+.participant-share {
+  min-width: 14rem;
+  vertical-align: top;
+  white-space: normal;
+}
+
+.participant-meta {
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.entity-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.entity-name {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.progress-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.percentage-value {
+  min-width: 3.5rem;
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #0f172a;
+}
+
+.muted {
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+.empty-message {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: #64748b;
+}
+
+.loading-card {
+  border: 1px dashed rgba(148, 163, 184, 0.4);
+  background: rgba(248, 250, 252, 0.8);
+}
+
+.loading-message {
+  font-size: 0.95rem;
+  color: #475569;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .statistics-page {
+    padding: 1rem;
+  }
+
+  .percentage {
+    min-width: auto;
+  }
+
+  .filter-panel {
+    align-items: stretch;
+    min-width: 100%;
+  }
+
+  .filter-inputs {
+    justify-content: stretch;
+  }
+
+  .user-filter-bar {
+    gap: 0.4rem;
+  }
+
+  .card-header-with-toggle {
+    gap: 0.5rem;
+  }
+
+  .metric-toggle {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .metric-toggle-button {
+    flex: 1 1 auto;
+  }
+
+  .statistics-table-users ::ng-deep .p-datatable-thead > tr > th:nth-child(2),
+  .statistics-table-users ::ng-deep .p-datatable-tbody > tr > td:nth-child(2),
+  .statistics-table-users ::ng-deep .p-datatable-thead > tr > th:nth-child(3),
+  .statistics-table-users ::ng-deep .p-datatable-tbody > tr > td:nth-child(3),
+  .statistics-table-users ::ng-deep .p-datatable-thead > tr > th:nth-child(4),
+  .statistics-table-users ::ng-deep .p-datatable-tbody > tr > td:nth-child(4) {
+    width: auto;
+    min-width: auto;
+    white-space: normal;
+  }
+
+  .statistics-table-users .numeric,
+  .statistics-table-users .percentage {
+    width: auto;
+    min-width: auto;
+  }
+
+  .participant-share {
+    min-width: auto;
+  }
+
+  .attendance-main,
+  .attendance-meta {
+    justify-content: flex-start;
+  }
+
+  .attendance-meta {
+    font-size: 0.7rem;
+  }
+}

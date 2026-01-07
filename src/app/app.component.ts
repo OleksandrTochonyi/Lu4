@@ -94,6 +94,7 @@ export class AppComponent {
       {
         label: 'Statistics',
         icon: 'pi pi-chart-bar',
+        routerLink: '/startistics',
       },
     ];
   }
