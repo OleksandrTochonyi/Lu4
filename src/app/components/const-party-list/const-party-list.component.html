@@ -1,4 +1,6 @@
 <div class="party-page">
+    <p-confirmDialog></p-confirmDialog>
+
     <div class="party-shell flex flex-col h-full border border-surface rounded bg-surface-0 dark:bg-surface-900 overflow-hidden">
         <div class="party-header border-b">
             <div class="party-title-row">
@@ -30,16 +32,6 @@
                 </p-overlayPanel>
             </div>
 
-            <div class="create-actions" *ngIf="!showCreateForm()">
-                <p-button
-                    type="button"
-                    icon="pi pi-plus"
-                    [rounded]="true"
-                    [text]="true"
-                    ariaLabel="Добавить группу"
-                    (onClick)="showCreateForm.set(true)"
-                ></p-button>
-            </div>
         </div>
 
         <div class="party-content">
@@ -61,45 +53,118 @@
             </div>
         </form>
 
-        <p-accordion class="groups" [multiple]="true">
-            <p-accordionTab *ngFor="let group of sortedGroups(); trackBy: trackByGroupId">
-                <ng-template pTemplate="header">
-                    <div class="group-header">
-                        <div class="group-header-left">
-                            <span class="group-name" *ngIf="editingGroupId() !== group.id">{{ group.displayName
-                                }}</span>
+        <div class="master-detail">
+            <div class="master-pane">
+                <div class="group-list">
+                    <button
+                        type="button"
+                        class="group-tab"
+                        *ngFor="let group of sortedGroups(); trackBy: trackByGroupId"
+                        [class.group-tab--active]="selectedGroupId() === group.id"
+                        (click)="selectGroup(group)"
+                        role="tab"
+                        [attr.aria-selected]="selectedGroupId() === group.id"
+                    >
+                        <div class="group-tab-main">
+                            <span class="group-name">{{ group.displayName }}</span>
                             <p-badge class="group-badge" [value]="group.users.length" [severity]="'secondary'"></p-badge>
-                            <input *ngIf="editingGroupId() === group.id" type="text" pInputText class="group-edit"
-                                [formControl]="editGroupForm.controls.displayName" (click)="$event.stopPropagation()"
-                                (keydown.enter)="$event.preventDefault(); $event.stopPropagation(); saveGroup(group)" />
                         </div>
+                    </button>
 
-                        <div class="group-header-actions" (click)="$event.stopPropagation()">
-                            <ng-container *ngIf="editingGroupId() === group.id; else viewActions">
-                                <p-button type="button" icon="pi pi-check" [rounded]="true" [text]="true"
-                                    ariaLabel="Сохранить" [loading]="isGroupSaving()" [disabled]="isGroupSaving()"
-                                    (onClick)="$event.stopPropagation(); saveGroup(group)"></p-button>
+                    <div class="empty" *ngIf="sortedGroups().length === 0">Пока нет групп</div>
 
-                                <p-button type="button" icon="pi pi-times" [rounded]="true" [text]="true"
-                                    [severity]="'secondary'" ariaLabel="Отмена"
-                                    (onClick)="$event.stopPropagation(); cancelEditGroup()"></p-button>
-                            </ng-container>
+                    <button
+                        *ngIf="!showCreateForm()"
+                        type="button"
+                        class="group-tab group-tab--create"
+                        (click)="showCreateForm.set(true)"
+                        aria-label="Добавить группу"
+                    >
+                        <div class="group-tab-main">
+                            <i class="pi pi-plus" aria-hidden="true"></i>
+                            <span class="group-name">Добавить группу</span>
+                        </div>
+                    </button>
+                </div>
+            </div>
 
-                            <ng-template #viewActions>
-                                <p-button type="button" icon="pi pi-pencil" [rounded]="true" [text]="true"
-                                    ariaLabel="Редактировать группу"
-                                    (onClick)="$event.stopPropagation(); startEditGroup(group)"></p-button>
+            <div class="detail-pane">
+                <ng-container *ngIf="selectedGroup() as group; else emptyState">
+                    <div class="detail-header">
+                        <div class="detail-title">
+                            <div class="detail-left">
+                                <div class="detail-name" *ngIf="editingGroupId() !== group.id">{{ group.displayName }}</div>
+                                <input
+                                    *ngIf="editingGroupId() === group.id"
+                                    type="text"
+                                    pInputText
+                                    class="detail-edit"
+                                    [formControl]="editGroupForm.controls.displayName"
+                                    (keydown.enter)="$event.preventDefault(); saveGroup(group)"
+                                />
 
-                                <p-button type="button" icon="pi pi-trash" [rounded]="true" [text]="true"
-                                    [severity]="'danger'" ariaLabel="Удалить группу"
-                                    (onClick)="$event.stopPropagation(); deleteGroup(group)"></p-button>
-                            </ng-template>
+                                <div class="detail-meta">
+                                    <span class="detail-meta-item">Участников:</span>
+                                    <p-badge [value]="group.users.length" [severity]="'secondary'"></p-badge>
+                                </div>
+                            </div>
+
+                            <div class="detail-actions">
+                                <ng-container *ngIf="editingGroupId() === group.id; else viewGroupActions">
+                                    <p-button
+                                        type="button"
+                                        icon="pi pi-check"
+                                        [rounded]="true"
+                                        [text]="true"
+                                        ariaLabel="Сохранить"
+                                        [loading]="isGroupSaving()"
+                                        [disabled]="isGroupSaving()"
+                                        (onClick)="saveGroup(group)"
+                                    ></p-button>
+
+                                    <p-button
+                                        type="button"
+                                        icon="pi pi-times"
+                                        [rounded]="true"
+                                        [text]="true"
+                                        [severity]="'secondary'"
+                                        ariaLabel="Отмена"
+                                        (onClick)="cancelEditGroup()"
+                                    ></p-button>
+                                </ng-container>
+
+                                <ng-template #viewGroupActions>
+                                    <p-button
+                                        type="button"
+                                        icon="pi pi-pencil"
+                                        [rounded]="true"
+                                        [text]="true"
+                                        ariaLabel="Редактировать группу"
+                                        (onClick)="startEditGroup(group)"
+                                    ></p-button>
+
+                                    <p-button
+                                        type="button"
+                                        icon="pi pi-trash"
+                                        [rounded]="true"
+                                        [text]="true"
+                                        [severity]="'danger'"
+                                        ariaLabel="Удалить группу"
+                                        (onClick)="confirmDeleteGroup(group)"
+                                    ></p-button>
+                                </ng-template>
+                            </div>
                         </div>
                     </div>
+
+                    <app-const-party [group]="group"></app-const-party>
+                </ng-container>
+
+                <ng-template #emptyState>
+                    <div class="empty">Выберите группу слева</div>
                 </ng-template>
-                <app-const-party [group]="group"></app-const-party>
-            </p-accordionTab>
-        </p-accordion>
+            </div>
+        </div>
         </div>
     </div>
 </div>

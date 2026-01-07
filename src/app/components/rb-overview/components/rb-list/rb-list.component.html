@@ -2,7 +2,7 @@
     <ng-template #list let-items>
         <div class="rb-list">
             @for (rb of items; track $index; let first = $first) {
-            <div class="rounded border border-surface bg-surface-0 dark:bg-surface-900 shadow-sm">
+            <div class="rounded border border-surface shadow-sm overflow-hidden">
                 <app-rb-item
                     [rb]="rb"
                            [showDetails]="showDetails()"

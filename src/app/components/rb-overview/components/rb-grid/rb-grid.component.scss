@@ -1,0 +1,36 @@
+:host {
+	display: block;
+	height: 100%;
+}
+
+:host ::ng-deep .p-datatable {
+	height: 100%;
+}
+
+:host ::ng-deep .p-datatable-wrapper {
+	height: 100%;
+}
+
+:host ::ng-deep tr.rb-bg-default > td {
+	background: var(--p-surface-0);
+}
+
+:host ::ng-deep tr.rb-bg-missed > td {
+	background: var(--p-surface-100);
+}
+
+:host ::ng-deep tr.rb-bg-success > td {
+	background: var(--p-green-50, var(--p-surface-50));
+}
+
+:host ::ng-deep tr.rb-bg-warn > td {
+	background: var(--p-orange-50, var(--p-surface-50));
+}
+
+:host ::ng-deep tr.rb-bg-danger > td {
+	background: var(--p-red-50, var(--p-surface-50));
+}
+
+:host ::ng-deep tr.rb-bg-secondary > td {
+	background: var(--p-surface-50);
+}

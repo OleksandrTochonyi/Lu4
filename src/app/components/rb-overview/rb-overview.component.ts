@@ -10,12 +10,14 @@ import { MessageService } from 'primeng/api';
 import { RbData } from '../../services/rb-data';
 import { RbStatus } from '../../constants/status';
 import { RbListComponent } from './components/rb-list/rb-list.component';
+import { RbGridComponent } from './components/rb-grid/rb-grid.component';
 import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-rb-overview',
   imports: [
     RbListComponent,
+    RbGridComponent,
     FormsModule,
     ButtonModule,
     CheckboxModule,
@@ -29,7 +31,7 @@ export class RbOverviewComponent {
   private rbDataService = inject(RbData);
   private messageService = inject(MessageService);
 
-  showDetails = signal(true);
+  showTableView = signal(false);
 
   items = signal<any[]>([]);
 

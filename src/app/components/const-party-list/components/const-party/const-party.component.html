@@ -1,81 +1,101 @@
-<div class="group rounded border border-surface bg-surface-0 dark:bg-surface-900 shadow-sm p-3">
-  <div class="leader" *ngIf="leaders().length">
-    <div class="title">Лидеры</div>
+<div class="detail">
+  <div class="leader-card" *ngIf="leaders().length">
+    <div class="section-title">Лидер</div>
+    <div class="leader-row" *ngFor="let l of leaders()">
+      <div class="leader-left">
+        <p-tag value="PL" [severity]="'info'" class="dark:!bg-surface-900"></p-tag>
+        <div class="leader-name">{{ l.name }}</div>
+      </div>
 
-    <div class="user-card user-card--leader" *ngFor="let l of leaders()">
-      <ng-container *ngIf="editingUser() !== l; else editUserTpl">
-        <div class="left">
-          <div class="name">{{ l.name }}</div>
-           <div class="role" *ngIf="displayRole(l) as roleText">{{ roleText }}</div>
-        </div>
-        <div class="actions">
-          <p-button
-            type="button"
-            icon="pi pi-pencil"
-            [rounded]="true"
-            [text]="true"
-            ariaLabel="Редактировать"
-            (onClick)="startEdit(l)"
-          ></p-button>
-          <p-button
-            type="button"
-            icon="pi pi-trash"
-            [rounded]="true"
-            [text]="true"
-            [severity]="'danger'"
-            ariaLabel="Удалить"
-            (onClick)="deleteUser(l)"
-          ></p-button>
-        </div>
-      </ng-container>
+      <div class="row-actions">
+        <p-button
+          type="button"
+          icon="pi pi-pencil"
+          [rounded]="true"
+          [text]="true"
+          ariaLabel="Редактировать"
+          (onClick)="startEdit(l)"
+        ></p-button>
+        <p-button
+          type="button"
+          icon="pi pi-trash"
+          [rounded]="true"
+          [text]="true"
+          [severity]="'danger'"
+          ariaLabel="Удалить"
+          (onClick)="confirmDeleteUser(l)"
+        ></p-button>
+      </div>
     </div>
   </div>
 
-  <p-divider></p-divider>
-
-  <div class="members">
-    <div class="title">Участники</div>
-    <div class="empty" *ngIf="members().length === 0">Пока никого нет</div>
-    <div class="user-card" *ngFor="let m of members()">
-      <ng-container *ngIf="editingUser() !== m; else editUserTpl">
-        <div class="left">
-          <div class="name">{{ m.name }}</div>
-           <div class="role" *ngIf="displayRole(m) as roleText">{{ roleText }}</div>
-        </div>
-        <div class="actions">
-          <p-button
-            type="button"
-            icon="pi pi-pencil"
-            [rounded]="true"
-            [text]="true"
-            ariaLabel="Редактировать"
-            (onClick)="startEdit(m)"
-          ></p-button>
-          <p-button
-            type="button"
-            icon="pi pi-trash"
-            [rounded]="true"
-            [text]="true"
-            [severity]="'danger'"
-            ariaLabel="Удалить"
-            (onClick)="deleteUser(m)"
-          ></p-button>
-        </div>
-      </ng-container>
+  <div class="users-header">
+    <div class="section-title">Пользователи</div>
+    <div class="users-actions" *ngIf="!showAddForm()">
+      <p-button
+        type="button"
+        icon="pi pi-plus"
+        label="Добавить"
+        [rounded]="true"
+        [text]="true"
+        ariaLabel="Добавить участника"
+        (onClick)="showAddForm.set(true)"
+      ></p-button>
     </div>
   </div>
 
-  <div class="add-actions" *ngIf="!showAddForm()">
-    <p-button
-      class="add-user"
-      type="button"
-      icon="pi pi-plus"
-      [rounded]="true"
-      [text]="true"
-      ariaLabel="Добавить участника"
-      (onClick)="showAddForm.set(true)"
-    ></p-button>
-  </div>
+  <p-table [value]="allUsers()" [rowHover]="true" [scrollable]="true" scrollHeight="flex">
+    <ng-template pTemplate="header">
+      <tr>
+        <th>Имя</th>
+        <th style="width: 260px">Роль</th>
+        <th style="width: 160px" class="text-left">Действия</th>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="body" let-u>
+      <tr>
+        <td>
+          <div class="user-name">{{ u.name }}</div>
+        </td>
+        <td>
+          <ng-container *ngIf="(u.role ?? '').toLowerCase() === 'leader'; else normalRole">
+            <p-tag value="PL" [severity]="'info'" class="dark:!bg-surface-900"></p-tag>
+          </ng-container>
+          <ng-template #normalRole>
+            <span class="text-muted">{{ displayRole(u) ?? '—' }}</span>
+          </ng-template>
+        </td>
+        <td class="text-left">
+          <div class="row-actions">
+            <p-button
+              type="button"
+              icon="pi pi-pencil"
+              [rounded]="true"
+              [text]="true"
+              ariaLabel="Редактировать"
+              (onClick)="startEdit(u)"
+            ></p-button>
+            <p-button
+              type="button"
+              icon="pi pi-trash"
+              [rounded]="true"
+              [text]="true"
+              [severity]="'danger'"
+              ariaLabel="Удалить"
+              (onClick)="confirmDeleteUser(u)"
+            ></p-button>
+          </div>
+        </td>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="emptymessage">
+      <tr>
+        <td colspan="3" class="text-center text-muted p-4">Пока никого нет</td>
+      </tr>
+    </ng-template>
+  </p-table>
 
   <form *ngIf="showAddForm()" class="add-form" [formGroup]="addForm" (ngSubmit)="addUser()">
     <div class="field">
@@ -101,10 +121,9 @@
       <p-button type="button" label="Отмена" [text]="true" [severity]="'secondary'" (onClick)="cancelAdd()"></p-button>
     </div>
   </form>
-</div>
 
-<ng-template #editUserTpl>
-  <div class="user-card edit">
+  <div class="edit-panel" *ngIf="editingUser() as editing">
+    <div class="section-title">Редактирование</div>
     <form class="edit-form" [formGroup]="editForm" (ngSubmit)="saveEdit()">
       <div class="field">
         <label for="editName">Имя</label>
@@ -124,7 +143,7 @@
         ></p-dropdown>
       </div>
 
-      <div class="actions">
+      <div class="row-actions">
         <p-button
           type="submit"
           icon="pi pi-check"
@@ -146,4 +165,4 @@
       </div>
     </form>
   </div>
-</ng-template>
+</div>

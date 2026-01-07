@@ -83,6 +83,16 @@ export class RbItemComponent implements OnInit {
     return 'secondary';
   });
 
+  cardBgClass = computed((): string => {
+    const s = this.derivedStatus();
+    if (s === RbStatus.NotInResp) return 'rb-bg-default';
+    if (s === RbStatus.Missed) return 'rb-bg-missed';
+    if (s === RbStatus.InResp || s === RbStatus.SecondResp) return 'rb-bg-success';
+    if (s === RbStatus.FirstRespPassed) return 'rb-bg-danger';
+    if (s === RbStatus.SoonResp || s === RbStatus.SoonSecondResp) return 'rb-bg-warn';
+    return 'rb-bg-secondary';
+  });
+
   isSecondRespWindow = computed(() => {
     const s = this.derivedStatus();
     return s === RbStatus.FirstRespPassed || s === RbStatus.SecondResp;
@@ -278,6 +288,12 @@ export class RbItemComponent implements OnInit {
     if (currentMs === this.lastCommittedMs) return;
     this.lastCommittedMs = currentMs;
     this.deadTimeChanged.emit({ rb: this.rb(), deadTime: current });
+  }
+
+  cancelDeadTime(): void {
+    const rb = this.rb();
+    const committed = rb?.deadTime ?? this.toDate(rb?.lastDeadTime);
+    this.deadTime = committed;
   }
 
   hasDeadTimeChanges(): boolean {

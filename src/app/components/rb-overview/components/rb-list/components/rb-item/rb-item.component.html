@@ -1,4 +1,8 @@
-<div [class.small-details]="!showDetails()" class="flex flex-col sm:flex-row sm:items-center p-6 gap-4">
+<div
+    [class.small-details]="!showDetails()"
+    class="flex flex-col sm:flex-row sm:items-center p-6 gap-4 h-full"
+    [ngClass]="cardBgClass()"
+>
     @if(showDetails()) {
     <div class="md:w-40 relative">
         <img class="rb-img block xl:block mx-auto rounded-border" [src]="rb()?.meta?.imageUrl" />
@@ -7,15 +11,10 @@
     <div class="content-wrapper flex flex-col md:flex-row justify-between md:items-center flex-1 gap-6">
         <div class="rb-content flex flex-col gap-3 w-full">
             <div class="title-wrapper">
-                <div class="text-lg font-medium text-surface-900 dark:text-surface-0">
-                    @if(!showDetails()) {
+                <div class="rb-title text-lg font-medium text-surface-900 dark:text-surface-0">
                     <p-tag [value]="status()" [severity]="tagSeverity()" class="dark:!bg-surface-900" />
-                    }
-                    <span class="rb-lvl">[{{rb().lvl}}] </span>
+                    <span class="rb-lvl">[{{rb().lvl }}] </span>
                     <span class="rb-name">{{ rb()?.displayName }}</span>
-                    @if(showDetails()) {
-                    <p-tag [value]="status()" [severity]="tagSeverity()" class="dark:!bg-surface-900" />
-                    }
                 </div>
             </div>
 
@@ -24,10 +23,15 @@
                     <label class="block font-bold mb-2" for="dead-time">Время убийства</label>
                     <div class="flex items-center gap-2">
                         <p-datepicker inputId="dead-time" class="date-input flex-1 w-full" [(ngModel)]="deadTime"
-                            (ngModelChange)="onDeadTimeDraftChange($event)" [showTime]="true" [hourFormat]="'24'" />
+                            (ngModelChange)="onDeadTimeDraftChange($event)" [showTime]="true" [hourFormat]="'24'" [appendTo]="'body'" />
 
                         <p-button *ngIf="hasDeadTimeChanges()" icon="pi pi-check" [text]="true" [severity]="'success'"
+                            [rounded]="true"
                             ariaLabel="Save" (onClick)="commitDeadTime()"></p-button>
+
+                        <p-button *ngIf="hasDeadTimeChanges()" icon="pi pi-times" [text]="true" [severity]="'danger'"
+                            [rounded]="true"
+                            ariaLabel="Cancel" (onClick)="cancelDeadTime()"></p-button>
                     </div>
                 </div>
 

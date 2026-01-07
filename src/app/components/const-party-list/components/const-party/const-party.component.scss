@@ -1,87 +1,90 @@
-.group {
+
+.detail {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  background: #f8f9fa;
+  gap: 14px;
+  padding: 12px;
+  height: 100%;
+  min-height: 0;
 }
 
-.title {
-  font-weight: 600;
+.section-title {
+  font-weight: 700;
 }
 
-.name {
-  font-weight: 600;
+.leader-card {
+  border: 1px solid var(--p-surface-200);
+  border-radius: 12px;
+  background: var(--p-surface-0);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.role {
-  opacity: 0.8;
-}
-
-.empty {
-  opacity: 0.7;
-}
-
-.add-user {
-  background: white;
-  border-radius: 50%;
-}
-
-.user-card {
+.leader-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  background: #e9ecef;
-  border: 1px solid gainsboro;
-
-  &--leader {
-    background: #dee2e6;
-  }
 }
 
-.members,
-.leader {
+.leader-left {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
-.left {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.leader-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.actions {
+.users-header {
   display: flex;
-  gap: 4px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.users-actions {
+  display: flex;
   align-items: center;
 }
 
-.user-card.edit {
-  align-items: stretch;
-}
-
-.edit-form {
-  width: 100%;
-  display: grid;
-  grid-template-columns: 1fr 1fr auto;
-  gap: 12px;
-  align-items: end;
-}
-
-.add-actions {
+.row-actions {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
 }
 
-.add-form {
+.user-name {
+  font-weight: 600;
+}
+
+.text-muted {
+  opacity: 0.75;
+}
+
+.add-form,
+.edit-form {
   display: grid;
   grid-template-columns: 1fr 1fr auto;
   gap: 12px;
   align-items: end;
+}
+
+.edit-panel {
+  border: 1px solid var(--p-surface-200);
+  border-radius: 12px;
+  background: var(--p-surface-0);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .buttons {
@@ -98,10 +101,7 @@
 }
 
 @media (max-width: 900px) {
-  .edit-form {
-    grid-template-columns: 1fr;
-  }
-
+  .edit-form,
   .add-form {
     grid-template-columns: 1fr;
   }

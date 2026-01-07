@@ -1,12 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { MessageService } from 'primeng/api';
+import { ConfirmationService, MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { DividerModule } from 'primeng/divider';
 import { DropdownModule } from 'primeng/dropdown';
 import { InputTextModule } from 'primeng/inputtext';
+import { TableModule } from 'primeng/table';
+import { TagModule } from 'primeng/tag';
 
 import {
   ConstPartyGroup,
@@ -25,6 +27,8 @@ import {
     InputTextModule,
     DropdownModule,
     ButtonModule,
+    TableModule,
+    TagModule,
   ],
   templateUrl: './const-party.component.html',
   styleUrl: './const-party.component.scss',
@@ -33,6 +37,7 @@ export class ConstPartyComponent {
   private fb = inject(FormBuilder);
   private constPartyService = inject(ConstPartyService);
   private messageService = inject(MessageService);
+  private confirmationService = inject(ConfirmationService);
 
   group = input.required<ConstPartyGroup>();
 
@@ -65,6 +70,11 @@ export class ConstPartyComponent {
     const users = this.group()?.users ?? [];
     if (!users.length) return [];
     return users.filter((u) => (u?.role ?? '').toLowerCase() !== 'leader');
+  });
+
+  allUsers = computed<ConstPartyUser[]>(() => {
+    const users = this.group()?.users ?? [];
+    return [...users].sort((a, b) => (a?.name ?? '').localeCompare(b?.name ?? ''));
   });
 
   addForm = this.fb.nonNullable.group({
@@ -152,6 +162,21 @@ export class ConstPartyComponent {
         life: 5000,
       });
     }
+  }
+
+  confirmDeleteUser(user: ConstPartyUser): void {
+    const name = user?.name ?? 'этого пользователя';
+    this.confirmationService.confirm({
+      header: 'Подтверждение удаления',
+      message: `Вы точно уверены что вы хотите удалить "${name}" из группы?`,
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Удалить',
+      rejectLabel: 'Отмена',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => {
+        void this.deleteUser(user);
+      },
+    });
   }
 
   async addUser(): Promise<void> {

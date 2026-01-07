@@ -2,11 +2,12 @@ import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { MessageService } from 'primeng/api';
+import { ConfirmationService, MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { AccordionModule } from 'primeng/accordion';
 import { BadgeModule } from 'primeng/badge';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { OverlayPanel, OverlayPanelModule } from 'primeng/overlaypanel';
 
 import {
@@ -25,9 +26,11 @@ import { ConstPartyComponent } from './components/const-party/const-party.compon
     ButtonModule,
     AccordionModule,
     BadgeModule,
+    ConfirmDialogModule,
     OverlayPanelModule,
     ConstPartyComponent,
   ],
+  providers: [ConfirmationService],
   templateUrl: './const-party-list.component.html',
   styleUrl: './const-party-list.component.scss',
 })
@@ -36,10 +39,13 @@ export class ConstPartyListComponent {
   private destroyRef = inject(DestroyRef);
   private constPartyService = inject(ConstPartyService);
   private messageService = inject(MessageService);
+  private confirmationService = inject(ConfirmationService);
 
   isCreating = signal(false);
   showCreateForm = signal(false);
   groups = signal<ConstPartyGroup[]>([]);
+
+  selectedGroupId = signal<string | null>(null);
 
   groupCount = computed(() => (this.groups() ?? []).length);
   peopleCount = computed(() =>
@@ -59,6 +65,12 @@ export class ConstPartyListComponent {
     return [...list].sort((a, b) => (a?.displayName ?? '').localeCompare(b?.displayName ?? ''));
   });
 
+  selectedGroup = computed<ConstPartyGroup | null>(() => {
+    const id = this.selectedGroupId();
+    if (!id) return null;
+    return (this.groups() ?? []).find((g) => g?.id === id) ?? null;
+  });
+
   trackByGroupId(_index: number, group: ConstPartyGroup): string {
     return group.id;
   }
@@ -72,7 +84,21 @@ export class ConstPartyListComponent {
     this.constPartyService
       .getGroups()
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((groups) => this.groups.set(groups ?? []));
+      .subscribe((groups) => {
+        const next = groups ?? [];
+        this.groups.set(next);
+
+        const currentId = this.selectedGroupId();
+        const stillExists = currentId != null && next.some((g) => g?.id === currentId);
+        if (stillExists) return;
+
+        this.selectedGroupId.set(next.length ? next[0].id : null);
+      });
+  }
+
+  selectGroup(group: ConstPartyGroup): void {
+    if (!group?.id) return;
+    this.selectedGroupId.set(group.id);
   }
 
   showInfo(event: Event, panel: OverlayPanel): void {
@@ -192,5 +218,20 @@ export class ConstPartyListComponent {
         life: 5000,
       });
     }
+  }
+
+  confirmDeleteGroup(group: ConstPartyGroup): void {
+    const name = group?.displayName ?? 'эту группу';
+    this.confirmationService.confirm({
+      header: 'Подтверждение удаления',
+      message: `Вы точно уверены что вы хотите удалить "${name}"?`,
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Удалить',
+      rejectLabel: 'Отмена',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => {
+        void this.deleteGroup(group);
+      },
+    });
   }
 }

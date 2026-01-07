@@ -3,9 +3,32 @@
   display: flex;
   gap: 12px;
   align-items: center;
-  background: lightgray;
   border-radius: 12px;
   padding: 8px 16px;
+}
+
+.rb-bg-default {
+  background: var(--p-surface-0);
+}
+
+.rb-bg-missed {
+  background: var(--p-surface-100);
+}
+
+.rb-bg-success {
+  background: var(--p-green-50, var(--p-surface-50));
+}
+
+.rb-bg-warn {
+  background: var(--p-orange-50, var(--p-surface-50));
+}
+
+.rb-bg-danger {
+  background: var(--p-red-50, var(--p-surface-50));
+}
+
+.rb-bg-secondary {
+  background: var(--p-surface-50);
 }
 
 .info-block {
@@ -47,6 +70,14 @@
   min-width: 170px;
 }
 
+.rb-lvl {
+  margin-left: 12px;
+}
+
+.rb-title {
+  align-items: center;
+}
+
 @media (max-width: 800px) {
   .rb-img {
     width: 200px;
@@ -73,10 +104,6 @@
 
 .small-details {
   padding: 8px 16px !important;
-
-  .rb-lvl {
-    margin-left: 16px;
-  }
 
   .content-wrapper {
     align-items: center !important;
