@@ -110,6 +110,20 @@ export class RbItemComponent implements OnInit {
     return this.isSecondRespWindow() ? rb.secondMaxResp ?? null : rb.maxResp ?? null;
   });
 
+  private imageFailed = signal(false);
+
+  readonly noImageSrc = 'assets/no-image.png';
+
+  rbImageUrl = computed<string>(() => {
+    if (this.imageFailed()) return this.noImageSrc;
+    const url = (this.rb()?.meta?.imageUrl ?? '').trim();
+    return url || this.noImageSrc;
+  });
+
+  onImageError(): void {
+    this.imageFailed.set(true);
+  }
+
   private respStart = computed<Date | null>(() => {
     const rb = this.rb();
     if (!rb) return null;
@@ -182,6 +196,7 @@ export class RbItemComponent implements OnInit {
       const committed = rb?.deadTime ?? this.toDate(rb?.lastDeadTime);
       this.deadTime = committed;
       this.lastCommittedMs = committed ? committed.getTime() : null;
+      this.imageFailed.set(false);
     });
 
     effect(() => {
@@ -237,12 +252,13 @@ export class RbItemComponent implements OnInit {
 
   openInfoLink(): void {
     const url: string | undefined = this.rb()?.meta?.infoLink;
-    console.log(url)
     if (!url) return;
     window.open(url, '_blank', 'noopener');
   }
 
   toDate(value: any): Date | null {
+    if (value == null) return null;
+
     if (typeof value.toDate === 'function') return value.toDate();
 
     if (typeof value.seconds === 'number')
@@ -253,12 +269,22 @@ export class RbItemComponent implements OnInit {
   }
 
   private durationMsAsLocalTimeDate(durationMs: number): Date {
-    // We store a duration inside a Date so it can be formatted as HH:mm.
-    // Date formatting uses local timezone, so compensate by shifting with current offset.
+    const now = new Date();
+
     const totalSeconds = Math.floor(durationMs / 1000);
     const flooredMs = totalSeconds * 1000;
-    const offsetMs = new Date().getTimezoneOffset() * 60 * 1000;
-    return new Date(flooredMs + offsetMs);
+
+    const date = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      0,
+      0,
+      0,
+      flooredMs
+    );
+
+    return date;
   }
 
   private addHours(date: Date | null, hours: any): Date | null {
@@ -345,7 +371,6 @@ export class RbItemComponent implements OnInit {
     const rb = this.rb();
     const rbName = String(rb?.displayName ?? rb?.name ?? '').trim();
     const voiceText = `РБ - ${rbName || '???'} вошел в респ! Хули сидишь? Пиздуй Чекать!`;
-    console.log(this.rb())
 
     const tgText = `РБ ${rbName || '???'} ${rb.status === RbStatus.SoonResp ? 'зашел в респ!': 'зашел во второй респ! Чуть менее внимательно, но -'} Пиздуй чекать!`
     void this.tgService.sendMessageToTg(tgText).catch(() => null);

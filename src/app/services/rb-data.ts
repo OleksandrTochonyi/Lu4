@@ -797,15 +797,14 @@ export class RbData {
       throw new Error('rbId is required');
     }
 
-    const ref = doc(this.firestore, 'rb-data', rbId);
+    const ref = doc(this.firestore, 'raid-boss', rbId);
     await updateDoc(ref, {
       lastDeadTime: killTime ? Timestamp.fromDate(killTime) : null,
     });
   }
 
 getItems(): Observable<any[]> {
-  console.log('Fetching items from Firestore...');
-  const entitiesCollection = collection(this.firestore, 'rb-data');
+  const entitiesCollection = collection(this.firestore, 'raid-boss');
 
   return collectionData(entitiesCollection, { idField: 'id' }).pipe(
     switchMap((entities: any[]) => {
@@ -814,21 +813,40 @@ getItems(): Observable<any[]> {
       }
 
       const observables = entities.map(entity => {
+        const mapped = {
+          ...entity,
+          displayName: entity.name,
+          lvl: entity.level,
+        };
+
         if (Array.isArray(entity.loot) && entity.loot.length) {
           const lootObservables = entity.loot.map((ref: any) => {
             if (!ref) return of(null);
 
-            return docData<any>(ref, { idField: 'id' }).pipe(take(1));
+            return docData<any>(ref, { idField: 'id' }).pipe(
+              take(1),
+              map((item: any) =>
+                item
+                  ? {
+                      ...item,
+                      displayName: item.name,
+                      imgUrl: item.iconFile
+                        ? `https://explorer.l2api.dev/icons/${item.iconFile}`
+                        : '',
+                    }
+                  : null
+              )
+            );
           });
 
           return forkJoin(lootObservables).pipe(
-            map((lootData:any) => ({
-              ...entity,
-              loot: lootData
+            map((lootData: any) => ({
+              ...mapped,
+              loot: (lootData ?? []).filter(Boolean),
             }))
           );
         } else {
-          return of({ ...entity, loot: [] });
+          return of({ ...mapped, loot: [] });
         }
       });
 

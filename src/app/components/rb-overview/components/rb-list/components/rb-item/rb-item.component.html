@@ -7,8 +7,9 @@
     <div class="md:w-40 relative">
         <img
             class="rb-img block xl:block mx-auto rounded-border"
-            [src]="'/assets/images/' + ((rb()?.meta?.imageUrl ?? '').trim() + '.jpg')"
+            [src]="rbImageUrl()"
             [alt]="rb()?.displayName ?? ''"
+            (error)="onImageError()"
         />
     </div>
     }

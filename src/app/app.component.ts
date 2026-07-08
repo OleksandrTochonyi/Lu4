@@ -92,6 +92,11 @@ export class AppComponent {
         routerLink: '/raids',
       },
       {
+        label: 'RB List',
+        icon: 'pi pi-list',
+        routerLink: '/rb-list',
+      },
+      {
         label: 'Statistics',
         icon: 'pi pi-chart-bar',
         routerLink: '/startistics',

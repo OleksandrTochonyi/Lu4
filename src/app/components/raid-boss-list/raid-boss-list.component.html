@@ -1,0 +1,233 @@
+<div class="rb-list-page">
+  <div class="rb-list-header">
+    <div class="header-text">
+      <h1 class="rb-list-title">RB List</h1>
+      <p class="rb-list-subtitle">Всего боссов: {{ bossCount() }}</p>
+    </div>
+    <div class="header-actions">
+      <button
+        pButton
+        type="button"
+        label="Добавить босса"
+        icon="pi pi-plus"
+        (click)="openCreate()"
+      ></button>
+    </div>
+  </div>
+
+  <div class="rb-filters">
+    <span class="p-input-icon-left name-filter">
+      <input
+        pInputText
+        type="text"
+        [ngModel]="nameQuery()"
+        (ngModelChange)="nameQuery.set($event)"
+        placeholder="Поиск по имени"
+      />
+    </span>
+    <div class="level-filter">
+      <label>Уровень</label>
+      <p-inputNumber
+        [ngModel]="levelFrom()"
+        (ngModelChange)="levelFrom.set($event)"
+        [min]="1"
+        placeholder="с"
+        inputStyleClass="level-input"
+      />
+      <span class="level-sep">—</span>
+      <p-inputNumber
+        [ngModel]="levelTo()"
+        (ngModelChange)="levelTo.set($event)"
+        [min]="1"
+        placeholder="по"
+        inputStyleClass="level-input"
+      />
+    </div>
+    <button
+      pButton
+      type="button"
+      label="Сбросить"
+      class="p-button-text p-button-sm"
+      (click)="resetFilters()"
+    ></button>
+  </div>
+
+  <p-table
+    [value]="filteredBosses()"
+    [loading]="loading()"
+    [paginator]="true"
+    [rows]="15"
+    [rowsPerPageOptions]="[15, 30, 50]"
+    dataKey="id"
+    styleClass="p-datatable-sm rb-table"
+  >
+    <ng-template pTemplate="header">
+      <tr>
+        <th pSortableColumn="name">Имя <p-sortIcon field="name" /></th>
+        <th style="width: 6rem" pSortableColumn="level">Ур. <p-sortIcon field="level" /></th>
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="body" let-boss>
+      <tr class="rb-row" (click)="openEdit(boss)">
+        <td>{{ boss.name }}</td>
+        <td>{{ boss.level }}</td>
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="emptymessage">
+      <tr>
+        <td colspan="2" class="rb-empty">Боссы не найдены</td>
+      </tr>
+    </ng-template>
+  </p-table>
+</div>
+
+<p-dialog
+  [header]="isEditMode() ? 'Редактировать босса' : 'Новый босс'"
+  [visible]="dialogVisible()"
+  (visibleChange)="dialogVisible.set($event)"
+  [modal]="true"
+  [style]="{ width: '640px', maxWidth: '95vw' }"
+  [draggable]="false"
+  [dismissableMask]="true"
+>
+  <div class="rb-form">
+    <div class="form-grid">
+      <div class="field full">
+        <label>Имя</label>
+        <input pInputText [ngModel]="form().name" (ngModelChange)="updateForm('name', $event)" />
+      </div>
+      <div class="field">
+        <label>Уровень</label>
+        <p-inputNumber [ngModel]="form().level" (ngModelChange)="updateForm('level', $event)" [min]="1" />
+      </div>
+    </div>
+
+    <h3 class="form-section-title">Meta</h3>
+    <div class="form-grid">
+      <div class="field full">
+        <label>Image URL</label>
+        <input pInputText [ngModel]="form().imageUrl" (ngModelChange)="updateForm('imageUrl', $event)" />
+      </div>
+      <div class="field full">
+        <label>Info Link</label>
+        <input pInputText [ngModel]="form().infoLink" (ngModelChange)="updateForm('infoLink', $event)" />
+      </div>
+      <div class="field">
+        <label>Resp Time (ч)</label>
+        <p-inputNumber [ngModel]="form().respTime" (ngModelChange)="updateForm('respTime', $event)" [min]="0" />
+      </div>
+      <div class="field">
+        <label>± Resp Time (ч)</label>
+        <p-inputNumber
+          [ngModel]="form().plusMinusRespTime"
+          (ngModelChange)="updateForm('plusMinusRespTime', $event)"
+          [min]="0"
+        />
+      </div>
+    </div>
+
+    <h3 class="form-section-title">Loot ({{ form().loot.length }})</h3>
+
+    <div class="selected-loot" *ngIf="selectedItems().length">
+      <span
+        class="loot-chip grade-{{ item.grade || 'none' }}"
+        *ngFor="let item of selectedItems(); trackBy: trackItem"
+        (click)="toggleItem(item.id)"
+      >
+        <img class="loot-icon" [src]="'https://explorer.l2api.dev/icons/' + item.iconFile" [alt]="item.name" />
+        {{ item.name }}
+        <i class="pi pi-times"></i>
+      </span>
+    </div>
+
+    <div class="loot-controls">
+      <input
+        pInputText
+        [ngModel]="itemSearch()"
+        (ngModelChange)="itemSearch.set($event)"
+        placeholder="Поиск предмета"
+      />
+      <p-multiSelect
+        [options]="gradeOptions"
+        [ngModel]="gradeFilter()"
+        (ngModelChange)="gradeFilter.set($event)"
+        placeholder="Грейд"
+        [filter]="false"
+        [showClear]="true"
+        styleClass="grade-select"
+      />
+      <p-select
+        [options]="sortOptions"
+        [ngModel]="itemSort()"
+        (ngModelChange)="itemSort.set($event)"
+        styleClass="sort-select"
+      />
+    </div>
+
+    <div class="loot-list">
+      <div
+        class="loot-item"
+        *ngFor="let item of filteredItems(); trackBy: trackItem"
+        [class.selected]="isSelected(item.id)"
+        (click)="toggleItem(item.id)"
+      >
+        <i class="pi" [ngClass]="isSelected(item.id) ? 'pi-check-circle' : 'pi-circle'"></i>
+        <img class="loot-icon" [src]="'https://explorer.l2api.dev/icons/' + item.iconFile" [alt]="item.name" />
+        <span class="loot-name">{{ item.name }}</span>
+        <span class="grade-tag grade-{{ item.grade || 'none' }}">{{ (item.grade || 'none') | uppercase }}</span>
+      </div>
+      <div class="loot-empty" *ngIf="!filteredItems().length">Предметы не найдены</div>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button
+      *ngIf="isEditMode()"
+      pButton
+      type="button"
+      label="Удалить"
+      icon="pi pi-trash"
+      class="p-button-text p-button-danger rb-delete-btn"
+      (click)="askDelete()"
+    ></button>
+    <button pButton type="button" label="Отмена" class="p-button-text" (click)="closeDialog()"></button>
+    <button
+      pButton
+      type="button"
+      label="Сохранить"
+      icon="pi pi-check"
+      [disabled]="saving()"
+      (click)="save()"
+    ></button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog
+  header="Удаление босса"
+  [visible]="confirmDeleteVisible()"
+  (visibleChange)="confirmDeleteVisible.set($event)"
+  [modal]="true"
+  [style]="{ width: '420px', maxWidth: '95vw' }"
+  [draggable]="false"
+  [dismissableMask]="true"
+>
+  <div class="rb-confirm">
+    <i class="pi pi-exclamation-triangle rb-confirm-icon"></i>
+    <p>
+      Удалить босса <strong>{{ form().name }}</strong>? Действие нельзя отменить.
+    </p>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button pButton type="button" label="Отмена" class="p-button-text" (click)="cancelDelete()"></button>
+    <button
+      pButton
+      type="button"
+      label="Удалить"
+      icon="pi pi-trash"
+      class="p-button-danger"
+      [disabled]="deleting()"
+      (click)="confirmDelete()"
+    ></button>
+  </ng-template>
+</p-dialog>

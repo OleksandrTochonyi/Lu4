@@ -4,6 +4,7 @@ import { Timestamp } from 'firebase/firestore';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
+import { InputNumberModule } from 'primeng/inputnumber';
 import { PopoverModule } from 'primeng/popover';
 import { MessageService } from 'primeng/api';
 
@@ -21,6 +22,7 @@ import { environment } from '../../environments/environment';
     FormsModule,
     ButtonModule,
     CheckboxModule,
+    InputNumberModule,
     PopoverModule,
   ],
   templateUrl: './rb-overview.component.html',
@@ -31,12 +33,18 @@ export class RbOverviewComponent {
   private rbDataService = inject(RbData);
   private messageService = inject(MessageService);
 
+  private readonly LS_LEVEL_FROM = 'rb-filter-level-from';
+  private readonly LS_LEVEL_TO = 'rb-filter-level-to';
+
   showTableView = signal(false);
 
   items = signal<any[]>([]);
 
   showOnlyResp = signal(false);
   showOneHourToResp = signal(false);
+
+  levelFrom = signal<number | null>(this.readStoredLevel(this.LS_LEVEL_FROM));
+  levelTo = signal<number | null>(this.readStoredLevel(this.LS_LEVEL_TO));
 
   get showOnlyRespValue(): boolean {
     return this.showOnlyResp();
@@ -54,33 +62,80 @@ export class RbOverviewComponent {
     this.showOneHourToResp.set(value);
   }
 
+  get levelFromValue(): number | null {
+    return this.levelFrom();
+  }
+
+  set levelFromValue(value: number | null) {
+    this.levelFrom.set(value);
+    this.writeStoredLevel(this.LS_LEVEL_FROM, value);
+  }
+
+  get levelToValue(): number | null {
+    return this.levelTo();
+  }
+
+  set levelToValue(value: number | null) {
+    this.levelTo.set(value);
+    this.writeStoredLevel(this.LS_LEVEL_TO, value);
+  }
+
+  private readStoredLevel(key: string): number | null {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw == null || raw === '') return null;
+      const n = Number(raw);
+      return Number.isFinite(n) ? n : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private writeStoredLevel(key: string, value: number | null): void {
+    try {
+      if (value == null) localStorage.removeItem(key);
+      else localStorage.setItem(key, String(value));
+    } catch {
+      // ignore storage errors
+    }
+  }
+
   visibleItems = computed(() => {
     const items = this.items() ?? [];
     const now = Date.now();
     const hourMs = 60 * 60 * 1000;
     const onlyResp = this.showOnlyResp();
     const oneHour = this.showOneHourToResp();
+    const from = this.levelFrom();
+    const to = this.levelTo();
 
-    return items.filter((item) => {
-      if (!onlyResp && !oneHour) return true;
+    return items
+      .filter((item) => {
+        const level = Number(item?.lvl ?? item?.level ?? 0);
+        if (from != null && level < from) return false;
+        if (to != null && level > to) return false;
 
-      const inResp = item?.status === RbStatus.InResp || item?.status === RbStatus.SecondResp;
+        if (!onlyResp && !oneHour) return true;
 
-      const minResp: Date | null = item?.minResp ?? null;
-      const secondMinResp: Date | null = item?.secondMinResp ?? null;
-      const minMs = minResp instanceof Date ? minResp.getTime() : null;
-      const secondMinMs = secondMinResp instanceof Date ? secondMinResp.getTime() : null;
-      const inOneHourToFirst = minMs != null && minMs > now && minMs - now <= hourMs;
-      const inOneHourToSecond =
-        secondMinMs != null && secondMinMs > now && secondMinMs - now <= hourMs;
-      const inOneHourToResp = inOneHourToFirst || inOneHourToSecond;
+        const inResp = item?.status === RbStatus.InResp || item?.status === RbStatus.SecondResp;
 
-      // If both toggles are enabled, treat them as OR.
-      if (onlyResp && oneHour) return inResp || inOneHourToResp;
-      if (onlyResp) return inResp;
-      return inOneHourToResp;
-    });
+        const minResp: Date | null = item?.minResp ?? null;
+        const secondMinResp: Date | null = item?.secondMinResp ?? null;
+        const minMs = minResp instanceof Date ? minResp.getTime() : null;
+        const secondMinMs = secondMinResp instanceof Date ? secondMinResp.getTime() : null;
+        const inOneHourToFirst = minMs != null && minMs > now && minMs - now <= hourMs;
+        const inOneHourToSecond =
+          secondMinMs != null && secondMinMs > now && secondMinMs - now <= hourMs;
+        const inOneHourToResp = inOneHourToFirst || inOneHourToSecond;
+
+        // If both toggles are enabled, treat them as OR.
+        if (onlyResp && oneHour) return inResp || inOneHourToResp;
+        if (onlyResp) return inResp;
+        return inOneHourToResp;
+      })
+      .sort((a, b) => Number(a?.lvl ?? a?.level ?? 0) - Number(b?.lvl ?? b?.level ?? 0));
   });
+
 
   constructor() {
     this.rbDataService

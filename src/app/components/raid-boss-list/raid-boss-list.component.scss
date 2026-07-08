@@ -1,0 +1,288 @@
+.rb-list-page {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.rb-list-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.rb-delete-btn {
+  margin-right: auto;
+}
+
+.rb-confirm {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+}
+
+.rb-confirm-icon {
+  font-size: 1.75rem;
+  color: var(--p-red-500, #ef4444);
+}
+
+.rb-list-title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 600;
+}
+
+.rb-list-subtitle {
+  margin: 0.25rem 0 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.rb-table {
+  width: 100%;
+}
+
+.rb-filters {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.name-filter input {
+  width: 260px;
+  max-width: 100%;
+}
+
+.level-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.level-filter label {
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.level-filter ::ng-deep .level-input {
+  width: 5rem;
+}
+
+.level-sep {
+  color: #94a3b8;
+}
+
+.rb-row {
+  cursor: pointer;
+}
+
+.rb-row:hover {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.rb-empty {
+  text-align: center;
+  color: #64748b;
+  padding: 1.5rem 0;
+}
+
+.rb-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.form-section-title {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.field.full {
+  grid-column: 1 / -1;
+}
+
+.field label {
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.field input,
+.field :is(p-inputnumber, p-calendar) {
+  width: 100%;
+}
+
+.field ::ng-deep .p-inputnumber,
+.field ::ng-deep .p-calendar,
+.field ::ng-deep input {
+  width: 100%;
+}
+
+.checkbox-field {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  align-self: end;
+}
+
+.loot-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.loot-controls input {
+  flex: 1 1 180px;
+  min-width: 160px;
+}
+
+.loot-controls ::ng-deep .grade-select,
+.loot-controls ::ng-deep .sort-select {
+  min-width: 160px;
+}
+
+.selected-loot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.loot-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.loot-chip .pi {
+  font-size: 0.7rem;
+  opacity: 0.6;
+}
+
+.loot-list {
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.loot-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.loot-item:last-child {
+  border-bottom: none;
+}
+
+.loot-item:hover {
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.loot-item.selected {
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.loot-item .pi-check-circle {
+  color: #22c55e;
+}
+
+.loot-item .pi-circle {
+  color: #cbd5e1;
+}
+
+.loot-name {
+  flex: 1;
+}
+
+.loot-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.loot-chip .loot-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.loot-empty {
+  padding: 1rem;
+  text-align: center;
+  color: #94a3b8;
+}
+
+.grade-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.1rem 0.45rem;
+  border-radius: 6px;
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.grade-s {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.grade-a {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.grade-b {
+  background: #fef9c3;
+  color: #a16207;
+}
+
+.grade-c {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.grade-d {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+@media (max-width: 640px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}

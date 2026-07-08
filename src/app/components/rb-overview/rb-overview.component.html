@@ -25,6 +25,31 @@
 		<div class="flex flex-col gap-3 min-w-64">
 			<div class="text-sm font-medium text-surface-900 dark:text-surface-0">Фильтры</div>
 
+			<div class="flex flex-col gap-2">
+				<label class="text-sm text-surface-900 dark:text-surface-0 select-none">Уровень РБ</label>
+				<div class="flex items-center gap-2">
+					<p-inputNumber
+						class="w-full"
+						inputId="level-from"
+						[ngModel]="levelFromValue"
+						(ngModelChange)="levelFromValue = $event"
+						[min]="1"
+						[useGrouping]="false"
+						placeholder="с"
+					></p-inputNumber>
+					<span class="text-muted-color">—</span>
+					<p-inputNumber
+						class="w-full"
+						inputId="level-to"
+						[ngModel]="levelToValue"
+						(ngModelChange)="levelToValue = $event"
+						[min]="1"
+						[useGrouping]="false"
+						placeholder="по"
+					></p-inputNumber>
+				</div>
+			</div>
+
 			<div class="flex items-center gap-2">
 				<p-checkbox inputId="only-resp" [(ngModel)]="showOnlyRespValue" [binary]="true"></p-checkbox>
 				<label for="only-resp" class="text-sm text-surface-900 dark:text-surface-0 select-none">
