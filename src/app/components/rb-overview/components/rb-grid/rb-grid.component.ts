@@ -256,11 +256,24 @@ export class RbGridComponent implements OnInit {
   }
 
   private durationMsAsLocalTimeDate(durationMs: number): Date {
+    const now = new Date();
+
     const totalSeconds = Math.floor(durationMs / 1000);
     const flooredMs = totalSeconds * 1000;
-    const offsetMs = new Date().getTimezoneOffset() * 60 * 1000;
-    return new Date(flooredMs + offsetMs);
+
+    const date = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      0,
+      0,
+      0,
+      flooredMs
+    );
+
+    return date;
   }
+
 
   private toDate(value: any): Date | null {
     if (!value) return null;
