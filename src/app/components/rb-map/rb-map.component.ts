@@ -23,7 +23,16 @@ import { MessageService } from 'primeng/api';
 
 import { RbData } from '../../services/rb-data';
 import { RaidBossService } from '../../services/raid-boss.service';
+import { GRADE_ORDER } from '../../services/items.service';
 import { RbStatus } from '../../constants/status';
+
+interface LootDisplayItem {
+  id: string;
+  name: string;
+  grade: string;
+  gradeLabel: string;
+  imgUrl: string;
+}
 
 interface MapBoss {
   id: string;
@@ -197,6 +206,35 @@ export class RbMapComponent {
     if (!id) return null;
     return this.enrichedBosses().find((b) => b.id === id) ?? null;
   });
+
+  /** Loot of the selected boss, sorted by grade S → A → B → C → D → None. */
+  readonly selectedBossLoot = computed<LootDisplayItem[]>(() => {
+    const boss = this.selectedBoss();
+    const loot = boss?.raw?.loot;
+    if (!Array.isArray(loot) || !loot.length) return [];
+
+    return loot
+      .filter(Boolean)
+      .map((item: any) => {
+        const grade = String(item?.grade ?? 'none').toLowerCase();
+        return {
+          id: String(item?.id ?? item?.name ?? ''),
+          name: item?.displayName ?? item?.name ?? 'Лут',
+          grade,
+          gradeLabel: this.gradeLabel(grade),
+          imgUrl: item?.imgUrl ?? '',
+        };
+      })
+      .sort(
+        (a: LootDisplayItem, b: LootDisplayItem) =>
+          (GRADE_ORDER[b.grade] ?? -1) - (GRADE_ORDER[a.grade] ?? -1) ||
+          a.name.localeCompare(b.name)
+      );
+  });
+
+  private gradeLabel(grade: string): string {
+    return grade === 'none' ? 'NG' : grade.toUpperCase();
+  }
 
   readonly placingBoss = computed<MapBoss | null>(() => {
     const id = this.placingBossId();
@@ -690,5 +728,9 @@ export class RbMapComponent {
 
   trackBoss(_index: number, boss: MapBoss): string {
     return boss.id;
+  }
+
+  trackLoot(_index: number, loot: LootDisplayItem): string {
+    return loot.id || String(_index);
   }
 }

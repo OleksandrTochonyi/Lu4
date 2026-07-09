@@ -139,6 +139,29 @@
       <span class="time-value strong">{{ timeLeftLabelValue(boss) }}</span>
     </div>
 
+    <div class="rb-popup-loot" *ngIf="selectedBossLoot().length">
+      <span class="rb-popup-loot-title">Дроп</span>
+      <div class="loot-list">
+        <div
+          class="loot-item"
+          *ngFor="let loot of selectedBossLoot(); trackBy: trackLoot"
+          [attr.data-grade]="loot.grade"
+        >
+          <span class="loot-icon">
+            <img
+              *ngIf="loot.imgUrl"
+              [src]="loot.imgUrl"
+              [alt]="loot.name"
+              loading="lazy"
+              draggable="false"
+            />
+          </span>
+          <span class="loot-name">{{ loot.name }}</span>
+          <span class="loot-grade" [attr.data-grade]="loot.grade">{{ loot.gradeLabel }}</span>
+        </div>
+      </div>
+    </div>
+
     <div class="rb-popup-actions">
       <button pButton type="button" label="Обновить респ" icon="pi pi-refresh" class="p-button-sm" (click)="refreshRespSelected()"></button>
       <button pButton type="button" label="Переместить" icon="pi pi-arrows-alt" class="p-button-sm p-button-text" (click)="startMoveSelected()"></button>
