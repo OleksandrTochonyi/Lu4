@@ -140,8 +140,12 @@
     </div>
 
     <div class="rb-popup-loot" *ngIf="selectedBossLoot().length">
-      <span class="rb-popup-loot-title">Дроп</span>
-      <div class="loot-list">
+      <button type="button" class="loot-toggle" (click)="toggleLoot()">
+        <i class="pi" [ngClass]="lootVisible() ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
+        <span>{{ lootVisible() ? 'Скрыть дроп' : 'Показать дроп' }}</span>
+        <span class="loot-count">{{ selectedBossLoot().length }}</span>
+      </button>
+      <div class="loot-list" *ngIf="lootVisible()">
         <div
           class="loot-item"
           *ngFor="let loot of selectedBossLoot(); trackBy: trackLoot"

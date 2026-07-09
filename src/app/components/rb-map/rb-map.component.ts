@@ -95,6 +95,7 @@ export class RbMapComponent {
   // Interaction state
   readonly selectedBossId = signal<string | null>(null);
   readonly popupPos = signal<{ x: number; y: number } | null>(null);
+  readonly lootVisible = signal(false);
 
   readonly addDialogVisible = signal(false);
   readonly placingBossId = signal<string | null>(null);
@@ -160,6 +161,7 @@ export class RbMapComponent {
     this.translateY.set(-zoom * offsetY);
 
     this.selectedBossId.set(boss.id);
+    this.lootVisible.set(false);
     const page = this.pageEl()?.nativeElement.getBoundingClientRect();
     if (page) {
       this.popupPos.set({ x: page.left + page.width / 2, y: page.top + page.height / 2 });
@@ -505,6 +507,10 @@ export class RbMapComponent {
     this.popupPos.set(null);
   }
 
+  toggleLoot(): void {
+    this.lootVisible.update((v) => !v);
+  }
+
   // ---------- Pointer interactions ----------
 
   onPointPointerDown(event: PointerEvent, boss: MapBoss): void {
@@ -512,6 +518,7 @@ export class RbMapComponent {
     // Points are not draggable: a click just opens the info popup.
     event.stopPropagation();
     this.selectedBossId.set(boss.id);
+    this.lootVisible.set(false);
     this.popupPos.set({ x: event.clientX, y: event.clientY });
   }
 
