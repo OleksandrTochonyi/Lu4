@@ -142,7 +142,7 @@ export class RbMapComponent {
     const h = img.clientHeight;
     if (!w || !h) return;
 
-    const zoom = 2.4;
+    const zoom = 1.5;
     const offsetX = ((boss.mapX ?? 50) / 100 - 0.5) * w;
     const offsetY = ((boss.mapY ?? 50) / 100 - 0.5) * h;
 
