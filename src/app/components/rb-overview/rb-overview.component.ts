@@ -13,6 +13,7 @@ import { RbStatus } from '../../constants/status';
 import { RbListComponent } from './components/rb-list/rb-list.component';
 import { RbGridComponent } from './components/rb-grid/rb-grid.component';
 import { environment } from '../../environments/environment';
+import { InputTextModule } from 'primeng/inputtext';
 
 @Component({
   selector: 'app-rb-overview',
@@ -23,6 +24,7 @@ import { environment } from '../../environments/environment';
     ButtonModule,
     CheckboxModule,
     InputNumberModule,
+    InputTextModule,
     PopoverModule,
   ],
   templateUrl: './rb-overview.component.html',
@@ -35,16 +37,50 @@ export class RbOverviewComponent {
 
   private readonly LS_LEVEL_FROM = 'rb-filter-level-from';
   private readonly LS_LEVEL_TO = 'rb-filter-level-to';
+  private readonly LS_VIEW_MODE = 'rb-view-mode';
 
-  showTableView = signal(false);
+  showTableView = signal(this.readStoredViewMode());
 
   items = signal<any[]>([]);
 
   showOnlyResp = signal(false);
   showOneHourToResp = signal(false);
 
+  nameQuery = signal('');
+
   levelFrom = signal<number | null>(this.readStoredLevel(this.LS_LEVEL_FROM));
   levelTo = signal<number | null>(this.readStoredLevel(this.LS_LEVEL_TO));
+
+  get nameQueryValue(): string {
+    return this.nameQuery();
+  }
+
+  set nameQueryValue(value: string) {
+    this.nameQuery.set(value ?? '');
+  }
+
+  toggleView(): void {
+    const next = !this.showTableView();
+    this.showTableView.set(next);
+    try {
+      localStorage.setItem(this.LS_VIEW_MODE, next ? 'table' : 'list');
+    } catch {
+      // ignore storage errors
+    }
+  }
+
+  resetLevelFilters(): void {
+    this.levelFromValue = null;
+    this.levelToValue = null;
+  }
+
+  private readStoredViewMode(): boolean {
+    try {
+      return localStorage.getItem(this.LS_VIEW_MODE) === 'table';
+    } catch {
+      return false;
+    }
+  }
 
   get showOnlyRespValue(): boolean {
     return this.showOnlyResp();
@@ -108,9 +144,15 @@ export class RbOverviewComponent {
     const oneHour = this.showOneHourToResp();
     const from = this.levelFrom();
     const to = this.levelTo();
+    const query = this.nameQuery().trim().toLowerCase();
 
     return items
       .filter((item) => {
+        if (query) {
+          const name = String(item?.displayName ?? item?.name ?? '').toLowerCase();
+          if (!name.includes(query)) return false;
+        }
+
         const level = Number(item?.lvl ?? item?.level ?? 0);
         if (from != null && level < from) return false;
         if (to != null && level > to) return false;

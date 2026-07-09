@@ -51,6 +51,39 @@
   width: 100%;
 }
 
+.loot-col {
+  text-align: center;
+}
+
+.loot-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.loot-badge.full {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.loot-badge.empty {
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+.loot-badge .pi {
+  font-size: 0.85rem;
+}
+
+.loot-badge-count {
+  font-variant-numeric: tabular-nums;
+}
+
 .rb-filters {
   display: flex;
   align-items: center;
@@ -169,24 +202,103 @@
 .selected-loot {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: 0.5rem;
+  padding: 0.65rem;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.selected-loot-empty {
+  padding: 0.9rem;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  border: 1px dashed #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
 }
 
 .loot-chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  cursor: pointer;
-  background: #e2e8f0;
+  gap: 0.5rem;
+  padding: 0.35rem 0.4rem 0.35rem 0.5rem;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  background: #ffffff;
   color: #1e293b;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #cbd5e1;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
 }
 
-.loot-chip .pi {
-  font-size: 0.7rem;
-  opacity: 0.6;
+.loot-chip:hover {
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
+  transform: translateY(-1px);
+}
+
+.loot-chip-name {
+  font-weight: 600;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.loot-chip-grade {
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.15rem 0.35rem;
+  border-radius: 5px;
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.loot-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.loot-chip-remove:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.loot-chip-remove .pi {
+  font-size: 0.72rem;
+}
+
+// Grade accent on the left border of each chip
+.loot-chip.grade-s {
+  border-left-color: #ef4444;
+}
+.loot-chip.grade-a {
+  border-left-color: #f97316;
+}
+.loot-chip.grade-b {
+  border-left-color: #eab308;
+}
+.loot-chip.grade-c {
+  border-left-color: #22c55e;
+}
+.loot-chip.grade-d {
+  border-left-color: #3b82f6;
+}
+.loot-chip.grade-none {
+  border-left-color: #cbd5e1;
 }
 
 .loot-list {

@@ -153,7 +153,7 @@ export class RbSessionService {
 
         return {
           amount,
-          possibleLoot: doc(this.firestore, 'possibleLoot', lootId),
+          possibleLoot: doc(this.firestore, 'items', lootId),
         };
       })
       .filter((entry): entry is { amount: number; possibleLoot: DocumentReference<DocumentData> } => entry != null);

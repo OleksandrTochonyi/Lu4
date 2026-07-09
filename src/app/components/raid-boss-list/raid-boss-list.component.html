@@ -65,17 +65,33 @@
       <tr>
         <th pSortableColumn="name">Имя <p-sortIcon field="name" /></th>
         <th style="width: 6rem" pSortableColumn="level">Ур. <p-sortIcon field="level" /></th>
+        <th style="width: 6rem" class="loot-col">Лут</th>
       </tr>
     </ng-template>
     <ng-template pTemplate="body" let-boss>
       <tr class="rb-row" (click)="openEdit(boss)">
         <td>{{ boss.name }}</td>
         <td>{{ boss.level }}</td>
+        <td class="loot-col">
+          <span
+            *ngIf="lootCount(boss) > 0; else emptyLoot"
+            class="loot-badge full"
+            [title]="'Лут заполнен: ' + lootCount(boss)"
+          >
+            <i class="pi pi-box"></i>
+            <span class="loot-badge-count">{{ lootCount(boss) }}</span>
+          </span>
+          <ng-template #emptyLoot>
+            <span class="loot-badge empty" title="Лут пустой">
+              <i class="pi pi-ban"></i>
+            </span>
+          </ng-template>
+        </td>
       </tr>
     </ng-template>
     <ng-template pTemplate="emptymessage">
       <tr>
-        <td colspan="2" class="rb-empty">Боссы не найдены</td>
+        <td colspan="3" class="rb-empty">Боссы не найдены</td>
       </tr>
     </ng-template>
   </p-table>
@@ -128,17 +144,27 @@
 
     <h3 class="form-section-title">Loot ({{ form().loot.length }})</h3>
 
-    <div class="selected-loot" *ngIf="selectedItems().length">
-      <span
+    <div class="selected-loot" *ngIf="selectedItems().length; else noLoot">
+      <div
         class="loot-chip grade-{{ item.grade || 'none' }}"
         *ngFor="let item of selectedItems(); trackBy: trackItem"
-        (click)="toggleItem(item.id)"
       >
         <img class="loot-icon" [src]="'https://explorer.l2api.dev/icons/' + item.iconFile" [alt]="item.name" />
-        {{ item.name }}
-        <i class="pi pi-times"></i>
-      </span>
+        <span class="loot-chip-name">{{ item.name }}</span>
+        <span class="loot-chip-grade grade-{{ item.grade || 'none' }}">{{ (item.grade || 'none') | uppercase }}</span>
+        <button
+          type="button"
+          class="loot-chip-remove"
+          aria-label="Удалить лут"
+          (click)="askRemoveLoot(item)"
+        >
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
     </div>
+    <ng-template #noLoot>
+      <div class="selected-loot-empty">Лут не выбран</div>
+    </ng-template>
 
     <div class="loot-controls">
       <input
@@ -228,6 +254,35 @@
       class="p-button-danger"
       [disabled]="deleting()"
       (click)="confirmDelete()"
+    ></button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog
+  header="Удаление лута"
+  [visible]="lootToRemove() !== null"
+  (visibleChange)="!$event && cancelRemoveLoot()"
+  [modal]="true"
+  [style]="{ width: '420px', maxWidth: '95vw' }"
+  [draggable]="false"
+  [dismissableMask]="true"
+>
+  <div class="rb-confirm" *ngIf="lootToRemove() as loot">
+    <i class="pi pi-exclamation-triangle rb-confirm-icon"></i>
+    <p>
+      Удалить <strong>{{ loot.name }}</strong> из лута?
+    </p>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button pButton type="button" label="Отмена" class="p-button-text" (click)="cancelRemoveLoot()"></button>
+    <button
+      pButton
+      type="button"
+      label="Удалить"
+      icon="pi pi-trash"
+      class="p-button-danger"
+      (click)="confirmRemoveLoot()"
     ></button>
   </ng-template>
 </p-dialog>

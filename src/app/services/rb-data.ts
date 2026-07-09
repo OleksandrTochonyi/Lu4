@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Injector, inject, runInInjectionContext } from '@angular/core';
 import {
   Firestore,
   collectionData,
@@ -692,6 +692,8 @@ export interface Item {
   providedIn: 'root'
 })
 export class RbData {
+  private injector = inject(Injector);
+
   constructor(private firestore: Firestore) {}
 
   // private safeDocId(value: string): string {
@@ -823,7 +825,9 @@ getItems(): Observable<any[]> {
           const lootObservables = entity.loot.map((ref: any) => {
             if (!ref) return of(null);
 
-            return docData<any>(ref, { idField: 'id' }).pipe(
+            return runInInjectionContext(this.injector, () =>
+              docData<any>(ref, { idField: 'id' })
+            ).pipe(
               take(1),
               map((item: any) =>
                 item
@@ -850,7 +854,12 @@ getItems(): Observable<any[]> {
         }
       });
 
-      return forkJoin(observables);
+      return forkJoin(observables).pipe(
+        // Hide raid bosses without any loot everywhere except the RB list page.
+        map((list: any[]) =>
+          (list ?? []).filter((rb) => Array.isArray(rb?.loot) && rb.loot.length > 0)
+        )
+      );
     })
   );
 }

@@ -82,6 +82,11 @@ export class AppComponent {
         routerLink: '/',
       },
       {
+        label: 'RB Map',
+        icon: 'pi pi-map',
+        routerLink: '/rb-map',
+      },
+      {
         label: 'Clan Info',
         icon: 'pi pi-users',
         routerLink: '/users',

@@ -1,5 +1,6 @@
 import { Component, DestroyRef, computed, effect, inject, input, OnInit, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -21,6 +22,7 @@ import { TgService } from '../../../../../../services/tg.service';
 export class RbItemComponent implements OnInit {
   private destroyRef = inject(DestroyRef);
   private tgService = inject(TgService);
+  private router = inject(Router);
 
   rb: any = input();
   showDetails = input(true);
@@ -256,6 +258,16 @@ export class RbItemComponent implements OnInit {
     window.open(url, '_blank', 'noopener');
   }
 
+  hasMapPoint = computed<boolean>(() => {
+    const rb = this.rb();
+    return typeof rb?.mapX === 'number' && typeof rb?.mapY === 'number';
+  });
+
+  openOnMap(): void {
+    const id = this.rb()?.id;
+    if (!id) return;
+    this.router.navigate(['/rb-map'], { queryParams: { focus: id } });
+  }
   toDate(value: any): Date | null {
     if (value == null) return null;
 

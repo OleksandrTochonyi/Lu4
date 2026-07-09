@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, computed, inject, input, OnInit, output, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -25,6 +26,7 @@ import { RbStatus } from '../../../../constants/status';
 })
 export class RbGridComponent implements OnInit {
   private destroyRef = inject(DestroyRef);
+  private router = inject(Router);
 
   items = input<any[]>([]);
   deadTimeDraftChanged = output<{ rb: any; deadTime: Date | null }>();
@@ -115,6 +117,16 @@ export class RbGridComponent implements OnInit {
     const url: string | undefined = rb?.meta?.infoLink;
     if (!url) return;
     window.open(url, '_blank', 'noopener');
+  }
+
+  hasMapPoint(rb: any): boolean {
+    return typeof rb?.mapX === 'number' && typeof rb?.mapY === 'number';
+  }
+
+  openOnMap(rb: any): void {
+    const id = rb?.id;
+    if (!id) return;
+    this.router.navigate(['/rb-map'], { queryParams: { focus: id } });
   }
 
   status = computed(() => {

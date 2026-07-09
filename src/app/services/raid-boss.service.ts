@@ -32,6 +32,10 @@ export interface RaidBoss {
   meta?: RaidBossMeta;
   lastDeadTime?: Timestamp | null;
   loot?: DocumentReference[];
+  /** Horizontal position on the map image, in percent (0-100). */
+  mapX?: number | null;
+  /** Vertical position on the map image, in percent (0-100). */
+  mapY?: number | null;
 }
 
 export interface RaidBossInput {
@@ -149,6 +153,17 @@ export class RaidBossService {
     return this.updateRaidBoss(id, {
       lastDeadTime: killTime ? Timestamp.fromDate(killTime) : null,
     });
+  }
+
+  /** PUT: place/move the raid boss point on the map (coordinates in percent 0-100). */
+  setMapPosition(id: string, x: number, y: number): Promise<void> {
+    const clamp = (v: number) => Math.min(100, Math.max(0, Number(v) || 0));
+    return this.updateRaidBoss(id, { mapX: clamp(x), mapY: clamp(y) });
+  }
+
+  /** PUT: remove the raid boss point from the map. */
+  clearMapPosition(id: string): Promise<void> {
+    return this.updateRaidBoss(id, { mapX: null, mapY: null });
   }
 
   /** PUT: set loot as references to items/{itemId}. */

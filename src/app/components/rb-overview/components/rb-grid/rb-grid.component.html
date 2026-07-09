@@ -89,6 +89,15 @@
 			<td class="text-left">
 				<div class="flex gap-2 justify-start">
 					<p-button
+						*ngIf="hasMapPoint(rb)"
+						icon="pi pi-map-marker"
+						[text]="true"
+						[severity]="'secondary'"
+						ariaLabel="Показать на карте"
+						(onClick)="openOnMap(rb)"
+					></p-button>
+
+					<p-button
 						icon="pi pi-info-circle"
 						[text]="true"
 						[severity]="'secondary'"

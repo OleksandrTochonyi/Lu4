@@ -83,6 +83,7 @@ export class RaidBossListComponent {
   readonly itemSearch = signal('');
   readonly gradeFilter = signal<string[]>([]);
   readonly itemSort = signal<'grade-desc' | 'grade-asc' | 'name'>('grade-desc');
+  readonly lootToRemove = signal<Item | null>(null);
 
   readonly gradeOptions = [
     { label: 'S', value: 's' },
@@ -173,6 +174,10 @@ export class RaidBossListComponent {
     return item.id;
   }
 
+  lootCount(boss: RaidBoss): number {
+    return Array.isArray(boss?.loot) ? boss.loot.length : 0;
+  }
+
   resetFilters(): void {
     this.nameQuery.set('');
     this.levelFrom.set(null);
@@ -254,6 +259,21 @@ export class RaidBossListComponent {
         : [...f.loot, itemId];
       return { ...f, loot };
     });
+  }
+
+  askRemoveLoot(item: Item): void {
+    this.lootToRemove.set(item);
+  }
+
+  cancelRemoveLoot(): void {
+    this.lootToRemove.set(null);
+  }
+
+  confirmRemoveLoot(): void {
+    const item = this.lootToRemove();
+    if (!item) return;
+    this.form.update((f) => ({ ...f, loot: f.loot.filter((x) => x !== item.id) }));
+    this.lootToRemove.set(null);
   }
 
   async save(): Promise<void> {
