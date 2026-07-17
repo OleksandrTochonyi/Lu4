@@ -133,7 +133,16 @@ export class RbSessionListComponent {
           loot: Array.isArray(item?.loot) ? item.loot : [],
         }));
 
-        this.rbOptions.set(normalized.filter((item) => item.id));
+        const sorted = normalized
+          .filter((item) => item.id)
+          .sort((a, b) => {
+            const aLvl = Number.isFinite(a.lvl) ? Number(a.lvl) : Number.POSITIVE_INFINITY;
+            const bLvl = Number.isFinite(b.lvl) ? Number(b.lvl) : Number.POSITIVE_INFINITY;
+            if (aLvl !== bLvl) return aLvl - bLvl;
+            return (a.displayName ?? '').localeCompare(b.displayName ?? '');
+          });
+
+        this.rbOptions.set(sorted);
 
         if (!this.selectedRbIdState() && this.rbOptions().length) {
           this.setSelectedRbId(this.rbOptions()[0]?.id ?? null);
@@ -354,6 +363,14 @@ export class RbSessionListComponent {
 
   lootImage(entry: any): string | null {
     return typeof entry?.imgUrl === 'string' ? entry.imgUrl : null;
+  }
+
+  lootGrade(entry: any): string | null {
+    const grade = entry?.grade ?? entry?.crystalType ?? null;
+    if (typeof grade !== 'string') return null;
+    const normalized = grade.trim().toLowerCase();
+    if (!normalized || normalized === 'none' || normalized === 'no-grade') return null;
+    return normalized.toUpperCase();
   }
 
   lootHasPayload(): boolean {

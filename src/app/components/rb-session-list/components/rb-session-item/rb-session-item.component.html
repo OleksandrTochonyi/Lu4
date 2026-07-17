@@ -1,74 +1,184 @@
-<div class="session-item">
-  <div class="session-item__header">
-    <div class="session-item__title">
-      {{ session().rb?.displayName ?? '—' }}
-      <span class="session-item__lvl" *ngIf="session().rb?.lvl as lvl">[{{ lvl }}]</span>
+<div class="session-item" [class.session-item--expanded]="expanded()">
+  <div class="session-item__row">
+    <!-- Kill time -->
+    <div class="time-cell">
+      <ng-container *ngIf="session().killDate as killDate; else noDate">
+        <span class="time-cell__date">{{ killDate | date: 'd MMM y' : 'Europe/Kyiv' }}</span>
+        <span class="time-cell__time">{{ killDate | date: 'HH:mm' : 'Europe/Kyiv' }}</span>
+      </ng-container>
+      <ng-template #noDate><span class="time-cell__date">—</span></ng-template>
     </div>
 
-    <div class="session-item__date" *ngIf="session().killDate as killDate">
-      {{ killDate | date: 'd MMMM y, HH:mm' : 'Europe/Kyiv' }}
+    <!-- Raid boss -->
+    <div class="rb-cell">
+      <div class="rb-cell__avatar">
+        <img *ngIf="rbImage() as img; else rbFallback" [src]="img" [alt]="rbName()" />
+        <ng-template #rbFallback>
+          <span class="rb-cell__avatar-fallback">{{ rbName().charAt(0) }}</span>
+        </ng-template>
+      </div>
+      <div class="rb-cell__info">
+        <div class="rb-cell__name">
+          {{ rbName() }}
+          <span class="rb-cell__lvl" *ngIf="rbLevel() as lvl">[{{ lvl }}]</span>
+        </div>
+        <span class="rb-cell__badge">{{ rbBadge() }}</span>
+      </div>
+    </div>
+
+    <!-- Participants -->
+    <div class="tags-cell">
+      <ng-container *ngIf="participants().length; else noData">
+        <div class="tag-wrap" *ngFor="let participant of visibleParticipants()">
+          <button type="button" class="tag tag--btn" (click)="partyPanel.toggle($event)">
+            <span class="tag__name">{{ participantGroupName(participant) }}</span>
+            <span class="tag__badge" *ngIf="participantUserCount(participant) as count">{{ count }}</span>
+          </button>
+          <p-overlayPanel
+            #partyPanel
+            appendTo="body"
+            [dismissable]="true"
+            [showTransitionOptions]="'150ms'"
+            [hideTransitionOptions]="'120ms'"
+            styleClass="party-popover"
+          >
+            <ng-container
+              [ngTemplateOutlet]="partyPopover"
+              [ngTemplateOutletContext]="{ $implicit: participant }"
+            ></ng-container>
+          </p-overlayPanel>
+        </div>
+        <span class="tag tag--more" *ngIf="hiddenParticipantCount() as more">+{{ more }}</span>
+      </ng-container>
+    </div>
+
+    <!-- Loot -->
+    <div class="loot-cell">
+      <ng-container *ngIf="loot().length; else noData">
+        <div class="loot-chip" *ngFor="let item of visibleLoot()" [title]="lootLabel(item)">
+          <img *ngIf="lootImage(item) as img; else lootFallback" [src]="img" [alt]="lootName(item)" />
+          <ng-template #lootFallback><span class="loot-chip__fallback"></span></ng-template>
+          <span class="loot-chip__count">{{ lootAmount(item) }}</span>
+        </div>
+        <div class="loot-chip loot-chip--more" *ngIf="hiddenLootCount() as more">+{{ more }}</div>
+      </ng-container>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions-cell">
+      <button
+        type="button"
+        class="icon-btn icon-btn--toggle"
+        [class.icon-btn--open]="expanded()"
+        (click)="toggleExpanded()"
+        [attr.aria-label]="expanded() ? 'Свернуть' : 'Развернуть'"
+      >
+        <i class="pi pi-chevron-down"></i>
+      </button>
+      <button type="button" class="icon-btn icon-btn--edit" (click)="onEdit($event)" aria-label="Редактировать">
+        <i class="pi pi-pencil"></i>
+      </button>
+      <button type="button" class="icon-btn icon-btn--delete" (click)="onRemove($event)" aria-label="Удалить">
+        <i class="pi pi-trash"></i>
+      </button>
     </div>
   </div>
 
-  <div class="session-item__section">
-    <div class="section-label">Участники</div>
-    <div class="section-value" *ngIf="session().participants.length; else noParticipants">
-      <div class="participant" *ngFor="let participant of session().participants">
-        <button
-          type="button"
-          class="participant-badge"
-          (click)="panel.toggle($event)"
-        >
-          <span class="participant-badge__name">
-            {{ participantGroupName(participant) ?? 'Группа' }}
-          </span>
-          <span class="participant-badge__count">
-            {{ participantUserCount(participant) }}
-          </span>
+  <!-- Expanded details -->
+  <div class="session-item__details" *ngIf="expanded()">
+    <div class="detail-summary">
+      <div class="rb-cell__avatar rb-cell__avatar--lg">
+        <img *ngIf="rbImage() as img; else rbFallbackLg" [src]="img" [alt]="rbName()" />
+        <ng-template #rbFallbackLg>
+          <span class="rb-cell__avatar-fallback">{{ rbName().charAt(0) }}</span>
+        </ng-template>
+      </div>
+      <div class="detail-summary__info">
+        <div class="rb-cell__name">
+          {{ rbName() }}
+          <span class="rb-cell__lvl" *ngIf="rbLevel() as lvl">[{{ lvl }}]</span>
+        </div>
+        <span class="rb-cell__badge">{{ rbBadge() }}</span>
+        <div class="detail-summary__meta" *ngIf="session().killDate as killDate">
+          <span><i class="pi pi-calendar"></i> {{ killDate | date: 'd MMM y' : 'Europe/Kyiv' }}</span>
+          <span><i class="pi pi-clock"></i> {{ killDate | date: 'HH:mm' : 'Europe/Kyiv' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-grid">
+      <!-- Participants block -->
+      <div class="detail-block">
+        <button type="button" class="detail-block__header" (click)="toggleParticipants()">
+          <span class="detail-block__title">Участники ({{ participants().length }} паков)</span>
+          <i class="pi" [class.pi-chevron-down]="!participantsOpen()" [class.pi-chevron-up]="participantsOpen()"></i>
         </button>
+        <div class="detail-block__body" *ngIf="participantsOpen()">
+          <ng-container *ngIf="participants().length; else emptyBlock">
+            <div class="tag-wrap" *ngFor="let participant of participants()">
+              <button type="button" class="tag tag--lg tag--btn" (click)="partyPanelLg.toggle($event)">
+                <span class="tag__name">{{ participantGroupName(participant) }}</span>
+                <span class="tag__badge" *ngIf="participantUserCount(participant) as count">{{ count }}</span>
+              </button>
+              <p-overlayPanel
+                #partyPanelLg
+                appendTo="body"
+                [dismissable]="true"
+                [showTransitionOptions]="'150ms'"
+                [hideTransitionOptions]="'120ms'"
+                styleClass="party-popover"
+              >
+                <ng-container
+                  [ngTemplateOutlet]="partyPopover"
+                  [ngTemplateOutletContext]="{ $implicit: participant }"
+                ></ng-container>
+              </p-overlayPanel>
+            </div>
+          </ng-container>
+        </div>
+      </div>
 
-        <p-overlayPanel
-          #panel
-          appendTo="body"
-          [dismissable]="true"
-          [showTransitionOptions]="'150ms'"
-          [hideTransitionOptions]="'120ms'"
-          [styleClass]="'participant-popover'"
-        >
-          <div class="popover">
-            <div class="popover-header">
-              {{ participantGroupName(participant) ?? 'Участники' }}
+      <!-- Loot block -->
+      <div class="detail-block">
+        <button type="button" class="detail-block__header" (click)="toggleLoot()">
+          <span class="detail-block__title">Лут ({{ loot().length }} предметов)</span>
+          <i class="pi" [class.pi-chevron-down]="!lootOpen()" [class.pi-chevron-up]="lootOpen()"></i>
+        </button>
+        <div class="detail-block__body detail-block__body--loot" *ngIf="lootOpen()">
+          <ng-container *ngIf="loot().length; else emptyBlock">
+            <div class="loot-card" *ngFor="let item of loot()">
+              <div class="loot-card__icon">
+                <img *ngIf="lootImage(item) as img; else lootCardFallback" [src]="img" [alt]="lootName(item)" />
+                <ng-template #lootCardFallback><span class="loot-card__icon-fallback"></span></ng-template>
+              </div>
+              <span class="loot-card__name">{{ lootName(item) }}</span>
+              <span class="loot-card__count">×{{ lootAmount(item) }}</span>
             </div>
-            <div class="popover-body" *ngIf="participant?.users?.length; else noUsers">
-              <ul class="popover-list">
-                <li class="popover-list-item" *ngFor="let user of participant.users">
-                  {{ user }}
-                </li>
-              </ul>
-            </div>
-            <ng-template #noUsers>
-              <div class="popover-empty">Участники не указаны</div>
-            </ng-template>
-          </div>
-        </p-overlayPanel>
+          </ng-container>
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="session-item__section">
-    <div class="section-label">Лут</div>
-    <div class="section-value" *ngIf="session().loot.length; else noLoot">
-      <div class="loot-row" *ngFor="let loot of session().loot">
-        {{ lootLabel(loot) }}
+  <ng-template #noData><span class="cell-placeholder">—</span></ng-template>
+  <ng-template #emptyBlock><div class="detail-block__empty">Нет данных</div></ng-template>
+
+  <!-- Shared party members popover -->
+  <ng-template #partyPopover let-participant>
+    <div class="party-pop">
+      <div class="party-pop__header">
+        <span class="party-pop__title">{{ participantGroupName(participant) }}</span>
+        <span class="party-pop__count">{{ participantUserCount(participant) }}</span>
       </div>
+      <ul class="party-pop__list" *ngIf="participant?.users?.length; else emptyUsers">
+        <li class="party-pop__item" *ngFor="let user of participant.users">
+          <i class="pi pi-user"></i>
+          <span>{{ user }}</span>
+        </li>
+      </ul>
+      <ng-template #emptyUsers>
+        <div class="party-pop__empty">Игроки не указаны</div>
+      </ng-template>
     </div>
-  </div>
-
-  <ng-template #noParticipants>
-    <div class="section-placeholder">—</div>
-  </ng-template>
-
-  <ng-template #noLoot>
-    <div class="section-placeholder">—</div>
   </ng-template>
 </div>

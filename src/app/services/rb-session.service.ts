@@ -122,7 +122,7 @@ export class RbSessionService {
     }
 
     const killDate = payload?.killDate instanceof Date ? payload.killDate : new Date();
-    const rbRef = doc(this.firestore, 'rb-data', rbId);
+    const rbRef = doc(this.firestore, 'raid-boss', rbId);
 
     const participants = (payload?.participants ?? [])
       .map((participant) => {
@@ -391,6 +391,8 @@ export class RbSessionService {
         if (!data) return of(null);
 
         const record = { ...(data as Record<string, any>) };
+        record['displayName'] = record['displayName'] ?? record['name'] ?? null;
+        record['lvl'] = record['lvl'] ?? record['level'] ?? null;
 
         if (Array.isArray(record['loot']) && record['loot'].length) {
           return this.resolveLoot(record['loot']).pipe(

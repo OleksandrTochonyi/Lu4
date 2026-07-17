@@ -48,7 +48,10 @@
   border: none !important;
   color: #334155 !important;
   box-shadow: none !important;
-  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease,
+  transition:
+    background-color 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease,
     box-shadow 120ms ease;
 }
 
@@ -431,7 +434,9 @@ p-table {
   padding: 10px 12px;
   border-radius: 12px;
   background: rgba(226, 232, 240, 0.6);
-  transition: background 120ms ease, transform 120ms ease;
+  transition:
+    background 120ms ease,
+    transform 120ms ease;
   cursor: pointer;
 }
 
@@ -505,11 +510,68 @@ p-table {
 .loot-info__name {
   font-weight: 600;
   color: #0f172a;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .loot-info__id {
   font-size: 12px;
   color: #64748b;
+}
+
+/* Grade badge */
+.loot-grade {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: #ffffff;
+  background: #64748b;
+}
+
+.loot-grade[data-grade="S"] {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.loot-grade[data-grade="A"] {
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+}
+
+.loot-grade[data-grade="B"] {
+  background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+}
+
+.loot-grade[data-grade="C"] {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+}
+
+.loot-grade[data-grade="D"] {
+  background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+}
+
+/* RB dropdown option */
+.rb-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rb-option__lvl {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1d4ed8;
+}
+
+.rb-option__name {
+  color: inherit;
 }
 
 .loot-input {
@@ -635,7 +697,9 @@ p-table {
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
-    transition: transform 120ms ease, box-shadow 120ms ease;
+    transition:
+      transform 120ms ease,
+      box-shadow 120ms ease;
     box-shadow: 0 3px 10px rgba(30, 64, 175, 0.18);
     border: none;
   }
@@ -673,7 +737,9 @@ p-table {
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 120ms ease, box-shadow 120ms ease;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
 }
 
@@ -790,12 +856,18 @@ p-table {
   border-radius: 12px;
   text-align: center;
   color: #475569;
+  margin: 0 16px;
+  height: 100%;
+  justify-content: center;
+  align-items: center;
+  display: flex;
 }
 
 .session-cards {
-  display: none;
+  display: flex;
   flex-direction: column;
   gap: 12px;
+  padding: 0 16px;
 }
 
 .actions-column {
@@ -823,7 +895,10 @@ p-table {
   align-items: center;
   justify-content: center;
   color: inherit !important;
-  transition: color 120ms ease, background-color 120ms ease, transform 120ms ease;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease,
+    transform 120ms ease;
 }
 
 .action-button:hover {
@@ -854,19 +929,11 @@ p-table {
 }
 
 @media (max-width: 900px) {
-  .session-table {
-    display: none;
-  }
-
-  .session-cards {
-    display: flex;
-  }
-
   .top-controls {
     flex-direction: column;
-  };
+  }
 }
 
 p-confirmdialog {
-    position: absolute;
+  position: absolute;
 }

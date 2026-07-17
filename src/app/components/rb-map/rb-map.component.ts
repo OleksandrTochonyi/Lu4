@@ -73,8 +73,9 @@ export class RbMapComponent {
 
   readonly mapSrc = 'assets/Interlude-map.jpg';
 
-  private readonly LS_LEVEL_FROM = 'rb-map-level-from';
-  private readonly LS_LEVEL_TO = 'rb-map-level-to';
+  // Shared with the main page filters: read defaults from these keys, but never write them here.
+  private readonly LS_LEVEL_FROM = 'rb-filter-level-from';
+  private readonly LS_LEVEL_TO = 'rb-filter-level-to';
 
   private mapImage = viewChild<ElementRef<HTMLImageElement>>('mapImage');
   private pageEl = viewChild<ElementRef<HTMLDivElement>>('pageEl');
@@ -402,19 +403,15 @@ export class RbMapComponent {
 
   onLevelFromChange(value: number | null): void {
     this.levelFrom.set(value);
-    this.writeStoredLevel(this.LS_LEVEL_FROM, value);
   }
 
   onLevelToChange(value: number | null): void {
     this.levelTo.set(value);
-    this.writeStoredLevel(this.LS_LEVEL_TO, value);
   }
 
   resetFilters(): void {
     this.levelFrom.set(null);
     this.levelTo.set(null);
-    this.writeStoredLevel(this.LS_LEVEL_FROM, null);
-    this.writeStoredLevel(this.LS_LEVEL_TO, null);
   }
 
   // ---------- Zoom controls ----------
@@ -721,15 +718,6 @@ export class RbMapComponent {
       return Number.isFinite(n) ? n : null;
     } catch {
       return null;
-    }
-  }
-
-  private writeStoredLevel(key: string, value: number | null): void {
-    try {
-      if (value == null) localStorage.removeItem(key);
-      else localStorage.setItem(key, String(value));
-    } catch {
-      // ignore
     }
   }
 

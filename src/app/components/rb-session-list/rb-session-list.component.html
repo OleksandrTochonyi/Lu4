@@ -29,7 +29,7 @@
       <input
         type="text"
         class="search-input"
-        placeholder="Поиск по РБ, группе, участнику или дропу"
+        placeholder="Поиск по РБ, группе, челу, дропу"
         [value]="searchTerm()"
         (input)="onSearchEvent($event)"
       />
@@ -134,7 +134,20 @@
             placeholder="Выберите рейд-босса"
             appendTo="body"
             [(ngModel)]="selectedRbIdValue"
-          ></p-dropdown>
+          >
+            <ng-template let-rb pTemplate="selectedItem">
+              <span class="rb-option" *ngIf="rb">
+                <span class="rb-option__lvl" *ngIf="rb.lvl != null">[{{ rb.lvl }}]</span>
+                <span class="rb-option__name">{{ rb.displayName }}</span>
+              </span>
+            </ng-template>
+            <ng-template let-rb pTemplate="item">
+              <span class="rb-option">
+                <span class="rb-option__lvl" *ngIf="rb.lvl != null">[{{ rb.lvl }}]</span>
+                <span class="rb-option__name">{{ rb.displayName }}</span>
+              </span>
+            </ng-template>
+          </p-dropdown>
         </div>
 
         <div class="form-field">
@@ -207,7 +220,14 @@
             <div class="loot-info">
               <img class="loot-info__img" *ngIf="lootImage(loot) as img" [src]="img" [alt]="lootDisplayName(loot)" />
               <div class="loot-info__meta">
-                <span class="loot-info__name">{{ lootDisplayName(loot) }}</span>
+                <span class="loot-info__name">
+                  {{ lootDisplayName(loot) }}
+                  <span
+                    class="loot-grade"
+                    *ngIf="lootGrade(loot) as grade"
+                    [attr.data-grade]="grade"
+                  >{{ grade }}</span>
+                </span>
                 <span class="loot-info__id" *ngIf="lootId(loot) as lootKey">{{ lootKey }}</span>
               </div>
             </div>
@@ -250,130 +270,16 @@
     </div>
   </div>
 
-  <p-table
-    class="session-table"
-    [value]="filteredSessions()"
-    dataKey="id"
-    [loading]="loading()"
-    [responsiveLayout]="'scroll'"
-  >
-    <ng-template pTemplate="header">
-      <tr>
-        <th>Рейд-босс</th>
-        <th>Время убийства</th>
-        <th class="participants-column">Участники</th>
-        <th>Лут</th>
-        <th class="actions-column">Действия</th>
-      </tr>
-    </ng-template>
-
-    <ng-template pTemplate="body" let-session>
-      <tr>
-        <td>
-          <div class="rb-cell">
-            <b class="rb-lvl" *ngIf="session?.rb?.lvl as lvl">[{{ lvl }}]</b>
-            <span class="rb-name">{{ session?.rb?.displayName ?? '—' }}</span>
-          </div>
-        </td>
-        <td>
-          <span class="rb-kill-date">
-            {{ session?.killDate ? (session.killDate | date : 'd MMMM y, HH:mm' : 'Europe/Kyiv') : '—' }}
-          </span>
-        </td>
-        <td>
-          <div class="participants" *ngIf="session?.participants.length; else noParticipants">
-            <div
-              class="participant"
-              *ngFor="let participant of session.participants; trackBy: trackByParticipant"
-            >
-              <button
-                type="button"
-                class="participant-badge"
-                (click)="panel.toggle($event)"
-              >
-                <span class="participant-name">
-                  {{ participantGroupName(participant) ?? 'Группа' }}
-                </span>
-                <span class="participant-count">
-                  {{ participantUserCount(participant) }}
-                </span>
-              </button>
-
-              <p-overlayPanel
-                #panel
-                appendTo="body"
-                [dismissable]="true"
-                [showTransitionOptions]="'150ms'"
-                [hideTransitionOptions]="'120ms'"
-                [styleClass]="'participant-popover'"
-              >
-                <div class="popover">
-                  <div class="popover-header">
-                    {{ participantGroupName(participant) ?? 'Участники' }}
-                  </div>
-                  <div class="popover-body" *ngIf="participant?.users?.length; else noUsers">
-                    <ul class="popover-list">
-                      <li class="popover-list-item" *ngFor="let user of participant.users">
-                        {{ user }}
-                      </li>
-                    </ul>
-                  </div>
-                  <ng-template #noUsers>
-                    <div class="popover-empty">Участники не указаны</div>
-                  </ng-template>
-                </div>
-              </p-overlayPanel>
-            </div>
-          </div>
-          <ng-template #noParticipants>—</ng-template>
-        </td>
-        <td>
-          <div class="loot-list" *ngIf="session?.loot.length; else noLoot">
-            <div class="loot-item" *ngFor="let loot of session.loot; trackBy: trackByLoot">
-              <span class="loot-amount">{{ loot?.amount ?? 0 }}×</span>
-              <span class="loot-name">
-                {{ loot?.possibleLoot?.displayName ?? loot?.possibleLoot?.name ?? '—' }}
-              </span>
-            </div>
-          </div>
-          <ng-template #noLoot>—</ng-template>
-        </td>
-        <td>
-          <div class="row-actions">
-            <button
-              pButton
-              type="button"
-              class="action-button action-button--edit"
-              icon="pi pi-pencil"
-              (click)="onStartEdit(session)"
-            ></button>
-            <button
-              pButton
-              type="button"
-              class="action-button action-button--delete"
-              icon="pi pi-trash"
-              (click)="onRequestDelete(session)"
-            ></button>
-          </div>
-        </td>
-      </tr>
-    </ng-template>
-
-    <ng-template pTemplate="emptymessage">
-      <tr>
-        <td colspan="5">Пока нет сохранённых сессий.</td>
-      </tr>
-    </ng-template>
-  </p-table>
-
-  <div class="session-empty" *ngIf="!loading() && !sessions().length">
-    Пока нет сохранённых сессий.
+  <div class="session-empty" *ngIf="!loading() && !filteredSessions().length">
+    {{ searchTerm() ? 'Ничего не найдено.' : 'Пока нет сохранённых сессий.' }}
   </div>
 
-  <div class="session-cards" *ngIf="sessions().length">
+  <div class="session-cards" *ngIf="filteredSessions().length">
     <app-rb-session-item
-      *ngFor="let session of sessions(); trackBy: trackBySession"
+      *ngFor="let session of filteredSessions(); trackBy: trackBySession"
       [session]="session"
+      (edit)="onStartEdit($event)"
+      (remove)="onRequestDelete($event)"
     ></app-rb-session-item>
   </div>
 </div>

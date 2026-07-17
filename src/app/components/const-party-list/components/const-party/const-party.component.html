@@ -45,6 +45,31 @@
     </div>
   </div>
 
+  <form *ngIf="showAddForm()" class="add-form" [formGroup]="addForm" (ngSubmit)="addUser()">
+    <div class="field">
+      <label for="userName">Имя</label>
+      <input id="userName" pInputText formControlName="name" />
+    </div>
+
+    <div class="field">
+      <label for="userRole">Роль</label>
+      <p-dropdown
+        inputId="userRole"
+        [options]="roleOptions"
+        optionLabel="label"
+        optionValue="value"
+        formControlName="role"
+        [appendTo]="'body'"
+        [showClear]="false"
+      ></p-dropdown>
+    </div>
+
+    <div class="buttons">
+      <p-button type="submit" label="Добавить" [loading]="isAdding()" [disabled]="isAdding()"></p-button>
+      <p-button type="button" label="Отмена" [text]="true" [severity]="'secondary'" (onClick)="cancelAdd()"></p-button>
+    </div>
+  </form>
+
   <p-table [value]="allUsers()" [rowHover]="true" [scrollable]="true" scrollHeight="flex">
     <ng-template pTemplate="header">
       <tr>
@@ -98,31 +123,6 @@
       </tr>
     </ng-template>
   </p-table>
-
-  <form *ngIf="showAddForm()" class="add-form" [formGroup]="addForm" (ngSubmit)="addUser()">
-    <div class="field">
-      <label for="userName">Имя</label>
-      <input id="userName" pInputText formControlName="name" />
-    </div>
-
-    <div class="field">
-      <label for="userRole">Роль</label>
-      <p-dropdown
-        inputId="userRole"
-        [options]="roleOptions"
-        optionLabel="label"
-        optionValue="value"
-        formControlName="role"
-        [appendTo]="'body'"
-        [showClear]="false"
-      ></p-dropdown>
-    </div>
-
-    <div class="buttons">
-      <p-button type="submit" label="Добавить" [loading]="isAdding()" [disabled]="isAdding()"></p-button>
-      <p-button type="button" label="Отмена" [text]="true" [severity]="'secondary'" (onClick)="cancelAdd()"></p-button>
-    </div>
-  </form>
 
   <div class="edit-panel" *ngIf="editingUser() as editing">
     <div class="section-title">Редактирование</div>
