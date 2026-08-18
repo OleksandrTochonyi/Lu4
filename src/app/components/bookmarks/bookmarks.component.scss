@@ -1,3 +1,20 @@
+// Without this, the host defaults to display:inline and never joins app-root's flex
+// column as a properly bounded item — the page grows to fit content and scrolls,
+// while inner scroll containers (the tab content, p-table) ALSO scroll on their own.
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  flex: 1;
+  min-height: 0;
+  padding-bottom: 8px;
+}
+
+.bookmarks {
+  flex: 1;
+  min-height: 0;
+}
+
 // One continuous badge made of touching colored segments (red/yellow/green breakdown)
 // instead of separate badges with gaps — same info, much less width.
 .status-pill {

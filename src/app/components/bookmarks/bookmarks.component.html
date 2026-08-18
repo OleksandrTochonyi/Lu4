@@ -52,7 +52,7 @@
 		</div>
 	</p-popover>
 
-	<div class="flex-1 min-h-0 overflow-auto p-2 sm:p-3">
+	<div class="flex-1 min-h-0 p-2 sm:p-3">
 		@if (tabs().length === 0) {
 			<div class="empty-tabs">
 				<i class="pi pi-bookmark"></i>
@@ -87,100 +87,100 @@
 
 				<p-tabpanels>
 					@for (tab of visibleTabs(); track tab.id) {
-						<p-tabpanel [value]="tab.id">
-							<!-- p-tabs mounts every panel's content up front (its `lazy` flag isn't wired
-							     up in this PrimeNG version), so we gate the actual work ourselves — only the
-							     active bookmark gets its RB list (and per-item 1s timers) instantiated. -->
-							@if (tab.id === activeTabId()) {
-								<div class="tab-toolbar">
-									<p-multiSelect
-										class="rb-picker"
-										[options]="filteredRbOptions()"
-										[ngModel]="tab.rbIds"
-										(ngModelChange)="updateTabRbIds(tab.id, $event)"
-										[filter]="true"
-										[showToggleAll]="false"
-										display="chip"
-										placeholder="Добавить РБ в эту закладку…"
-										appendTo="body"
-									>
-									<ng-template pTemplate="header">
-										<div class="level-filter">
-										<label>Уровень</label>
-										<p-inputNumber
-											[ngModel]="pickerLevelFrom()"
-											(ngModelChange)="pickerLevelFrom.set($event)"
-											[min]="1"
-											placeholder="с"
-											inputStyleClass="level-input"
-										/>
-										<span class="level-sep">—</span>
-										<p-inputNumber
-											[ngModel]="pickerLevelTo()"
-											(ngModelChange)="pickerLevelTo.set($event)"
-											[min]="1"
-											placeholder="по"
-											inputStyleClass="level-input"
-										/>
-										@if (pickerLevelFrom() != null || pickerLevelTo() != null) {
-											<p-button
-												icon="pi pi-filter-slash"
-												[text]="true"
-												[severity]="'secondary'"
-												ariaLabel="Сбросить фильтр уровня"
-												(onClick)="resetPickerLevelFilter()"
-											></p-button>
-										}
-									</div>
-									</ng-template>
-									</p-multiSelect>
-
-									<div class="tab-toolbar-actions">
-										<p-button
-											icon="pi pi-pencil"
-											[text]="true"
-											[severity]="'secondary'"
-											ariaLabel="Переименовать закладку"
-											(onClick)="openRenameTabDialog(tab, $event)"
-										></p-button>
-										<p-button
-											icon="pi pi-trash"
-											[text]="true"
-											[severity]="'danger'"
-											ariaLabel="Удалить закладку"
-											(onClick)="confirmDeleteTab(tab, $event)"
-										></p-button>
-									</div>
-								</div>
-
-								@if (activeTabItems().length) {
-									@if (showTableView()) {
-										<app-rb-grid
-											[items]="activeTabItems()"
-											[showDeleteButton]="true"
-											(deadTimeDraftChanged)="onDeadTimeDraftChanged($event)"
-											(deadTimeChanged)="onDeadTimeChanged($event)"
-											(removeFromList)="removeFromActiveTab($event)"
-										></app-rb-grid>
-									} @else {
-										<app-rb-list
-											[items]="activeTabItems()"
-											[showDeleteButton]="true"
-											(deadTimeDraftChanged)="onDeadTimeDraftChanged($event)"
-											(deadTimeChanged)="onDeadTimeChanged($event)"
-											(removeFromList)="removeFromActiveTab($event)"
-										></app-rb-list>
-									}
-								} @else {
-									<div class="empty-tab-items">
-										В этой закладке пока нет РБ — выберите их из списка выше.
-									</div>
-								}
-							}
-						</p-tabpanel>
+						<p-tabpanel [value]="tab.id"></p-tabpanel>
 					}
 				</p-tabpanels>
 			</p-tabs>
+
+			<!-- Rendered once, bound to activeTab() — not duplicated per tab panel — so there is
+			     only ever one RB picker/list on the page and no chance of a stale per-tab binding
+			     leaking one bookmark's selection into another. -->
+			@if (activeTab(); as tab) {
+				<div class="tab-toolbar">
+					<p-multiSelect
+						class="rb-picker"
+						[options]="filteredRbOptions()"
+						[ngModel]="tab.rbIds"
+						(ngModelChange)="updateTabRbIds(tab.id, $event)"
+						[filter]="true"
+						[showToggleAll]="false"
+						display="chip"
+						placeholder="Добавить РБ в эту закладку…"
+						appendTo="body"
+					>
+					<ng-template pTemplate="header">
+						<div class="level-filter">
+						<label>Уровень</label>
+						<p-inputNumber
+							[ngModel]="pickerLevelFrom()"
+							(ngModelChange)="pickerLevelFrom.set($event)"
+							[min]="1"
+							placeholder="с"
+							inputStyleClass="level-input"
+						/>
+						<span class="level-sep">—</span>
+						<p-inputNumber
+							[ngModel]="pickerLevelTo()"
+							(ngModelChange)="pickerLevelTo.set($event)"
+							[min]="1"
+							placeholder="по"
+							inputStyleClass="level-input"
+						/>
+						@if (pickerLevelFrom() != null || pickerLevelTo() != null) {
+							<p-button
+								icon="pi pi-filter-slash"
+								[text]="true"
+								[severity]="'secondary'"
+								ariaLabel="Сбросить фильтр уровня"
+								(onClick)="resetPickerLevelFilter()"
+							></p-button>
+						}
+					</div>
+					</ng-template>
+					</p-multiSelect>
+
+					<div class="tab-toolbar-actions">
+						<p-button
+							icon="pi pi-pencil"
+							[text]="true"
+							[severity]="'secondary'"
+							ariaLabel="Переименовать закладку"
+							(onClick)="openRenameTabDialog(tab, $event)"
+						></p-button>
+						<p-button
+							icon="pi pi-trash"
+							[text]="true"
+							[severity]="'danger'"
+							ariaLabel="Удалить закладку"
+							(onClick)="confirmDeleteTab(tab, $event)"
+						></p-button>
+					</div>
+				</div>
+
+				@if (activeTabItems().length) {
+					@if (showTableView()) {
+						<app-rb-grid
+							[items]="activeTabItems()"
+							[showDeleteButton]="true"
+							(deadTimeDraftChanged)="onDeadTimeDraftChanged($event)"
+							(deadTimeChanged)="onDeadTimeChanged($event)"
+							(removeFromList)="removeFromActiveTab($event)"
+						></app-rb-grid>
+					} @else {
+						<app-rb-list
+							[items]="activeTabItems()"
+							[showDeleteButton]="true"
+							(deadTimeDraftChanged)="onDeadTimeDraftChanged($event)"
+							(deadTimeChanged)="onDeadTimeChanged($event)"
+							(removeFromList)="removeFromActiveTab($event)"
+						></app-rb-list>
+					}
+				} @else {
+					<div class="empty-tab-items">
+						В этой закладке пока нет РБ — выберите их из списка выше.
+					</div>
+				}
+			}
 		}
 	</div>
 </div>

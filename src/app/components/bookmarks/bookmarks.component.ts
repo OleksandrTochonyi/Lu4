@@ -65,6 +65,12 @@ export class BookmarksComponent {
   visibleTabs = computed(() => this.tabs().filter((t) => !t.hidden));
   hiddenTabs = computed(() => this.tabs().filter((t) => t.hidden));
 
+  // Single source of truth for "the tab currently being edited" — the toolbar (RB
+  // picker, rename/delete) is rendered once, bound to this, instead of being
+  // duplicated per tab panel. That rules out any chance of a stale per-tab binding
+  // leaking another tab's selection into view.
+  activeTab = computed(() => this.tabs().find((t) => t.id === this.activeTabId()) ?? null);
+
   showTableView = signal(this.readStoredViewMode());
 
   // create/rename bookmark dialog state
@@ -94,8 +100,8 @@ export class BookmarksComponent {
       }));
   });
 
-  // Options shown in the dropdown: level-filtered, but an already-selected RB always
-  // stays present so its chip keeps resolving a label even if it falls outside the range.
+  // Options shown in the dropdown — strictly level-filtered (an already-selected RB
+  // outside the range is hidden from the list too, same as any other out-of-range boss).
   // With only one bound filled in, that bound is an exact level match, not an open range —
   // e.g. "от" = 10 alone shows only level-10 bosses, not "10 and up".
   filteredRbOptions = computed(() => {
@@ -104,9 +110,6 @@ export class BookmarksComponent {
     const options = this.rbOptions();
     if (from == null && to == null) return options;
 
-    const activeTab = this.tabs().find((t) => t.id === this.activeTabId());
-    const selectedIds = new Set(activeTab?.rbIds ?? []);
-
     const matchesLevel =
       from != null && to != null
         ? (level: number) => level >= from && level <= to
@@ -114,7 +117,7 @@ export class BookmarksComponent {
           ? (level: number) => level === from
           : (level: number) => level === to;
 
-    return options.filter((opt) => selectedIds.has(opt.value) || matchesLevel(opt.level));
+    return options.filter((opt) => matchesLevel(opt.level));
   });
 
   resetPickerLevelFilter(): void {
@@ -205,8 +208,7 @@ export class BookmarksComponent {
   // whole list every second. computed() keeps the array reference stable unless the
   // active bookmark, its rbIds, the raid-boss data, or hidden-set actually changed.
   activeTabItems = computed(() => {
-    const activeId = this.activeTabId();
-    const tab = this.tabs().find((t) => t.id === activeId);
+    const tab = this.activeTab();
     if (!tab) return [];
 
     const idSet = new Set(tab.rbIds ?? []);
@@ -225,8 +227,7 @@ export class BookmarksComponent {
     const rbId = item?.id;
     if (!rbId) return;
 
-    const activeId = this.activeTabId();
-    const tab = this.tabs().find((t) => t.id === activeId);
+    const tab = this.activeTab();
     if (!tab) return;
 
     this.updateTabRbIds(
