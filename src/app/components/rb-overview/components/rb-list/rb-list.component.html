@@ -8,9 +8,11 @@
                 <app-rb-item
                     [rb]="rb"
                            [showDetails]="showDetails()"
+                           [showDeleteButton]="showDeleteButton()"
                     (deadTimeDraftChanged)="deadTimeDraftChanged.emit($event)"
                     (deadTimeChanged)="deadTimeChanged.emit($event)"
                     (toggleHidden)="toggleHidden.emit($event)"
+                    (removeFromList)="removeFromList.emit($event)"
                 />
             </div>
             }

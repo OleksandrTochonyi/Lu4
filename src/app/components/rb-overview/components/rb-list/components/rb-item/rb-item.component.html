@@ -98,14 +98,25 @@
                 <p-button icon="pi pi-refresh" class="flex-auto md:flex-initial whitespace-nowrap" label="Обновить респ"
                     (onClick)="setKillTimeNowKyiv()"></p-button>
 
-                <p-button
-                    [icon]="isHidden() ? 'pi pi-eye' : 'pi pi-eye-slash'"
-                    [text]="true"
-                    [severity]="'secondary'"
-                    [label]="isHidden() ? 'Показать' : 'Скрыть'"
-                    [ariaLabel]="isHidden() ? 'Показать' : 'Скрыть'"
-                    (onClick)="onToggleHidden()"
-                ></p-button>
+                @if (showDeleteButton()) {
+                    <p-button
+                        icon="pi pi-trash"
+                        [text]="true"
+                        [severity]="'danger'"
+                        label="Удалить"
+                        ariaLabel="Удалить из таба"
+                        (onClick)="onRemoveFromList()"
+                    ></p-button>
+                } @else {
+                    <p-button
+                        [icon]="isHidden() ? 'pi pi-eye' : 'pi pi-eye-slash'"
+                        [text]="true"
+                        [severity]="'secondary'"
+                        [label]="isHidden() ? 'Показать' : 'Скрыть'"
+                        [ariaLabel]="isHidden() ? 'Показать' : 'Скрыть'"
+                        (onClick)="onToggleHidden()"
+                    ></p-button>
+                }
             </div>
         </div>
     </div>

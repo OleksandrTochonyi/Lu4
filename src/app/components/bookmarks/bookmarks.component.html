@@ -1,0 +1,226 @@
+<p-confirmDialog></p-confirmDialog>
+
+<div class="bookmarks flex flex-col h-full border border-surface rounded bg-surface-0 dark:bg-surface-900 overflow-hidden">
+	<div class="flex items-center justify-between p-2 sm:p-3 border-b gap-2">
+		<div class="flex items-center gap-2">
+			<p-button
+				[icon]="showTableView() ? 'pi pi-list' : 'pi pi-table'"
+				[label]="showTableView() ? 'Список' : 'Таблица'"
+				[text]="true"
+				[severity]="'secondary'"
+				(onClick)="toggleView()"
+				ariaLabel="Toggle view"
+			></p-button>
+
+			@if (hiddenTabs().length) {
+				<p-button
+					icon="pi pi-eye-slash"
+					[label]="'Скрытые (' + hiddenTabs().length + ')'"
+					[text]="true"
+					[severity]="'secondary'"
+					(onClick)="hiddenTabsPanel.toggle($event)"
+				></p-button>
+			}
+		</div>
+
+		<p-button
+			icon="pi pi-plus"
+			label="Новая закладка"
+			(onClick)="openCreateTabDialog()"
+		></p-button>
+	</div>
+
+	<p-popover #hiddenTabsPanel>
+		<div class="hidden-tabs-panel">
+			<div class="hidden-tabs-title">Скрытые закладки</div>
+			@if (hiddenTabs().length) {
+				@for (tab of hiddenTabs(); track tab.id) {
+					<div class="hidden-tab-row">
+						<span class="hidden-tab-name">{{ tab.name }}</span>
+						<p-button
+							label="Показать"
+							icon="pi pi-eye"
+							[text]="true"
+							size="small"
+							(onClick)="showTab(tab); hiddenTabsPanel.hide()"
+						></p-button>
+					</div>
+				}
+			} @else {
+				<div class="hidden-tabs-empty">Скрытых закладок нет</div>
+			}
+		</div>
+	</p-popover>
+
+	<div class="flex-1 min-h-0 overflow-auto p-2 sm:p-3">
+		@if (tabs().length === 0) {
+			<div class="empty-tabs">
+				<i class="pi pi-bookmark"></i>
+				<p>Закладок пока нет.</p>
+				<p-button label="Создать первую закладку" icon="pi pi-plus" (onClick)="openCreateTabDialog()"></p-button>
+			</div>
+		} @else if (visibleTabs().length === 0) {
+			<div class="empty-tabs">
+				<i class="pi pi-eye-slash"></i>
+				<p>Все закладки скрыты.</p>
+				<p-button
+					[label]="'Показать скрытые (' + hiddenTabs().length + ')'"
+					icon="pi pi-eye"
+					(onClick)="hiddenTabsPanel.toggle($event)"
+				></p-button>
+			</div>
+		} @else {
+			<p-tabs [value]="activeTabId()" (valueChange)="onActiveTabChange($event)" [scrollable]="true">
+				<p-tablist>
+					@for (tab of visibleTabs(); track tab.id) {
+						<p-tab [value]="tab.id">
+								{{ tab.name }}
+								@let segments = getTabStatusSegments(tab);
+								<span class="status-pill">
+									@for (seg of segments; track seg.cls) {
+										<span class="status-seg {{ seg.cls }}" [title]="seg.title">{{ seg.value }}</span>
+									}
+								</span>
+							</p-tab>
+					}
+				</p-tablist>
+
+				<p-tabpanels>
+					@for (tab of visibleTabs(); track tab.id) {
+						<p-tabpanel [value]="tab.id">
+							<!-- p-tabs mounts every panel's content up front (its `lazy` flag isn't wired
+							     up in this PrimeNG version), so we gate the actual work ourselves — only the
+							     active bookmark gets its RB list (and per-item 1s timers) instantiated. -->
+							@if (tab.id === activeTabId()) {
+								<div class="tab-toolbar">
+									<p-multiSelect
+										class="rb-picker"
+										[options]="filteredRbOptions()"
+										[ngModel]="tab.rbIds"
+										(ngModelChange)="updateTabRbIds(tab.id, $event)"
+										[filter]="true"
+										[showToggleAll]="false"
+										display="chip"
+										placeholder="Добавить РБ в эту закладку…"
+										appendTo="body"
+									>
+									<ng-template pTemplate="header">
+										<div class="level-filter">
+										<label>Уровень</label>
+										<p-inputNumber
+											[ngModel]="pickerLevelFrom()"
+											(ngModelChange)="pickerLevelFrom.set($event)"
+											[min]="1"
+											placeholder="с"
+											inputStyleClass="level-input"
+										/>
+										<span class="level-sep">—</span>
+										<p-inputNumber
+											[ngModel]="pickerLevelTo()"
+											(ngModelChange)="pickerLevelTo.set($event)"
+											[min]="1"
+											placeholder="по"
+											inputStyleClass="level-input"
+										/>
+										@if (pickerLevelFrom() != null || pickerLevelTo() != null) {
+											<p-button
+												icon="pi pi-filter-slash"
+												[text]="true"
+												[severity]="'secondary'"
+												ariaLabel="Сбросить фильтр уровня"
+												(onClick)="resetPickerLevelFilter()"
+											></p-button>
+										}
+									</div>
+									</ng-template>
+									</p-multiSelect>
+
+									<div class="tab-toolbar-actions">
+										<p-button
+											icon="pi pi-pencil"
+											[text]="true"
+											[severity]="'secondary'"
+											ariaLabel="Переименовать закладку"
+											(onClick)="openRenameTabDialog(tab, $event)"
+										></p-button>
+										<p-button
+											icon="pi pi-trash"
+											[text]="true"
+											[severity]="'danger'"
+											ariaLabel="Удалить закладку"
+											(onClick)="confirmDeleteTab(tab, $event)"
+										></p-button>
+									</div>
+								</div>
+
+								@if (activeTabItems().length) {
+									@if (showTableView()) {
+										<app-rb-grid
+											[items]="activeTabItems()"
+											[showDeleteButton]="true"
+											(deadTimeDraftChanged)="onDeadTimeDraftChanged($event)"
+											(deadTimeChanged)="onDeadTimeChanged($event)"
+											(removeFromList)="removeFromActiveTab($event)"
+										></app-rb-grid>
+									} @else {
+										<app-rb-list
+											[items]="activeTabItems()"
+											[showDeleteButton]="true"
+											(deadTimeDraftChanged)="onDeadTimeDraftChanged($event)"
+											(deadTimeChanged)="onDeadTimeChanged($event)"
+											(removeFromList)="removeFromActiveTab($event)"
+										></app-rb-list>
+									}
+								} @else {
+									<div class="empty-tab-items">
+										В этой закладке пока нет РБ — выберите их из списка выше.
+									</div>
+								}
+							}
+						</p-tabpanel>
+					}
+				</p-tabpanels>
+			</p-tabs>
+		}
+	</div>
+</div>
+
+<p-dialog
+	[header]="tabDialogMode() === 'create' ? 'Новая закладка' : 'Переименовать закладку'"
+	[visible]="tabDialogVisible()"
+	(visibleChange)="tabDialogVisible.set($event)"
+	[modal]="true"
+	[style]="{ width: '420px', maxWidth: '95vw' }"
+	[draggable]="false"
+	[dismissableMask]="true"
+>
+	<div class="tab-dialog-field">
+		<label for="tab-name">Название закладки</label>
+		<input
+			pInputText
+			id="tab-name"
+			class="w-full"
+			[ngModel]="tabNameDraft()"
+			(ngModelChange)="tabNameDraft.set($event)"
+			(keydown.enter)="saveTabDialog()"
+			placeholder="Например: Моя группа"
+		/>
+	</div>
+
+	@if (tabDialogMode() === 'rename') {
+		<div class="tab-dialog-checkbox">
+			<p-checkbox
+				inputId="tab-hidden"
+				[binary]="true"
+				[ngModel]="tabHiddenDraft()"
+				(ngModelChange)="tabHiddenDraft.set($event)"
+			></p-checkbox>
+			<label for="tab-hidden">Скрыть эту закладку</label>
+		</div>
+	}
+
+	<ng-template pTemplate="footer">
+		<p-button label="Отмена" [text]="true" (onClick)="tabDialogVisible.set(false)"></p-button>
+		<p-button label="Сохранить" icon="pi pi-check" [disabled]="!tabNameDraft().trim()" (onClick)="saveTabDialog()"></p-button>
+	</ng-template>
+</p-dialog>

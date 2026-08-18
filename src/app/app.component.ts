@@ -70,6 +70,11 @@ export class AppComponent {
       routerLink: '/',
     },
     {
+      label: 'Bookmarks',
+      icon: 'pi pi-bookmark',
+      routerLink: '/bookmarks',
+    },
+    {
       label: 'RB Map',
       icon: 'pi pi-map',
       routerLink: '/rb-map',

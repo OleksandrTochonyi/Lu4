@@ -15,7 +15,9 @@ import { RbItemComponent } from './components/rb-item/rb-item.component';
 export class RbListComponent {
   items = input<any[]>([]);
   showDetails = input(true);
+  showDeleteButton = input(false);
   deadTimeDraftChanged = output<{ rb: any; deadTime: Date | null }>();
   deadTimeChanged = output<{ rb: any; deadTime: Date | null }>();
   toggleHidden = output<any>();
+  removeFromList = output<any>();
 }

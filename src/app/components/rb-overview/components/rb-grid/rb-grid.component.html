@@ -130,13 +130,23 @@
 						(onClick)="setKillTimeNowKyiv(rb)"
 					></p-button>
 
-					<p-button
-						[icon]="isHidden(rb) ? 'pi pi-eye' : 'pi pi-eye-slash'"
-						[text]="true"
-						[severity]="'secondary'"
-						[ariaLabel]="isHidden(rb) ? 'Показать' : 'Скрыть'"
-						(onClick)="onToggleHidden(rb)"
-					></p-button>
+					@if (showDeleteButton()) {
+						<p-button
+							icon="pi pi-trash"
+							[text]="true"
+							[severity]="'danger'"
+							ariaLabel="Удалить из таба"
+							(onClick)="onRemoveFromList(rb)"
+						></p-button>
+					} @else {
+						<p-button
+							[icon]="isHidden(rb) ? 'pi pi-eye' : 'pi pi-eye-slash'"
+							[text]="true"
+							[severity]="'secondary'"
+							[ariaLabel]="isHidden(rb) ? 'Показать' : 'Скрыть'"
+							(onClick)="onToggleHidden(rb)"
+						></p-button>
+					}
 				</div>
 			</td>
 		</tr>

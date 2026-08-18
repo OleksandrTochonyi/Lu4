@@ -14,6 +14,8 @@ import { RbListComponent } from './components/rb-list/rb-list.component';
 import { RbGridComponent } from './components/rb-grid/rb-grid.component';
 import { environment } from '../../environments/environment';
 import { InputTextModule } from 'primeng/inputtext';
+import { enrichRbItem } from '../../utils/rb-enrich';
+import { getRbKey, readHiddenIds, writeHiddenIds } from '../../utils/rb-hidden';
 
 @Component({
   selector: 'app-rb-overview',
@@ -38,7 +40,6 @@ export class RbOverviewComponent {
   private readonly LS_LEVEL_FROM = 'rb-filter-level-from';
   private readonly LS_LEVEL_TO = 'rb-filter-level-to';
   private readonly LS_VIEW_MODE = 'rb-view-mode';
-  private readonly LS_HIDDEN_IDS = 'rb-hidden-ids';
 
   showTableView = signal(this.readStoredViewMode());
 
@@ -54,7 +55,7 @@ export class RbOverviewComponent {
   levelFrom = signal<number | null>(this.readStoredLevel(this.LS_LEVEL_FROM));
   levelTo = signal<number | null>(this.readStoredLevel(this.LS_LEVEL_TO));
 
-  hiddenIds = signal<Set<string>>(this.readStoredHiddenIds());
+  hiddenIds = signal<Set<string>>(readHiddenIds());
 
   get nameQueryValue(): string {
     return this.nameQuery();
@@ -119,46 +120,21 @@ export class RbOverviewComponent {
     this.onlyHidden.set(value);
   }
 
-  getRbKey(item: any): string {
-    const id = item?.id;
-    if (id != null) return String(id);
-    return String(item?.name ?? item?.displayName ?? '');
-  }
-
   isHidden(item: any): boolean {
-    return this.hiddenIds().has(this.getRbKey(item));
+    return this.hiddenIds().has(getRbKey(item));
   }
 
   toggleHidden(item: any): void {
-    const key = this.getRbKey(item);
+    const key = getRbKey(item);
     if (!key) return;
 
     this.hiddenIds.update((current) => {
       const next = new Set(current);
       if (next.has(key)) next.delete(key);
       else next.add(key);
-      this.writeStoredHiddenIds(next);
+      writeHiddenIds(next);
       return next;
     });
-  }
-
-  private readStoredHiddenIds(): Set<string> {
-    try {
-      const raw = localStorage.getItem(this.LS_HIDDEN_IDS);
-      if (!raw) return new Set();
-      const parsed = JSON.parse(raw);
-      return new Set(Array.isArray(parsed) ? parsed.map(String) : []);
-    } catch {
-      return new Set();
-    }
-  }
-
-  private writeStoredHiddenIds(ids: Set<string>): void {
-    try {
-      localStorage.setItem(this.LS_HIDDEN_IDS, JSON.stringify(Array.from(ids)));
-    } catch {
-      // ignore storage errors
-    }
   }
 
   get levelFromValue(): number | null {
@@ -213,7 +189,7 @@ export class RbOverviewComponent {
     const onlyHidden = this.onlyHidden();
 
     return items
-      .map((item) => ({ ...item, hidden: hiddenIds.has(this.getRbKey(item)) }))
+      .map((item) => ({ ...item, hidden: hiddenIds.has(getRbKey(item)) }))
       .filter((item) => {
         if (onlyHidden) {
           if (!item.hidden) return false;
@@ -257,7 +233,7 @@ export class RbOverviewComponent {
       .getItems()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((items) => {
-        this.items.set((items ?? []).map((item) => this.enrichItem(item)));
+        this.items.set((items ?? []).map((item) => enrichRbItem(item)));
       });
 
   }
@@ -271,7 +247,7 @@ export class RbOverviewComponent {
         if (!rbId && item !== event.rb) return item;
 
         const lastDeadTime = event.deadTime ? Timestamp.fromDate(event.deadTime) : null;
-        return this.enrichItem({ ...item, lastDeadTime });
+        return enrichRbItem({ ...item, lastDeadTime });
       })
     );
   }
@@ -299,76 +275,9 @@ export class RbOverviewComponent {
         if (!rbId && item !== event.rb) return item;
 
         const lastDeadTime = event.deadTime ? Timestamp.fromDate(event.deadTime) : null;
-        return this.enrichItem({ ...item, lastDeadTime });
+        return enrichRbItem({ ...item, lastDeadTime });
       })
     );
-  }
-
-  private enrichItem(item: any): any {
-    const deadTime = this.toDate(item?.lastDeadTime);
-    const respTimeHours = item?.meta?.respTime;
-    const plusMinusHours = item?.meta?.plusMinusRespTime;
-
-    const minResp = this.addHours(deadTime, respTimeHours);
-    const maxResp = this.addHours(minResp, plusMinusHours);
-
-    const secondMinResp = this.addHours(minResp, respTimeHours);
-    const secondMaxResp = this.addHours(maxResp, (Number(respTimeHours) || 0) + (Number(plusMinusHours) || 0));
-
-    const status = this.calculateStatus(minResp, maxResp, secondMinResp, secondMaxResp);
-
-    return {
-      ...item,
-      deadTime,
-      minResp,
-      maxResp,
-      secondMinResp,
-      secondMaxResp,
-      status,
-    };
-  }
-
-  private calculateStatus(
-    minResp: Date | null,
-    maxResp: Date | null,
-    secondMinResp: Date | null,
-    secondMaxResp: Date | null
-  ): RbStatus {
-    if (!minResp || !maxResp || !secondMinResp || !secondMaxResp) return RbStatus.Unknown;
-
-    const now = Date.now();
-    const hourMs = 60 * 60 * 1000;
-    const min = minResp.getTime();
-    const max = maxResp.getTime();
-    const secondMin = secondMinResp.getTime();
-    const secondMax = secondMaxResp.getTime();
-
-    if (now < min) {
-      if (min - now <= hourMs) return RbStatus.SoonResp;
-      return RbStatus.NotInResp;
-    }
-    if (now >= min && now <= max) return RbStatus.InResp;
-    if (now > max && now < secondMin) {
-      if (secondMin - now <= hourMs) return RbStatus.SoonSecondResp;
-      return RbStatus.FirstRespPassed;
-    }
-    if (now >= secondMin && now <= secondMax) return RbStatus.SecondResp;
-    return RbStatus.Missed;
-  }
-
-  private toDate(value: any): Date | null {
-    if (!value) return null;
-    if (typeof value.toDate === 'function') return value.toDate();
-    if (typeof value.seconds === 'number') return new Date(value.seconds * 1000);
-    const d = new Date(value);
-    return Number.isNaN(d.getTime()) ? null : d;
-  }
-
-  private addHours(date: Date | null, hours: any): Date | null {
-    if (!date) return null;
-    const hoursNumber = Number(hours);
-    if (!Number.isFinite(hoursNumber)) return date;
-    return new Date(date.getTime() + hoursNumber * 60 * 60 * 1000);
   }
 
 }

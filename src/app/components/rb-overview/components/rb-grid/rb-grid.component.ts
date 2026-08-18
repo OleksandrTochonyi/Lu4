@@ -34,9 +34,11 @@ export class RbGridComponent implements OnInit {
   private confirmationService = inject(ConfirmationService);
 
   items = input<any[]>([]);
+  showDeleteButton = input(false);
   deadTimeDraftChanged = output<{ rb: any; deadTime: Date | null }>();
   deadTimeChanged = output<{ rb: any; deadTime: Date | null }>();
   toggleHidden = output<any>();
+  removeFromList = output<any>();
 
   now = signal(Date.now());
 
@@ -161,6 +163,10 @@ export class RbGridComponent implements OnInit {
 
   onToggleHidden(rb: any): void {
     this.toggleHidden.emit(rb);
+  }
+
+  onRemoveFromList(rb: any): void {
+    this.removeFromList.emit(rb);
   }
 
   status = computed(() => {

@@ -7,6 +7,7 @@ import { RbSessionListComponent } from './components/rb-session-list/rb-session-
 import { StatisticsComponent } from './components/statistics/statistics.component';
 import { RaidBossListComponent } from './components/raid-boss-list/raid-boss-list.component';
 import { RbMapComponent } from './components/rb-map/rb-map.component';
+import { BookmarksComponent } from './components/bookmarks/bookmarks.component';
 import { authGuard } from './guards/auth.guard';
 import { adminGuard } from './guards/admin.guard';
 import { loginRedirectGuard } from './guards/login-redirect.guard';
@@ -18,6 +19,7 @@ export const routes: Routes = [
 	{ path: 'raids', component: RbSessionListComponent, canActivate: [authGuard, adminGuard] },
 	{ path: 'rb-list', component: RaidBossListComponent, canActivate: [authGuard, adminGuard] },
 	{ path: 'rb-map', component: RbMapComponent, canActivate: [authGuard] },
+	{ path: 'bookmarks', component: BookmarksComponent, canActivate: [authGuard] },
 	{ path: 'startistics', component: StatisticsComponent, canActivate: [authGuard, adminGuard] },
 	{ path: 'login', component: LoginComponent, canActivate: [loginRedirectGuard] },
 ];

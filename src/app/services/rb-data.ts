@@ -4,12 +4,12 @@ import {
   collectionData,
   collection,
   doc,
-  docData,
+  getDoc,
   setDoc,
   updateDoc,
 } from '@angular/fire/firestore';
 import { Timestamp } from 'firebase/firestore';
-import { Observable, forkJoin, map, of, shareReplay, switchMap, take, throwError } from 'rxjs';
+import { Observable, forkJoin, from, map, of, shareReplay, switchMap, throwError } from 'rxjs';
 const BLADE_IMG = "https://wikisite11.mw2.wiki/icon64/etc_sword_body_i00.png";
 const HEAD_IMG = "https://wikisite11.mw2.wiki/icon64/etc_squares_gray_i00.png";
 const SHAFT_IMG = "https://masterwork.wiki/icon64/etc_branch_gold_i00.png";
@@ -705,10 +705,13 @@ export class RbData {
     const cached = this.lootCache.get(key);
     if (cached) return cached;
 
-    const lootData$ = runInInjectionContext(this.injector, () =>
-      docData<any>(ref, { idField: 'id' })
+    // A one-shot getDoc(), not docData()/onSnapshot() — loot items are static, and
+    // resolving dozens of them per boss as live listeners floods Firestore's single
+    // Listen channel with that many watch targets on every page load.
+    const lootData$ = from(
+      runInInjectionContext(this.injector, () => getDoc(ref))
     ).pipe(
-      take(1),
+      map((snap) => (snap.exists() ? { ...(snap.data() as any), id: snap.id } : null)),
       map((item: any) =>
         item
           ? {

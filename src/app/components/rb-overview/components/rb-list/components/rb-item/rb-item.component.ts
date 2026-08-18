@@ -28,9 +28,11 @@ export class RbItemComponent implements OnInit {
 
   rb: any = input();
   showDetails = input(true);
+  showDeleteButton = input(false);
   deadTimeDraftChanged = output<{ rb: any; deadTime: Date | null }>();
   deadTimeChanged = output<{ rb: any; deadTime: Date | null }>();
   toggleHidden = output<any>();
+  removeFromList = output<any>();
   deadTime: Date | null = null;
 
   isHidden = computed(() => !!this.rb()?.hidden);
@@ -276,6 +278,10 @@ export class RbItemComponent implements OnInit {
 
   onToggleHidden(): void {
     this.toggleHidden.emit(this.rb());
+  }
+
+  onRemoveFromList(): void {
+    this.removeFromList.emit(this.rb());
   }
   toDate(value: any): Date | null {
     if (value == null) return null;
