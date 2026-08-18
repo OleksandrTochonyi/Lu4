@@ -15,6 +15,18 @@
   min-height: 0;
 }
 
+// The only element that should grow/scroll — the tab strip and RB-picker toolbar above
+// it stay fixed at their content size. app-rb-grid's own :host is height:100%, so it
+// needs a bounded flex parent to resolve against for p-table's scrollHeight="flex" to
+// compute correctly and scroll internally (inside .p-datatable-table-container) instead
+// of the whole page/tab area scrolling as one block.
+.grid-area {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 // One continuous badge made of touching colored segments (red/yellow/green breakdown)
 // instead of separate badges with gaps — same info, much less width.
 .status-pill {

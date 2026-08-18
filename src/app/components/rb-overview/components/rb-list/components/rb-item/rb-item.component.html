@@ -45,9 +45,11 @@
                             [rounded]="true"
                             ariaLabel="Cancel" (onClick)="cancelDeadTime()"></p-button>
 
-                        <p-button *ngIf="!hasDeadTimeChanges() && deadTime" icon="pi pi-trash" [text]="true" [severity]="'danger'"
-                            [rounded]="true"
-                            ariaLabel="Удалить время убийства" (onClick)="confirmClearDeadTime($event)"></p-button>
+                        <div class="dead-time-delete-slot" *ngIf="!hasDeadTimeChanges()">
+                            <p-button *ngIf="deadTime" icon="pi pi-trash" [text]="true" [severity]="'danger'"
+                                [rounded]="true"
+                                ariaLabel="Удалить время убийства" (onClick)="confirmClearDeadTime($event)"></p-button>
+                        </div>
                     </div>
                 </div>
 

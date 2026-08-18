@@ -40,8 +40,10 @@ export class RbOverviewComponent {
   private readonly LS_LEVEL_FROM = 'rb-filter-level-from';
   private readonly LS_LEVEL_TO = 'rb-filter-level-to';
   private readonly LS_VIEW_MODE = 'rb-view-mode';
+  private readonly LS_COMPACT_VIEW = 'rb-compact-view';
 
   showTableView = signal(this.readStoredViewMode());
+  compactView = signal(this.readStoredCompactView());
 
   items = signal<any[]>([]);
 
@@ -83,6 +85,24 @@ export class RbOverviewComponent {
   private readStoredViewMode(): boolean {
     try {
       return localStorage.getItem(this.LS_VIEW_MODE) === 'table';
+    } catch {
+      return false;
+    }
+  }
+
+  toggleCompact(): void {
+    const next = !this.compactView();
+    this.compactView.set(next);
+    try {
+      localStorage.setItem(this.LS_COMPACT_VIEW, next ? '1' : '0');
+    } catch {
+      // ignore storage errors
+    }
+  }
+
+  private readStoredCompactView(): boolean {
+    try {
+      return localStorage.getItem(this.LS_COMPACT_VIEW) === '1';
     } catch {
       return false;
     }

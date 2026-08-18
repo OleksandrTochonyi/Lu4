@@ -61,6 +61,14 @@
 	box-shadow: none !important;
 }
 
+// A *ngIf-removed trailing button changes the flex row's remaining space, which
+// visibly shrinks/grows the [flex-1] datepicker depending on whether a dead time is
+// set. Reserve the slot's width unconditionally so the datepicker stays a constant size.
+.dead-time-delete-slot {
+	width: 2.25rem;
+	flex-shrink: 0;
+}
+
 .hidden-chip {
 	display: inline-flex;
 	align-items: center;

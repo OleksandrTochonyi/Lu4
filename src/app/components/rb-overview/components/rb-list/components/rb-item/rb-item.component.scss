@@ -114,6 +114,14 @@
   align-items: center;
 }
 
+// A *ngIf-removed trailing button changes the flex row's remaining space, which
+// visibly shrinks/grows the [flex-1] datepicker depending on whether a dead time is
+// set. Reserve the slot's width unconditionally so the datepicker stays a constant size.
+.dead-time-delete-slot {
+  width: 2.25rem;
+  flex-shrink: 0;
+}
+
 @media (max-width: 800px) {
   .rb-img {
     width: 200px;
@@ -139,10 +147,12 @@
 }
 
 .small-details {
-  padding: 8px 16px !important;
+  padding: 6px 12px !important;
+  gap: 0.5rem !important;
 
   .content-wrapper {
     align-items: center !important;
+    gap: 0.75rem !important;
   }
 
   .title-wrapper {
@@ -151,18 +161,48 @@
     flex: 1.5;
   }
 
+  .rb-title {
+    font-size: 0.85rem !important;
+  }
+
   .rb-content {
     display: flex;
     flex-direction: row !important;
+    gap: 0.5rem !important;
   }
 
   .time-info {
     flex: 3;
     place-items: flex-start;
+    gap: 0.5rem !important;
+  }
+
+  // The static "Время убийства" caption is redundant once the row is this compact —
+  // a datepicker is self-explanatory; the status/timer label stays, it carries state.
+  .dead-time label {
+    display: none;
+  }
+
+  .time-item {
+    padding: 2px 8px !important;
+    font-size: 0.72rem !important;
+    min-width: 0 !important;
+    height: auto !important;
   }
 
   .actions {
     align-self: center !important;
+    gap: 0.15rem !important;
+  }
+
+  // Icon-only actions — the label text is what eats the most horizontal/vertical room.
+  .actions ::ng-deep .p-button-label {
+    display: none;
+  }
+
+  ::ng-deep .p-tag {
+    padding: 0.15rem 0.4rem;
+    font-size: 0.65rem;
   }
 
   @media (max-width: 800px) {

@@ -35,6 +35,7 @@ export class RbGridComponent implements OnInit {
 
   items = input<any[]>([]);
   showDeleteButton = input(false);
+  showDetails = input(true);
   deadTimeDraftChanged = output<{ rb: any; deadTime: Date | null }>();
   deadTimeChanged = output<{ rb: any; deadTime: Date | null }>();
   toggleHidden = output<any>();

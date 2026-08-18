@@ -17,7 +17,6 @@ import { RbData } from '../../services/rb-data';
 import { RbStatus } from '../../constants/status';
 import { enrichRbItem } from '../../utils/rb-enrich';
 import { getRbKey, readHiddenIds } from '../../utils/rb-hidden';
-import { RbListComponent } from '../rb-overview/components/rb-list/rb-list.component';
 import { RbGridComponent } from '../rb-overview/components/rb-grid/rb-grid.component';
 
 interface CustomBossTab {
@@ -40,7 +39,6 @@ interface CustomBossTab {
     TabsModule,
     PopoverModule,
     ConfirmDialogModule,
-    RbListComponent,
     RbGridComponent,
   ],
   providers: [ConfirmationService],
@@ -54,7 +52,7 @@ export class BookmarksComponent {
   private confirmationService = inject(ConfirmationService);
 
   private readonly LS_TABS = 'rb-custom-tabs';
-  private readonly LS_VIEW_MODE = 'rb-view-mode';
+  private readonly LS_COMPACT_VIEW = 'rb-compact-view';
 
   items = signal<any[]>([]);
   hiddenIds = signal<Set<string>>(readHiddenIds());
@@ -71,7 +69,7 @@ export class BookmarksComponent {
   // leaking another tab's selection into view.
   activeTab = computed(() => this.tabs().find((t) => t.id === this.activeTabId()) ?? null);
 
-  showTableView = signal(this.readStoredViewMode());
+  compactView = signal(this.readStoredCompactView());
 
   // create/rename bookmark dialog state
   tabDialogVisible = signal(false);
@@ -83,6 +81,16 @@ export class BookmarksComponent {
   // RB picker level filter (from/to) — narrows the multiSelect's dropdown options.
   pickerLevelFrom = signal<number | null>(null);
   pickerLevelTo = signal<number | null>(null);
+
+  // View filter for the active tab's RB list — same "only in resp / hour to resp"
+  // toggles as the home page.
+  showOnlyResp = signal(false);
+  showOneHourToResp = signal(false);
+
+  resetRespFilters(): void {
+    this.showOnlyResp.set(false);
+    this.showOneHourToResp.set(false);
+  }
 
   rbOptions = computed(() => {
     return (this.items() ?? [])
@@ -184,19 +192,19 @@ export class BookmarksComponent {
       });
   }
 
-  toggleView(): void {
-    const next = !this.showTableView();
-    this.showTableView.set(next);
+  toggleCompact(): void {
+    const next = !this.compactView();
+    this.compactView.set(next);
     try {
-      localStorage.setItem(this.LS_VIEW_MODE, next ? 'table' : 'list');
+      localStorage.setItem(this.LS_COMPACT_VIEW, next ? '1' : '0');
     } catch {
       // ignore storage errors
     }
   }
 
-  private readStoredViewMode(): boolean {
+  private readStoredCompactView(): boolean {
     try {
-      return localStorage.getItem(this.LS_VIEW_MODE) === 'table';
+      return localStorage.getItem(this.LS_COMPACT_VIEW) === '1';
     } catch {
       return false;
     }
@@ -213,10 +221,33 @@ export class BookmarksComponent {
 
     const idSet = new Set(tab.rbIds ?? []);
     const hidden = this.hiddenIds();
+    const now = Date.now();
+    const hourMs = 60 * 60 * 1000;
+    const onlyResp = this.showOnlyResp();
+    const oneHour = this.showOneHourToResp();
 
     return this.items()
       .filter((item) => idSet.has(item?.id))
       .map((item) => ({ ...item, hidden: hidden.has(getRbKey(item)) }))
+      .filter((item) => {
+        if (!onlyResp && !oneHour) return true;
+
+        const inResp = item?.status === RbStatus.InResp || item?.status === RbStatus.SecondResp;
+
+        const minResp: Date | null = item?.minResp ?? null;
+        const secondMinResp: Date | null = item?.secondMinResp ?? null;
+        const minMs = minResp instanceof Date ? minResp.getTime() : null;
+        const secondMinMs = secondMinResp instanceof Date ? secondMinResp.getTime() : null;
+        const inOneHourToFirst = minMs != null && minMs > now && minMs - now <= hourMs;
+        const inOneHourToSecond =
+          secondMinMs != null && secondMinMs > now && secondMinMs - now <= hourMs;
+        const inOneHourToResp = inOneHourToFirst || inOneHourToSecond;
+
+        // If both toggles are enabled, treat them as OR.
+        if (onlyResp && oneHour) return inResp || inOneHourToResp;
+        if (onlyResp) return inResp;
+        return inOneHourToResp;
+      })
       .sort((a, b) => Number(a?.lvl ?? 0) - Number(b?.lvl ?? 0));
   });
 

@@ -5,17 +5,20 @@
 	[rowHover]="true"
 	[scrollable]="true"
 	scrollHeight="flex"
-	[tableStyle]="{ 'min-width': '1000px' }"
+	[size]="showDetails() ? undefined : 'small'"
+	[tableStyle]="{ 'min-width': showDetails() ? '1000px' : '760px' }"
 >
 	<ng-template pTemplate="header">
 		<tr>
-			<th style="width: 160px">Статус</th>
+			<th [style.width.px]="showDetails() ? 160 : 120">Статус</th>
 			<th>РБ</th>
-			<th style="width: 280px">Время убийства</th>
-			<th style="width: 140px">Мин. респ</th>
-			<th style="width: 140px">Макс. респ</th>
+			<th [style.width.px]="showDetails() ? 280 : 220">Время убийства</th>
+			@if (showDetails()) {
+				<th style="width: 140px">Мин. респ</th>
+				<th style="width: 140px">Макс. респ</th>
+			}
 			<th style="width: 220px">Таймер</th>
-			<th style="width: 220px" class="text-left">Действия</th>
+			<th [style.width.px]="showDetails() ? 220 : 160" class="text-left">Действия</th>
 		</tr>
 	</ng-template>
 
@@ -70,24 +73,28 @@
 						(onClick)="cancelDeadTime(rb)"
 					></p-button>
 
-					<p-button
-						*ngIf="!hasDeadTimeChanges(rb) && getDraftDeadTime(rb)"
-						icon="pi pi-trash"
-						[text]="true"
-						[severity]="'danger'"
-						[rounded]="true"
-						ariaLabel="Удалить время убийства"
-						(onClick)="confirmClearDeadTime(rb, $event)"
-					></p-button>
+					<div class="dead-time-delete-slot" *ngIf="!hasDeadTimeChanges(rb)">
+						<p-button
+							*ngIf="getDraftDeadTime(rb)"
+							icon="pi pi-trash"
+							[text]="true"
+							[severity]="'danger'"
+							[rounded]="true"
+							ariaLabel="Удалить время убийства"
+							(onClick)="confirmClearDeadTime(rb, $event)"
+						></p-button>
+					</div>
 				</div>
 			</td>
 
-			<td>
-				{{ displayMinResp(rb) ? (displayMinResp(rb) | date : 'HH:mm' : 'Europe/Kyiv') : '—' }}
-			</td>
-			<td>
-				{{ displayMaxResp(rb) ? (displayMaxResp(rb) | date : 'HH:mm' : 'Europe/Kyiv') : '—' }}
-			</td>
+			@if (showDetails()) {
+				<td>
+					{{ displayMinResp(rb) ? (displayMinResp(rb) | date : 'HH:mm' : 'Europe/Kyiv') : '—' }}
+				</td>
+				<td>
+					{{ displayMaxResp(rb) ? (displayMaxResp(rb) | date : 'HH:mm' : 'Europe/Kyiv') : '—' }}
+				</td>
+			}
 
 			<td>
 				<div class="text-sm">
@@ -154,7 +161,7 @@
 
 	<ng-template pTemplate="emptymessage">
 		<tr>
-			<td [attr.colspan]="7" class="text-center text-muted-color p-4">
+			<td [attr.colspan]="showDetails() ? 7 : 5" class="text-center text-muted-color p-4">
 				Нет данных
 			</td>
 		</tr>
