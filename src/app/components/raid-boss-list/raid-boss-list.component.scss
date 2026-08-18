@@ -55,6 +55,74 @@
   text-align: center;
 }
 
+.resp-col {
+  text-align: center;
+}
+
+.resp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.resp-badge.pm {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.resp-badge .pi {
+  font-size: 0.72rem;
+}
+
+// Min resp — one color per hour value (4-10h) so the value is recognizable at a glance.
+.resp-badge.resp-4 {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.resp-badge.resp-5 {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.resp-badge.resp-6 {
+  background: #ccfbf1;
+  color: #0f766e;
+}
+
+.resp-badge.resp-7 {
+  background: #fef9c3;
+  color: #a16207;
+}
+
+.resp-badge.resp-8 {
+  background: #fce7f3;
+  color: #be185d;
+}
+
+.resp-badge.resp-9 {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.resp-badge.resp-10 {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.resp-badge.resp-other {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
 .loot-badge {
   display: inline-flex;
   align-items: center;

@@ -64,6 +64,8 @@
     <ng-template pTemplate="header">
       <tr>
         <th pSortableColumn="name">Имя <p-sortIcon field="name" /></th>
+        <th style="width: 8rem" class="resp-col">Min resp</th>
+        <th style="width: 8rem" class="resp-col">± Time</th>
         <th style="width: 6rem" pSortableColumn="level">Ур. <p-sortIcon field="level" /></th>
         <th style="width: 6rem" class="loot-col">Лут</th>
       </tr>
@@ -71,6 +73,24 @@
     <ng-template pTemplate="body" let-boss>
       <tr class="rb-row" (click)="openEdit(boss)">
         <td>{{ boss.name }}</td>
+        <td class="resp-col">
+          <span
+            class="resp-badge"
+            [ngClass]="respBadgeClass(boss.meta?.respTime)"
+            *ngIf="boss.meta?.respTime != null; else respDash"
+          >
+            <i class="pi pi-clock"></i>
+            {{ boss.meta?.respTime }}ч
+          </span>
+          <ng-template #respDash>—</ng-template>
+        </td>
+        <td class="resp-col">
+          <span class="resp-badge pm" *ngIf="boss.meta?.plusMinusRespTime != null; else pmDash">
+            <i class="pi pi-sort-alt"></i>
+            ±{{ boss.meta?.plusMinusRespTime }}ч
+          </span>
+          <ng-template #pmDash>—</ng-template>
+        </td>
         <td>{{ boss.level }}</td>
         <td class="loot-col">
           <span
@@ -91,7 +111,7 @@
     </ng-template>
     <ng-template pTemplate="emptymessage">
       <tr>
-        <td colspan="3" class="rb-empty">Боссы не найдены</td>
+        <td colspan="5" class="rb-empty">Боссы не найдены</td>
       </tr>
     </ng-template>
   </p-table>

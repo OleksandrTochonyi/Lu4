@@ -178,6 +178,13 @@ export class RaidBossListComponent {
     return Array.isArray(boss?.loot) ? boss.loot.length : 0;
   }
 
+  private readonly respColorSteps = [4, 5, 6, 7, 8, 9, 10];
+
+  respBadgeClass(respTime: number | null | undefined): string {
+    const value = Math.round(Number(respTime));
+    return this.respColorSteps.includes(value) ? `resp-${value}` : 'resp-other';
+  }
+
   resetFilters(): void {
     this.nameQuery.set('');
     this.levelFrom.set(null);
