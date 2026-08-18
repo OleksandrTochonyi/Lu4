@@ -90,16 +90,8 @@ export class RbOverviewComponent {
     }
   }
 
-  toggleCompact(): void {
-    const next = !this.compactView();
-    this.compactView.set(next);
-    try {
-      localStorage.setItem(this.LS_COMPACT_VIEW, next ? '1' : '0');
-    } catch {
-      // ignore storage errors
-    }
-  }
-
+  // No UI toggle on this page anymore — compact mode is set from the Bookmarks page
+  // and shared via localStorage, this just respects whatever was last chosen there.
   private readStoredCompactView(): boolean {
     try {
       return localStorage.getItem(this.LS_COMPACT_VIEW) === '1';
