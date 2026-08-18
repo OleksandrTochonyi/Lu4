@@ -9,7 +9,7 @@ import {
   updateDoc,
 } from '@angular/fire/firestore';
 import { Timestamp } from 'firebase/firestore';
-import { Observable, forkJoin, map, of, switchMap, take, throwError } from 'rxjs';
+import { Observable, forkJoin, map, of, shareReplay, switchMap, take, throwError } from 'rxjs';
 const BLADE_IMG = "https://wikisite11.mw2.wiki/icon64/etc_sword_body_i00.png";
 const HEAD_IMG = "https://wikisite11.mw2.wiki/icon64/etc_squares_gray_i00.png";
 const SHAFT_IMG = "https://masterwork.wiki/icon64/etc_branch_gold_i00.png";
@@ -694,7 +694,38 @@ export interface Item {
 export class RbData {
   private injector = inject(Injector);
 
+  // Loot docs rarely change; cache their resolution by ref path so a write to an
+  // unrelated raid-boss field doesn't re-fetch every boss's full loot list.
+  private lootCache = new Map<string, Observable<any>>();
+
   constructor(private firestore: Firestore) {}
+
+  private getLootData(ref: any): Observable<any> {
+    const key = ref?.path ?? String(ref);
+    const cached = this.lootCache.get(key);
+    if (cached) return cached;
+
+    const lootData$ = runInInjectionContext(this.injector, () =>
+      docData<any>(ref, { idField: 'id' })
+    ).pipe(
+      take(1),
+      map((item: any) =>
+        item
+          ? {
+              ...item,
+              displayName: item.name,
+              imgUrl: item.iconFile
+                ? `https://explorer.l2api.dev/icons/${item.iconFile}`
+                : '',
+            }
+          : null
+      ),
+      shareReplay({ bufferSize: 1, refCount: false })
+    );
+
+    this.lootCache.set(key, lootData$);
+    return lootData$;
+  }
 
   // private safeDocId(value: string): string {
   //   // Firestore doc ids cannot contain '/'
@@ -822,26 +853,9 @@ getItems(): Observable<any[]> {
         };
 
         if (Array.isArray(entity.loot) && entity.loot.length) {
-          const lootObservables = entity.loot.map((ref: any) => {
-            if (!ref) return of(null);
-
-            return runInInjectionContext(this.injector, () =>
-              docData<any>(ref, { idField: 'id' })
-            ).pipe(
-              take(1),
-              map((item: any) =>
-                item
-                  ? {
-                      ...item,
-                      displayName: item.name,
-                      imgUrl: item.iconFile
-                        ? `https://explorer.l2api.dev/icons/${item.iconFile}`
-                        : '',
-                    }
-                  : null
-              )
-            );
-          });
+          const lootObservables = entity.loot.map((ref: any) =>
+            ref ? this.getLootData(ref) : of(null)
+          );
 
           return forkJoin(lootObservables).pipe(
             map((lootData: any) => ({

@@ -8,27 +8,63 @@
 }
 
 .rb-bg-default {
-  background: var(--p-surface-0);
+  background: var(--p-red-300, #fca5a5);
+  box-shadow: inset 5px 0 0 0 var(--p-red-600, #dc2626);
 }
 
 .rb-bg-missed {
-  background: var(--p-surface-100);
+  background: var(--p-surface-200, #e2e8f0);
+  box-shadow: inset 5px 0 0 0 var(--p-surface-400, #94a3b8);
 }
 
 .rb-bg-success {
-  background: var(--p-green-50, var(--p-surface-50));
+  background: var(--p-green-200, #bbf7d0);
+  box-shadow: inset 5px 0 0 0 var(--p-green-500, #22c55e);
 }
 
 .rb-bg-warn {
-  background: var(--p-orange-50, var(--p-surface-50));
+  background: var(--p-orange-200, #fed7aa);
+  box-shadow: inset 5px 0 0 0 var(--p-orange-500, #f97316);
 }
 
 .rb-bg-danger {
-  background: var(--p-red-50, var(--p-surface-50));
+  background: var(--p-red-200, #fecaca);
+  box-shadow: inset 5px 0 0 0 var(--p-red-500, #ef4444);
 }
 
 .rb-bg-secondary {
   background: var(--p-surface-50);
+}
+
+.rb-hidden {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--p-surface-100, #f1f5f9) 0,
+    var(--p-surface-100, #f1f5f9) 10px,
+    var(--p-surface-200, #e2e8f0) 10px,
+    var(--p-surface-200, #e2e8f0) 20px
+  ) !important;
+  box-shadow: none !important;
+}
+
+.hidden-flag {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--p-surface-900, #0f172a);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
 }
 
 .info-block {

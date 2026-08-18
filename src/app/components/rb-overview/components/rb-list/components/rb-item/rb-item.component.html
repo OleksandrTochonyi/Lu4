@@ -1,8 +1,15 @@
 <div
     [class.small-details]="!showDetails()"
-    class="flex flex-col sm:flex-row sm:items-center p-6 gap-4 h-full"
+    [class.rb-hidden]="isHidden()"
+    class="relative flex flex-col sm:flex-row sm:items-center p-6 gap-4 h-full"
     [ngClass]="cardBgClass()"
 >
+    @if (isHidden()) {
+    <div class="hidden-flag">
+        <i class="pi pi-eye-slash"></i>
+        <span>Скрыто</span>
+    </div>
+    }
     @if(showDetails()) {
     <div class="md:w-40 relative">
         <img
@@ -37,6 +44,10 @@
                         <p-button *ngIf="hasDeadTimeChanges()" icon="pi pi-times" [text]="true" [severity]="'danger'"
                             [rounded]="true"
                             ariaLabel="Cancel" (onClick)="cancelDeadTime()"></p-button>
+
+                        <p-button *ngIf="!hasDeadTimeChanges() && deadTime" icon="pi pi-trash" [text]="true" [severity]="'danger'"
+                            [rounded]="true"
+                            ariaLabel="Удалить время убийства" (onClick)="confirmClearDeadTime($event)"></p-button>
                     </div>
                 </div>
 
@@ -86,6 +97,15 @@
 
                 <p-button icon="pi pi-refresh" class="flex-auto md:flex-initial whitespace-nowrap" label="Обновить респ"
                     (onClick)="setKillTimeNowKyiv()"></p-button>
+
+                <p-button
+                    [icon]="isHidden() ? 'pi pi-eye' : 'pi pi-eye-slash'"
+                    [text]="true"
+                    [severity]="'secondary'"
+                    [label]="isHidden() ? 'Показать' : 'Скрыть'"
+                    [ariaLabel]="isHidden() ? 'Показать' : 'Скрыть'"
+                    (onClick)="onToggleHidden()"
+                ></p-button>
             </div>
         </div>
     </div>

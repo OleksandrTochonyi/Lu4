@@ -86,6 +86,25 @@
 					1 час до респа (1 или 2)
 				</label>
 			</div>
+
+			<div class="flex items-center gap-2">
+				<p-checkbox
+					inputId="show-hidden"
+					[(ngModel)]="showHiddenValue"
+					[binary]="true"
+					[disabled]="onlyHiddenValue"
+				></p-checkbox>
+				<label for="show-hidden" class="text-sm text-surface-900 dark:text-surface-0 select-none">
+					Показывать скрытые
+				</label>
+			</div>
+
+			<div class="flex items-center gap-2">
+				<p-checkbox inputId="only-hidden" [(ngModel)]="onlyHiddenValue" [binary]="true"></p-checkbox>
+				<label for="only-hidden" class="text-sm text-surface-900 dark:text-surface-0 select-none">
+					Только скрытые
+				</label>
+			</div>
 		</div>
 	</p-popover>
 
@@ -95,12 +114,14 @@
 				[items]="visibleItems()"
 				(deadTimeDraftChanged)="onDeadTimeDraftChanged($event)"
 				(deadTimeChanged)="onDeadTimeChanged($event)"
+				(toggleHidden)="toggleHidden($event)"
 			></app-rb-grid>
 		} @else {
 			<app-rb-list
 				[items]="visibleItems()"
 				(deadTimeDraftChanged)="onDeadTimeDraftChanged($event)"
 				(deadTimeChanged)="onDeadTimeChanged($event)"
+				(toggleHidden)="toggleHidden($event)"
 			></app-rb-list>
 		}
 	</div>

@@ -7,6 +7,8 @@ import { ButtonModule } from 'primeng/button';
 import { DatePickerModule } from 'primeng/datepicker';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
+import { ConfirmationService } from 'primeng/api';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { timer } from 'rxjs';
 
 import { RbStatus } from '../../../../constants/status';
@@ -20,17 +22,21 @@ import { RbStatus } from '../../../../constants/status';
     TagModule,
     DatePickerModule,
     ButtonModule,
+    ConfirmDialogModule,
   ],
+  providers: [ConfirmationService],
   templateUrl: './rb-grid.component.html',
   styleUrl: './rb-grid.component.scss'
 })
 export class RbGridComponent implements OnInit {
   private destroyRef = inject(DestroyRef);
   private router = inject(Router);
+  private confirmationService = inject(ConfirmationService);
 
   items = input<any[]>([]);
   deadTimeDraftChanged = output<{ rb: any; deadTime: Date | null }>();
   deadTimeChanged = output<{ rb: any; deadTime: Date | null }>();
+  toggleHidden = output<any>();
 
   now = signal(Date.now());
 
@@ -107,6 +113,26 @@ export class RbGridComponent implements OnInit {
     this.draftDeadTimeByKey.delete(this.getKey(rb));
   }
 
+  confirmClearDeadTime(rb: any, event: Event): void {
+    event.stopPropagation();
+    const name = rb?.displayName ?? rb?.name ?? 'этого РБ';
+
+    this.confirmationService.confirm({
+      target: event.target as EventTarget,
+      header: 'Удалить время убийства',
+      message: `Точно удалить время убийства для "${name}"?`,
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Удалить',
+      rejectLabel: 'Отмена',
+      acceptButtonStyleClass: 'p-button-danger',
+      rejectButtonStyleClass: 'p-button-text',
+      accept: () => {
+        this.onDeadTimeDraftChange(rb, null);
+        this.commitDeadTime(rb);
+      },
+    });
+  }
+
   setKillTimeNowKyiv(rb: any): void {
     const nowKyiv = this.nowInKyivAsLocalDate();
     this.onDeadTimeDraftChange(rb, nowKyiv);
@@ -127,6 +153,14 @@ export class RbGridComponent implements OnInit {
     const id = rb?.id;
     if (!id) return;
     this.router.navigate(['/rb-map'], { queryParams: { focus: id } });
+  }
+
+  isHidden(rb: any): boolean {
+    return !!rb?.hidden;
+  }
+
+  onToggleHidden(rb: any): void {
+    this.toggleHidden.emit(rb);
   }
 
   status = computed(() => {

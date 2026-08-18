@@ -12,25 +12,67 @@
 }
 
 :host ::ng-deep tr.rb-bg-default > td {
-	background: var(--p-surface-0);
+	background: var(--p-red-300, #fca5a5);
+}
+:host ::ng-deep tr.rb-bg-default > td:first-child {
+	box-shadow: inset 5px 0 0 0 var(--p-red-600, #dc2626);
 }
 
 :host ::ng-deep tr.rb-bg-missed > td {
-	background: var(--p-surface-100);
+	background: var(--p-surface-200, #e2e8f0);
+}
+:host ::ng-deep tr.rb-bg-missed > td:first-child {
+	box-shadow: inset 5px 0 0 0 var(--p-surface-400, #94a3b8);
 }
 
 :host ::ng-deep tr.rb-bg-success > td {
-	background: var(--p-green-50, var(--p-surface-50));
+	background: var(--p-green-200, #bbf7d0);
+}
+:host ::ng-deep tr.rb-bg-success > td:first-child {
+	box-shadow: inset 5px 0 0 0 var(--p-green-500, #22c55e);
 }
 
 :host ::ng-deep tr.rb-bg-warn > td {
-	background: var(--p-orange-50, var(--p-surface-50));
+	background: var(--p-orange-200, #fed7aa);
+}
+:host ::ng-deep tr.rb-bg-warn > td:first-child {
+	box-shadow: inset 5px 0 0 0 var(--p-orange-500, #f97316);
 }
 
 :host ::ng-deep tr.rb-bg-danger > td {
-	background: var(--p-red-50, var(--p-surface-50));
+	background: var(--p-red-200, #fecaca);
+}
+:host ::ng-deep tr.rb-bg-danger > td:first-child {
+	box-shadow: inset 5px 0 0 0 var(--p-red-500, #ef4444);
 }
 
 :host ::ng-deep tr.rb-bg-secondary > td {
 	background: var(--p-surface-50);
+}
+
+:host ::ng-deep tr.rb-hidden > td {
+	background: repeating-linear-gradient(
+		135deg,
+		var(--p-surface-100, #f1f5f9) 0,
+		var(--p-surface-100, #f1f5f9) 8px,
+		var(--p-surface-200, #e2e8f0) 8px,
+		var(--p-surface-200, #e2e8f0) 16px
+	) !important;
+	box-shadow: none !important;
+}
+
+.hidden-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 8px;
+	margin-left: 8px;
+	border-radius: 999px;
+	background: var(--p-surface-900, #0f172a);
+	color: #fff;
+	font-size: 0.68rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	vertical-align: middle;
 }

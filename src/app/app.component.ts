@@ -63,6 +63,43 @@ export class AppComponent {
     return true;
   }
 
+  private readonly allMenuItems: (MenuItem & { adminOnly?: boolean })[] = [
+    {
+      label: 'Home',
+      icon: 'pi pi-home',
+      routerLink: '/',
+    },
+    {
+      label: 'RB Map',
+      icon: 'pi pi-map',
+      routerLink: '/rb-map',
+    },
+    {
+      label: 'Clan Info',
+      icon: 'pi pi-users',
+      routerLink: '/users',
+      adminOnly: true,
+    },
+    {
+      label: 'Raids',
+      icon: 'pi pi-book',
+      routerLink: '/raids',
+      adminOnly: true,
+    },
+    {
+      label: 'RB List',
+      icon: 'pi pi-list',
+      routerLink: '/rb-list',
+      adminOnly: true,
+    },
+    {
+      label: 'Statistics',
+      icon: 'pi pi-chart-bar',
+      routerLink: '/startistics',
+      adminOnly: true,
+    },
+  ];
+
   ngOnInit() {
     this.authService.tryAutoLoginFromStorage();
 
@@ -75,38 +112,11 @@ export class AppComponent {
         this.currentUrl = e.urlAfterRedirects;
       });
 
-    this.items = [
-      {
-        label: 'Home',
-        icon: 'pi pi-home',
-        routerLink: '/',
-      },
-      {
-        label: 'RB Map',
-        icon: 'pi pi-map',
-        routerLink: '/rb-map',
-      },
-      {
-        label: 'Clan Info',
-        icon: 'pi pi-users',
-        routerLink: '/users',
-      },
-      {
-        label: 'Raids',
-        icon: 'pi pi-book',
-        routerLink: '/raids',
-      },
-      {
-        label: 'RB List',
-        icon: 'pi pi-list',
-        routerLink: '/rb-list',
-      },
-      {
-        label: 'Statistics',
-        icon: 'pi pi-chart-bar',
-        routerLink: '/startistics',
-      },
-    ];
+    this.authService.isAdmin$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((isAdmin) => {
+        this.items = this.allMenuItems.filter((item) => isAdmin || !item.adminOnly);
+      });
   }
 
   onMenuClick(item: MenuItem, event: Event): void {

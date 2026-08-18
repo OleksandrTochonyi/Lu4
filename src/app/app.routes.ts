@@ -8,16 +8,17 @@ import { StatisticsComponent } from './components/statistics/statistics.componen
 import { RaidBossListComponent } from './components/raid-boss-list/raid-boss-list.component';
 import { RbMapComponent } from './components/rb-map/rb-map.component';
 import { authGuard } from './guards/auth.guard';
+import { adminGuard } from './guards/admin.guard';
 import { loginRedirectGuard } from './guards/login-redirect.guard';
 
 export const routes: Routes = [
 	{ path: '', component: RbOverviewComponent, canActivate: [authGuard] },
-	{ path: 'users', component: ConstPartyListComponent, canActivate: [authGuard] },
-	{ path: 'const-party', component: ConstPartyListComponent, canActivate: [authGuard] },
-	{ path: 'raids', component: RbSessionListComponent, canActivate: [authGuard] },
-	{ path: 'rb-list', component: RaidBossListComponent, canActivate: [authGuard] },
+	{ path: 'users', component: ConstPartyListComponent, canActivate: [authGuard, adminGuard] },
+	{ path: 'const-party', component: ConstPartyListComponent, canActivate: [authGuard, adminGuard] },
+	{ path: 'raids', component: RbSessionListComponent, canActivate: [authGuard, adminGuard] },
+	{ path: 'rb-list', component: RaidBossListComponent, canActivate: [authGuard, adminGuard] },
 	{ path: 'rb-map', component: RbMapComponent, canActivate: [authGuard] },
-	{ path: 'startistics', component: StatisticsComponent, canActivate: [authGuard] },
+	{ path: 'startistics', component: StatisticsComponent, canActivate: [authGuard, adminGuard] },
 	{ path: 'login', component: LoginComponent, canActivate: [loginRedirectGuard] },
 ];
 

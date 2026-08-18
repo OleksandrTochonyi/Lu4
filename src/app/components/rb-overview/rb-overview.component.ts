@@ -38,6 +38,7 @@ export class RbOverviewComponent {
   private readonly LS_LEVEL_FROM = 'rb-filter-level-from';
   private readonly LS_LEVEL_TO = 'rb-filter-level-to';
   private readonly LS_VIEW_MODE = 'rb-view-mode';
+  private readonly LS_HIDDEN_IDS = 'rb-hidden-ids';
 
   showTableView = signal(this.readStoredViewMode());
 
@@ -45,11 +46,15 @@ export class RbOverviewComponent {
 
   showOnlyResp = signal(false);
   showOneHourToResp = signal(false);
+  showHidden = signal(false);
+  onlyHidden = signal(false);
 
   nameQuery = signal('');
 
   levelFrom = signal<number | null>(this.readStoredLevel(this.LS_LEVEL_FROM));
   levelTo = signal<number | null>(this.readStoredLevel(this.LS_LEVEL_TO));
+
+  hiddenIds = signal<Set<string>>(this.readStoredHiddenIds());
 
   get nameQueryValue(): string {
     return this.nameQuery();
@@ -96,6 +101,64 @@ export class RbOverviewComponent {
 
   set showOneHourToRespValue(value: boolean) {
     this.showOneHourToResp.set(value);
+  }
+
+  get showHiddenValue(): boolean {
+    return this.showHidden();
+  }
+
+  set showHiddenValue(value: boolean) {
+    this.showHidden.set(value);
+  }
+
+  get onlyHiddenValue(): boolean {
+    return this.onlyHidden();
+  }
+
+  set onlyHiddenValue(value: boolean) {
+    this.onlyHidden.set(value);
+  }
+
+  getRbKey(item: any): string {
+    const id = item?.id;
+    if (id != null) return String(id);
+    return String(item?.name ?? item?.displayName ?? '');
+  }
+
+  isHidden(item: any): boolean {
+    return this.hiddenIds().has(this.getRbKey(item));
+  }
+
+  toggleHidden(item: any): void {
+    const key = this.getRbKey(item);
+    if (!key) return;
+
+    this.hiddenIds.update((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      this.writeStoredHiddenIds(next);
+      return next;
+    });
+  }
+
+  private readStoredHiddenIds(): Set<string> {
+    try {
+      const raw = localStorage.getItem(this.LS_HIDDEN_IDS);
+      if (!raw) return new Set();
+      const parsed = JSON.parse(raw);
+      return new Set(Array.isArray(parsed) ? parsed.map(String) : []);
+    } catch {
+      return new Set();
+    }
+  }
+
+  private writeStoredHiddenIds(ids: Set<string>): void {
+    try {
+      localStorage.setItem(this.LS_HIDDEN_IDS, JSON.stringify(Array.from(ids)));
+    } catch {
+      // ignore storage errors
+    }
   }
 
   get levelFromValue(): number | null {
@@ -145,9 +208,19 @@ export class RbOverviewComponent {
     const from = this.levelFrom();
     const to = this.levelTo();
     const query = this.nameQuery().trim().toLowerCase();
+    const hiddenIds = this.hiddenIds();
+    const showHidden = this.showHidden();
+    const onlyHidden = this.onlyHidden();
 
     return items
+      .map((item) => ({ ...item, hidden: hiddenIds.has(this.getRbKey(item)) }))
       .filter((item) => {
+        if (onlyHidden) {
+          if (!item.hidden) return false;
+        } else if (item.hidden && !showHidden) {
+          return false;
+        }
+
         if (query) {
           const name = String(item?.displayName ?? item?.name ?? '').toLowerCase();
           if (!name.includes(query)) return false;

@@ -7,6 +7,7 @@ import {
   signOut,
 } from '@angular/fire/auth';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 @Injectable({
   providedIn: 'root',
@@ -17,6 +18,11 @@ export class AuthService {
   private readonly storageKey = 'lu4_auth';
 
   readonly user$: Observable<User | null> = authState(this.auth);
+
+  // Admin check: the user's email contains "admin" (case-insensitive). No separate role storage.
+  readonly isAdmin$: Observable<boolean> = this.user$.pipe(
+    map((user) => String(user?.email ?? '').toLowerCase().includes('admin'))
+  );
 
   login(email: string, password: string) {
     return signInWithEmailAndPassword(this.auth, email, password);

@@ -1,3 +1,5 @@
+<p-confirmDialog></p-confirmDialog>
+
 <p-table
 	[value]="items()"
 	[rowHover]="true"
@@ -18,7 +20,7 @@
 	</ng-template>
 
 	<ng-template pTemplate="body" let-rb>
-		<tr [ngClass]="getRowBgClass(rb)">
+		<tr [ngClass]="getRowBgClass(rb)" [class.rb-hidden]="isHidden(rb)">
 			<td>
 				<p-tag
 					[value]="getRowStatus(rb)"
@@ -31,6 +33,10 @@
 				<div class="font-medium text-surface-900 dark:text-surface-0">
 					<span class="text-muted-color">[{{ rb?.lvl }}]</span>
 					<span class="ml-2">{{ rb?.displayName }}</span>
+					<span *ngIf="isHidden(rb)" class="hidden-chip">
+						<i class="pi pi-eye-slash"></i>
+						Скрыто
+					</span>
 				</div>
 			</td>
 
@@ -62,6 +68,16 @@
 						[rounded]="true"
 						ariaLabel="Cancel"
 						(onClick)="cancelDeadTime(rb)"
+					></p-button>
+
+					<p-button
+						*ngIf="!hasDeadTimeChanges(rb) && getDraftDeadTime(rb)"
+						icon="pi pi-trash"
+						[text]="true"
+						[severity]="'danger'"
+						[rounded]="true"
+						ariaLabel="Удалить время убийства"
+						(onClick)="confirmClearDeadTime(rb, $event)"
 					></p-button>
 				</div>
 			</td>
@@ -112,6 +128,14 @@
 						[severity]="'secondary'"
 						ariaLabel="Refresh"
 						(onClick)="setKillTimeNowKyiv(rb)"
+					></p-button>
+
+					<p-button
+						[icon]="isHidden(rb) ? 'pi pi-eye' : 'pi pi-eye-slash'"
+						[text]="true"
+						[severity]="'secondary'"
+						[ariaLabel]="isHidden(rb) ? 'Показать' : 'Скрыть'"
+						(onClick)="onToggleHidden(rb)"
 					></p-button>
 				</div>
 			</td>

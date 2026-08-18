@@ -7,6 +7,7 @@ import { ButtonModule } from 'primeng/button';
 import { DatePickerModule } from 'primeng/datepicker';
 import { PopoverModule } from 'primeng/popover';
 import { TagModule } from 'primeng/tag';
+import { ConfirmationService } from 'primeng/api';
 import { timer } from 'rxjs';
 
 import { RbStatus } from '../../../../../../constants/status';
@@ -23,12 +24,16 @@ export class RbItemComponent implements OnInit {
   private destroyRef = inject(DestroyRef);
   private tgService = inject(TgService);
   private router = inject(Router);
+  private confirmationService = inject(ConfirmationService);
 
   rb: any = input();
   showDetails = input(true);
   deadTimeDraftChanged = output<{ rb: any; deadTime: Date | null }>();
   deadTimeChanged = output<{ rb: any; deadTime: Date | null }>();
+  toggleHidden = output<any>();
   deadTime: Date | null = null;
+
+  isHidden = computed(() => !!this.rb()?.hidden);
 
   private lastCommittedMs: number | null = null;
 
@@ -268,6 +273,10 @@ export class RbItemComponent implements OnInit {
     if (!id) return;
     this.router.navigate(['/rb-map'], { queryParams: { focus: id } });
   }
+
+  onToggleHidden(): void {
+    this.toggleHidden.emit(this.rb());
+  }
   toDate(value: any): Date | null {
     if (value == null) return null;
 
@@ -332,6 +341,26 @@ export class RbItemComponent implements OnInit {
     const rb = this.rb();
     const committed = rb?.deadTime ?? this.toDate(rb?.lastDeadTime);
     this.deadTime = committed;
+  }
+
+  confirmClearDeadTime(event: Event): void {
+    event.stopPropagation();
+    const name = this.rb()?.displayName ?? this.rb()?.name ?? 'этого РБ';
+
+    this.confirmationService.confirm({
+      target: event.target as EventTarget,
+      header: 'Удалить время убийства',
+      message: `Точно удалить время убийства для "${name}"?`,
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Удалить',
+      rejectLabel: 'Отмена',
+      acceptButtonStyleClass: 'p-button-danger',
+      rejectButtonStyleClass: 'p-button-text',
+      accept: () => {
+        this.deadTime = null;
+        this.commitDeadTime();
+      },
+    });
   }
 
   hasDeadTimeChanges(): boolean {
