@@ -51,7 +51,7 @@ export class LoginComponent {
       this.messageService.add({
         severity: 'success',
         summary: 'Залогинился? Красава!',
-        detail: 'А теперь иди чекать рб, хули ты тут тескт читаешь..',
+        detail: 'А теперь иди чекать рб, хули ты тут текст читаешь..',
         life: 4000,
       });
       await this.router.navigateByUrl('/');
