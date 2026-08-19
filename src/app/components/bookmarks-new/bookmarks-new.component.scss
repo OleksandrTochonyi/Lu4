@@ -77,7 +77,11 @@
   gap: 0.5rem;
 }
 
-.tabs-row p-tablist {
+// Target the p-tabs host itself (not p-tablist) — p-tablist must stay a *direct*
+// child of p-tabs, since PrimeNG's own theme CSS clips its overflow via a
+// `.p-tabs-scrollable > .p-tablist` selector that only matches direct children.
+// Wrapping p-tablist itself broke that, so the row/button now wraps p-tabs instead.
+.tabs-row p-tabs {
   flex: 1;
   min-width: 0;
 }

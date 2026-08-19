@@ -53,8 +53,8 @@
 				></p-button>
 			</div>
 		} @else {
-			<p-tabs [value]="activeTabId()" (valueChange)="onActiveTabChange($event)" [scrollable]="true">
-				<div class="tabs-row">
+			<div class="tabs-row">
+				<p-tabs class="tabs-flex" [value]="activeTabId()" (valueChange)="onActiveTabChange($event)" [scrollable]="true">
 					<p-tablist>
 						<div
 							class="tab-drop-list"
@@ -79,21 +79,21 @@
 						</div>
 					</p-tablist>
 
-					<p-button
-						icon="pi pi-plus"
-						label="Новая закладка"
-						class="new-tab-btn"
-						size="small"
-						(onClick)="openCreateTabDialog()"
-					></p-button>
-				</div>
+					<p-tabpanels>
+						@for (tab of visibleTabs(); track tab.id) {
+							<p-tabpanel [value]="tab.id"></p-tabpanel>
+						}
+					</p-tabpanels>
+				</p-tabs>
 
-				<p-tabpanels>
-					@for (tab of visibleTabs(); track tab.id) {
-						<p-tabpanel [value]="tab.id"></p-tabpanel>
-					}
-				</p-tabpanels>
-			</p-tabs>
+				<p-button
+					icon="pi pi-plus"
+					label="Новая закладка"
+					class="new-tab-btn"
+					size="small"
+					(onClick)="openCreateTabDialog()"
+				></p-button>
+			</div>
 
 			@if (activeTab(); as tab) {
 				<div class="tab-toolbar">
@@ -207,7 +207,7 @@
 
 				<div class="grid-area flex-1 min-h-0 overflow-auto">
 					@if (activeTabItems().length) {
-						<div class="rb-table flex flex-col rounded border border-surface overflow-hidden">
+						<div class="rb-table flex flex-col rounded border border-surface">
 							@for (rb of activeTabItems(); track rb.id) {
 								<app-json-rb-card
 									[rb]="rb"
