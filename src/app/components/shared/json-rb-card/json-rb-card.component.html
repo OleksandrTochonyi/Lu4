@@ -1,0 +1,227 @@
+<div
+	class="relative rb-row-grid py-2 px-3 gap-3 h-full rb-row"
+	[ngClass]="rowStatusClass()"
+	[class.rb-hidden]="rb()?.hidden"
+>
+	@if (rb()?.hidden) {
+		<div class="hidden-flag">
+			<i class="pi pi-eye-slash"></i>
+			<span>Скрыто</span>
+		</div>
+	}
+
+	<div class="rb-content flex flex-row items-center gap-2 min-w-0">
+		<p-tag [value]="status()" [severity]="tagSeverity()" styleClass="rb-status-tag" />
+		<div class="rb-title text-sm font-medium text-surface-900 dark:text-surface-0 truncate">
+			<span class="rb-lvl">[{{ rb()?.lvl }}]</span>
+			<span class="rb-name">{{ rb()?.displayName }}</span>
+		</div>
+	</div>
+
+	<div class="resp-controls flex flex-row flex-wrap items-center justify-center gap-2 min-w-0">
+		<div class="time-cluster">
+			<div class="dead-time-field">
+				<i class="pi pi-calendar dead-time-icon"></i>
+				<p-datepicker
+					class="dead-time-input"
+					[(ngModel)]="deadTime"
+					(ngModelChange)="onDeadTimeDraftChange($event)"
+					[showTime]="true"
+					[hourFormat]="'24'"
+					[appendTo]="'body'"
+					placeholder="Время убийства"
+				/>
+				@if (hasDeadTimeChanges()) {
+					<p-button icon="pi pi-check" [text]="true" size="small" [severity]="'success'" [rounded]="true" ariaLabel="Сохранить" (onClick)="commitDeadTime()"></p-button>
+					<p-button icon="pi pi-times" [text]="true" size="small" [severity]="'danger'" [rounded]="true" ariaLabel="Отмена" (onClick)="cancelDeadTime()"></p-button>
+				} @else if (deadTime) {
+					<p-button icon="pi pi-trash" [text]="true" size="small" [severity]="'danger'" [rounded]="true" ariaLabel="Удалить время убийства" (onClick)="clearDeadTime()"></p-button>
+				}
+
+				@if (respHistory().length) {
+					<button
+						type="button"
+						class="history-trigger"
+						[pTooltip]="historyTooltip()"
+						tooltipPosition="top"
+						(click)="historyPanel.toggle($event)"
+					>
+						<i class="pi pi-history"></i>
+						<span class="history-trigger-count">{{ respHistory().length }}</span>
+					</button>
+				}
+			</div>
+
+			<span class="time-divider"></span>
+
+			<div class="resp-mini">
+				<i class="pi pi-hourglass resp-mini-icon"></i>
+				<div class="resp-mini-body">
+					<span class="resp-mini-label">Мин</span>
+					<span class="resp-mini-value">{{ displayMinResp() ? (displayMinResp() | date : 'dd.MM HH:mm' : 'Europe/Kyiv') : '—' }}</span>
+				</div>
+			</div>
+			<div class="resp-mini">
+				<i class="pi pi-hourglass resp-mini-icon"></i>
+				<div class="resp-mini-body">
+					<span class="resp-mini-label">Макс</span>
+					<span class="resp-mini-value">{{ displayMaxResp() ? (displayMaxResp() | date : 'dd.MM HH:mm' : 'Europe/Kyiv') : '—' }}</span>
+				</div>
+			</div>
+			<div class="resp-mini resp-mini-accent">
+				<i class="pi pi-stopwatch resp-mini-icon"></i>
+				<div class="resp-mini-body">
+					<span class="resp-mini-label">{{ timeLeftLabel() }}</span>
+					<span class="resp-mini-value">{{ respElapsedLabel() != null ? respElapsedLabel() : (timeLeft() ? (timeLeft() | date : 'HH:mm:ss') : '—') }}</span>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="actions flex flex-row gap-0.5 shrink-0">
+		@if (hasMapPoint()) {
+			<p-button
+				icon="pi pi-map-marker"
+				[text]="true"
+				size="small"
+				[severity]="'secondary'"
+				ariaLabel="Показать на карте"
+				(onClick)="openOnMap()"
+			></p-button>
+		} @else {
+			<span class="action-spacer" aria-hidden="true"></span>
+		}
+
+		<p-button
+			icon="pi pi-refresh"
+			[text]="true"
+			size="small"
+			[severity]="'secondary'"
+			ariaLabel="Обновить респ"
+			(onClick)="setKillTimeNowKyiv()"
+		></p-button>
+
+		<p-button
+			icon="pi pi-info-circle"
+			[text]="true"
+			size="small"
+			[severity]="'secondary'"
+			ariaLabel="Инфо"
+			(onClick)="infoPanel.toggle($event)"
+		></p-button>
+
+		@if (showDeleteButton()) {
+			<p-button
+				icon="pi pi-trash"
+				[text]="true"
+				size="small"
+				[severity]="'danger'"
+				ariaLabel="Удалить из таба"
+				(onClick)="onRemoveFromList()"
+			></p-button>
+		} @else {
+			<p-button
+				[icon]="rb()?.hidden ? 'pi pi-eye' : 'pi pi-eye-slash'"
+				[text]="true"
+				size="small"
+				[severity]="'secondary'"
+				[ariaLabel]="rb()?.hidden ? 'Показать' : 'Скрыть'"
+				(onClick)="onToggleHidden()"
+			></p-button>
+		}
+	</div>
+</div>
+
+<p-popover #historyPanel (onHide)="cancelRestore()">
+	<div class="flex flex-col gap-2 min-w-72 max-w-80">
+		<div class="text-sm font-medium text-surface-900 dark:text-surface-0">История изменений</div>
+
+		@if (respHistory().length) {
+			<div class="flex flex-col gap-1">
+				@for (entry of respHistory(); track $index) {
+					<div class="history-entry">
+						<div class="history-entry-info">
+							<span class="history-entry-time">
+								{{ entry.killTime ? (toDate(entry.killTime) | date : 'dd.MM.yy HH:mm') : 'без времени' }}
+							</span>
+							<span class="history-entry-meta">
+								{{ entry.changedBy || 'кто-то' }} · {{ toDate(entry.changedAt) | date : 'dd.MM HH:mm' }}
+							</span>
+						</div>
+
+						@if (pendingRestoreIndex() === $index) {
+							<div class="history-confirm">
+								<span>Откатить?</span>
+								<p-button icon="pi pi-check" [text]="true" size="small" [severity]="'success'" [rounded]="true" ariaLabel="Подтвердить" (onClick)="confirmRestore($index)"></p-button>
+								<p-button icon="pi pi-times" [text]="true" size="small" [severity]="'danger'" [rounded]="true" ariaLabel="Отмена" (onClick)="cancelRestore()"></p-button>
+							</div>
+						} @else {
+							<p-button
+								icon="pi pi-replay"
+								label="Откатить"
+								[text]="true"
+								size="small"
+								[severity]="'secondary'"
+								(onClick)="askRestore($index)"
+							></p-button>
+						}
+					</div>
+				}
+			</div>
+		} @else {
+			<div class="text-sm text-muted-color">Истории пока нет</div>
+		}
+	</div>
+</p-popover>
+
+<p-popover #infoPanel>
+	<div class="flex flex-col gap-3 min-w-72 max-w-80">
+		<div class="rb-title text-base font-medium text-surface-900 dark:text-surface-0">
+			<span class="rb-lvl">[{{ rb()?.lvl }}]</span>
+			<span class="rb-name">{{ rb()?.displayName }}</span>
+		</div>
+
+		<div class="boss-meta">
+			@if (rb()?.stats?.minResp != null) {
+				<span class="resp-badge" [ngClass]="respBadgeClass(rb()?.stats?.minResp)">
+					<i class="pi pi-clock"></i> {{ rb()?.stats?.minResp }}ч
+				</span>
+			}
+			@if (rb()?.stats?.plusResp != null) {
+				<span class="resp-badge pm">
+					<i class="pi pi-sort-alt"></i> ±{{ rb()?.stats?.plusResp }}ч
+				</span>
+			}
+		</div>
+
+		<app-boss-stats [stats]="rb()?.stats"></app-boss-stats>
+
+		<div class="text-sm font-medium text-surface-900 dark:text-surface-0 pt-1 border-t border-surface">
+			Лут ({{ rb()?.loot?.length ?? 0 }})
+		</div>
+
+		@if ((rb()?.loot?.length ?? 0) > 0) {
+			<div class="flex flex-col gap-2 max-h-80 overflow-auto">
+				@for (loot of (rb()?.loot ?? []); track $index) {
+					<div class="flex items-center gap-2">
+						<img
+							class="w-8 h-8 rounded border border-surface bg-surface-0 dark:bg-surface-900 object-contain"
+							[src]="loot?.imgUrl"
+							[alt]="loot?.displayName"
+						/>
+						<div class="flex-1 min-w-0">
+							<div class="text-sm text-surface-900 dark:text-surface-0 truncate">{{ loot?.displayName }}</div>
+							@if (loot?.qty != null) {
+								<div class="loot-qty">×{{ loot?.qty }}</div>
+							}
+						</div>
+						<app-chance-badge [chance]="loot?.chance"></app-chance-badge>
+						<app-grade-badge [grade]="loot?.grade"></app-grade-badge>
+					</div>
+				}
+			</div>
+		} @else {
+			<div class="text-sm text-muted-color">Нет лута</div>
+		}
+	</div>
+</p-popover>

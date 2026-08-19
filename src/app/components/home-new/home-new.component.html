@@ -1,0 +1,114 @@
+<div class="rb-overview flex flex-col h-full border border-surface rounded bg-surface-0 dark:bg-surface-900 overflow-hidden">
+	<div class="flex items-center justify-between p-2 sm:p-3 border-b gap-2">
+		<div class="text-sm text-muted-color whitespace-nowrap">
+			Каталог из db.json ({{ visibleItems().length }})
+		</div>
+
+		<div class="flex-1 flex justify-center min-w-0 px-2">
+			<span class="p-input-icon-left w-full max-w-xs">
+				<input
+					pInputText
+					type="text"
+					class="w-full"
+					[ngModel]="nameQueryValue"
+					(ngModelChange)="nameQueryValue = $event"
+					placeholder="Поиск по имени РБ"
+				/>
+			</span>
+		</div>
+
+		<p-button
+			icon="pi pi-sliders-h"
+			label="Фильтры"
+			[text]="true"
+			[severity]="'secondary'"
+			(onClick)="filterPanel.toggle($event)"
+			ariaLabel="Filters"
+		></p-button>
+	</div>
+
+	<p-popover #filterPanel>
+		<div class="flex flex-col gap-3 min-w-64">
+			<div class="text-sm font-medium text-surface-900 dark:text-surface-0">Фильтры</div>
+
+			<div class="flex flex-col gap-2">
+				<label class="text-sm text-surface-900 dark:text-surface-0 select-none">Уровень РБ</label>
+				<div class="flex items-center gap-2">
+					<p-inputNumber
+						class="w-full"
+						[ngModel]="levelFromValue"
+						(ngModelChange)="levelFromValue = $event"
+						[min]="1"
+						[useGrouping]="false"
+						placeholder="с"
+					></p-inputNumber>
+					<span class="text-muted-color">—</span>
+					<p-inputNumber
+						class="w-full"
+						[ngModel]="levelToValue"
+						(ngModelChange)="levelToValue = $event"
+						[min]="1"
+						[useGrouping]="false"
+						placeholder="по"
+					></p-inputNumber>
+				</div>
+				<p-button
+					label="Сбросить"
+					icon="pi pi-filter-slash"
+					[text]="true"
+					[severity]="'secondary'"
+					size="small"
+					styleClass="self-start"
+					(onClick)="resetLevelFilters()"
+				></p-button>
+			</div>
+
+			<div class="flex items-center gap-2">
+				<p-checkbox inputId="only-resp-new" [(ngModel)]="showOnlyRespValue" [binary]="true"></p-checkbox>
+				<label for="only-resp-new" class="text-sm text-surface-900 dark:text-surface-0 select-none">
+					Только в респе (1 или 2)
+				</label>
+			</div>
+
+			<div class="flex items-center gap-2">
+				<p-checkbox inputId="one-hour-new" [(ngModel)]="showOneHourToRespValue" [binary]="true"></p-checkbox>
+				<label for="one-hour-new" class="text-sm text-surface-900 dark:text-surface-0 select-none">
+					1 час до респа (1 или 2)
+				</label>
+			</div>
+
+			<div class="flex items-center gap-2">
+				<input type="checkbox" id="show-hidden-new" [ngModel]="showHiddenValue" (ngModelChange)="showHiddenValue = $event" [disabled]="onlyHiddenValue" />
+				<label for="show-hidden-new" class="text-sm text-surface-900 dark:text-surface-0 select-none">
+					Показывать скрытые
+				</label>
+			</div>
+
+			<div class="flex items-center gap-2">
+				<input type="checkbox" id="only-hidden-new" [ngModel]="onlyHiddenValue" (ngModelChange)="onlyHiddenValue = $event" />
+				<label for="only-hidden-new" class="text-sm text-surface-900 dark:text-surface-0 select-none">
+					Только скрытые
+				</label>
+			</div>
+		</div>
+	</p-popover>
+
+	<div class="flex-1 min-h-0 overflow-auto p-2 sm:p-3">
+		@if (loading()) {
+			<div class="text-muted-color p-4">Загрузка…</div>
+		} @else if (!visibleItems().length) {
+			<div class="text-muted-color p-4">Ничего не найдено</div>
+		} @else {
+			<div class="rb-table flex flex-col rounded border border-surface overflow-hidden">
+				@for (rb of visibleItems(); track rb.id) {
+					<app-json-rb-card
+						[rb]="rb"
+						(toggleHidden)="toggleHidden($event)"
+						(deadTimeDraftChanged)="onDeadTimeDraftChanged($event)"
+						(deadTimeChanged)="onDeadTimeChanged($event)"
+					></app-json-rb-card>
+				}
+			</div>
+		}
+	</div>
+</div>

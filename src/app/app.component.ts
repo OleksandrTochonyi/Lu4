@@ -103,6 +103,31 @@ export class AppComponent {
       routerLink: '/startistics',
       adminOnly: true,
     },
+    // {
+    //   label: 'Home',
+    //   icon: 'pi pi-home',
+    //   routerLink: '/home-new',
+    //   badge: 'NEW',
+    // },
+    {
+      label: 'Bookmarks',
+      icon: 'pi pi-bookmark',
+      routerLink: '/bookmarks-new',
+      badge: 'NEW',
+    },
+    {
+      label: 'RB List',
+      icon: 'pi pi-list',
+      routerLink: '/rb-list-new',
+      adminOnly: true,
+      badge: 'NEW',
+    },
+    {
+      label: 'RB Map',
+      icon: 'pi pi-map',
+      routerLink: '/rb-map-new',
+      badge: 'NEW',
+    },
   ];
 
   ngOnInit() {

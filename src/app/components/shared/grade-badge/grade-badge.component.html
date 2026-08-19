@@ -1,0 +1,3 @@
+@if (normalizedGrade(); as grade) {
+	<span class="grade-badge" [ngClass]="'grade-' + grade.toLowerCase()">{{ grade }}</span>
+}

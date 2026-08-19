@@ -27,7 +27,7 @@ export class TgService {
     });
 
     const data = await response.json().catch(() => null);
-    console.log('Telegram response:', data);
+
     if (!response.ok) {
       const details = typeof data === 'string' ? data : JSON.stringify(data);
       throw new Error(`Telegram sendMessage failed (${response.status}): ${details}`);

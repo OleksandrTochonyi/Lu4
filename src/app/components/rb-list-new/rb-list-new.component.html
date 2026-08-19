@@ -1,0 +1,144 @@
+<div class="rb-list-page">
+  <div class="rb-list-header">
+    <div class="header-text">
+      <h1 class="rb-list-title">RB List</h1>
+      <p class="rb-list-subtitle">Всего боссов: {{ bossCount() }}</p>
+    </div>
+  </div>
+
+  <div class="rb-filters">
+    <span class="p-input-icon-left name-filter">
+      <input
+        pInputText
+        type="text"
+        [ngModel]="nameQuery()"
+        (ngModelChange)="nameQuery.set($event)"
+        placeholder="Поиск по имени"
+      />
+    </span>
+    <div class="level-filter">
+      <label>Уровень</label>
+      <p-inputNumber
+        [ngModel]="levelFrom()"
+        (ngModelChange)="levelFrom.set($event)"
+        [min]="1"
+        placeholder="с"
+        inputStyleClass="level-input"
+      />
+      <span class="level-sep">—</span>
+      <p-inputNumber
+        [ngModel]="levelTo()"
+        (ngModelChange)="levelTo.set($event)"
+        [min]="1"
+        placeholder="по"
+        inputStyleClass="level-input"
+      />
+    </div>
+    <button
+      pButton
+      type="button"
+      label="Сбросить"
+      class="p-button-text p-button-sm"
+      (click)="resetFilters()"
+    ></button>
+  </div>
+
+  <p-table
+    [value]="filteredBosses()"
+    [loading]="loading()"
+    [paginator]="true"
+    [rows]="15"
+    [rowsPerPageOptions]="[15, 30, 50]"
+    dataKey="id"
+    styleClass="p-datatable-sm rb-table"
+  >
+    <ng-template pTemplate="header">
+      <tr>
+        <th pSortableColumn="name">Имя <p-sortIcon field="name" /></th>
+        <th style="width: 6rem" pSortableColumn="level">Ур. <p-sortIcon field="level" /></th>
+        <th style="width: 6rem" class="loot-col">Лут</th>
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="body" let-boss>
+      <tr class="rb-row" (click)="openDetails(boss)">
+        <td>{{ boss.name }}</td>
+        <td>{{ boss.level }}</td>
+        <td class="loot-col">
+          <span
+            *ngIf="lootCount(boss) > 0; else emptyLoot"
+            class="loot-badge full"
+            [title]="'Лут заполнен: ' + lootCount(boss)"
+          >
+            <i class="pi pi-box"></i>
+            <span class="loot-badge-count">{{ lootCount(boss) }}</span>
+          </span>
+          <ng-template #emptyLoot>
+            <span class="loot-badge empty" title="Лут пустой">
+              <i class="pi pi-ban"></i>
+            </span>
+          </ng-template>
+        </td>
+      </tr>
+    </ng-template>
+    <ng-template pTemplate="emptymessage">
+      <tr>
+        <td colspan="3" class="rb-empty">Боссы не найдены</td>
+      </tr>
+    </ng-template>
+  </p-table>
+</div>
+
+<p-dialog
+  [header]="selectedBoss()?.name ?? ''"
+  [visible]="selectedBoss() !== null"
+  (visibleChange)="!$event && closeDetails()"
+  [modal]="true"
+  [style]="{ width: '520px', maxWidth: '95vw' }"
+  [draggable]="false"
+  [dismissableMask]="true"
+>
+  @if (selectedBoss(); as boss) {
+    <div class="boss-details">
+      <div class="boss-meta">
+        <span class="level-chip"><i class="pi pi-star-fill"></i> Ур. {{ boss.level }}</span>
+        @if (boss.stats.minResp != null) {
+          <span class="resp-badge" [ngClass]="respBadgeClass(boss.stats.minResp)">
+            <i class="pi pi-clock"></i> {{ boss.stats.minResp }}ч
+          </span>
+        }
+        @if (boss.stats.plusResp != null) {
+          <span class="resp-badge pm">
+            <i class="pi pi-sort-alt"></i> ±{{ boss.stats.plusResp }}ч
+          </span>
+        }
+      </div>
+
+      <app-boss-stats [stats]="boss.stats"></app-boss-stats>
+
+      <h3 class="form-section-title">Лут ({{ boss.loot.length }})</h3>
+      @if (boss.loot.length) {
+        <div class="loot-list">
+          @for (loot of boss.loot; track $index) {
+            <div class="loot-item">
+              <img class="loot-icon" [src]="loot.imgUrl" [alt]="loot.displayName" />
+              <div class="loot-name-block">
+                <span class="loot-name">{{ loot.displayName }}</span>
+                @if (loot.qty != null) {
+                  <span class="loot-qty">×{{ loot.qty }}</span>
+                }
+              </div>
+              <app-chance-badge [chance]="loot.chance"></app-chance-badge>
+              <app-grade-badge [grade]="loot.grade"></app-grade-badge>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="loot-empty">Лут не найден</div>
+      }
+    </div>
+  }
+
+  <ng-template pTemplate="footer">
+    <button pButton type="button" label="Закрыть" class="p-button-text" (click)="closeDetails()"></button>
+  </ng-template>
+</p-dialog>

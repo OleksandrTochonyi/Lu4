@@ -10,7 +10,7 @@ export const environment = {
     measurementId: "G-YQ54GR50FM"
   },
   telegram: {
-    botToken: '7281311937:AAHs9WLOB0y5CSQU1zmlUjsaVr5NwE2FC1k',
-    chatId: '-1003588652177',
+    botToken: '8529669390:AAHO57-DKPnIb7d7ts0iNf06Pm0oodkyesc',
+    chatId: '-5404672066',
   },
 };

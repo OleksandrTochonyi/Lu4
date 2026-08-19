@@ -1,0 +1,523 @@
+.rb-list-page {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.rb-list-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.rb-delete-btn {
+  margin-right: auto;
+}
+
+.rb-confirm {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+}
+
+.rb-confirm-icon {
+  font-size: 1.75rem;
+  color: var(--p-red-500, #ef4444);
+}
+
+.rb-list-title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 600;
+}
+
+.rb-list-subtitle {
+  margin: 0.25rem 0 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.rb-table {
+  width: 100%;
+}
+
+.loot-col {
+  text-align: center;
+}
+
+.resp-col {
+  text-align: center;
+}
+
+.resp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.resp-badge.pm {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.resp-badge .pi {
+  font-size: 0.72rem;
+}
+
+// Min resp — one color per hour value (4-10h) so the value is recognizable at a glance.
+.resp-badge.resp-4 {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.resp-badge.resp-5 {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.resp-badge.resp-6 {
+  background: #ccfbf1;
+  color: #0f766e;
+}
+
+.resp-badge.resp-7 {
+  background: #fef9c3;
+  color: #a16207;
+}
+
+.resp-badge.resp-8 {
+  background: #fce7f3;
+  color: #be185d;
+}
+
+.resp-badge.resp-9 {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.resp-badge.resp-10 {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.resp-badge.resp-other {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.loot-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.loot-badge.full {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.loot-badge.empty {
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+.loot-badge .pi {
+  font-size: 0.85rem;
+}
+
+.loot-badge-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.rb-filters {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.name-filter input {
+  width: 260px;
+  max-width: 100%;
+}
+
+.level-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.level-filter label {
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.level-filter ::ng-deep .level-input {
+  width: 5rem;
+}
+
+.level-sep {
+  color: #94a3b8;
+}
+
+.rb-row {
+  cursor: pointer;
+}
+
+.rb-row:hover {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.rb-empty {
+  text-align: center;
+  color: #64748b;
+  padding: 1.5rem 0;
+}
+
+.rb-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.boss-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.boss-meta {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.level-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.level-chip .pi {
+  font-size: 0.72rem;
+}
+
+.boss-locations {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+.form-section-title {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.field.full {
+  grid-column: 1 / -1;
+}
+
+.field label {
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.field input,
+.field :is(p-inputnumber, p-calendar) {
+  width: 100%;
+}
+
+.field ::ng-deep .p-inputnumber,
+.field ::ng-deep .p-calendar,
+.field ::ng-deep input {
+  width: 100%;
+}
+
+.checkbox-field {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  align-self: end;
+}
+
+.loot-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.loot-controls input {
+  flex: 1 1 180px;
+  min-width: 160px;
+}
+
+.loot-controls ::ng-deep .grade-select,
+.loot-controls ::ng-deep .sort-select {
+  min-width: 160px;
+}
+
+.selected-loot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.65rem;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.selected-loot-empty {
+  padding: 0.9rem;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  border: 1px dashed #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.loot-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.4rem 0.35rem 0.5rem;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  background: #ffffff;
+  color: #1e293b;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #cbd5e1;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.loot-chip:hover {
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
+  transform: translateY(-1px);
+}
+
+.loot-chip-name {
+  font-weight: 600;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.loot-chip-grade {
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.15rem 0.35rem;
+  border-radius: 5px;
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.loot-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.loot-chip-remove:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.loot-chip-remove .pi {
+  font-size: 0.72rem;
+}
+
+// Grade accent on the left border of each chip
+.loot-chip.grade-s {
+  border-left-color: #ef4444;
+}
+.loot-chip.grade-a {
+  border-left-color: #f97316;
+}
+.loot-chip.grade-b {
+  border-left-color: #eab308;
+}
+.loot-chip.grade-c {
+  border-left-color: #22c55e;
+}
+.loot-chip.grade-d {
+  border-left-color: #3b82f6;
+}
+.loot-chip.grade-none {
+  border-left-color: #cbd5e1;
+}
+
+.loot-list {
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.loot-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.loot-item:last-child {
+  border-bottom: none;
+}
+
+.loot-item:hover {
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.loot-item.selected {
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.loot-item .pi-check-circle {
+  color: #22c55e;
+}
+
+.loot-item .pi-circle {
+  color: #cbd5e1;
+}
+
+.loot-name-block {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.loot-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.loot-qty {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+}
+
+.loot-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.loot-chip .loot-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.loot-empty {
+  padding: 1rem;
+  text-align: center;
+  color: #94a3b8;
+}
+
+.grade-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.1rem 0.45rem;
+  border-radius: 6px;
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.grade-s {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.grade-a {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.grade-b {
+  background: #fef9c3;
+  color: #a16207;
+}
+
+.grade-c {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.grade-d {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+@media (max-width: 640px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}

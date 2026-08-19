@@ -1,0 +1,242 @@
+// Without this, the host defaults to display:inline and never joins app-root's flex
+// column as a properly bounded item — the page grows to fit content and scrolls,
+// while inner scroll containers (the tab content, p-table) ALSO scroll on their own.
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  flex: 1;
+  min-height: 0;
+  padding-bottom: 8px;
+}
+
+.bookmarks {
+  flex: 1;
+  min-height: 0;
+}
+
+// The only element that should grow/scroll — the tab strip and RB-picker toolbar above
+// it stay fixed at their content size. app-rb-grid's own :host is height:100%, so it
+// needs a bounded flex parent to resolve against for p-table's scrollHeight="flex" to
+// compute correctly and scroll internally (inside .p-datatable-table-container) instead
+// of the whole page/tab area scrolling as one block.
+.grid-area {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+// One continuous badge made of touching colored segments (red/yellow/green breakdown)
+// instead of separate badges with gaps — same info, much less width.
+.status-pill {
+  display: inline-flex;
+  align-items: stretch;
+  margin-left: 0.4rem;
+  border-radius: 999px;
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+.status-seg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15rem;
+  padding: 0 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.status-seg:not(:last-child) {
+  border-right: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.status-seg.red {
+  background: #ef4444;
+  color: #fff;
+}
+
+.status-seg.yellow {
+  background: #fbbf24;
+  color: #78350f;
+}
+
+.status-seg.green {
+  background: #22c55e;
+  color: #fff;
+}
+
+// Tab strip + "add bookmark" button on one row — the tablist scrolls internally
+// (PrimeNG's [scrollable]) while the button stays put at the end, out of the
+// scrolling area.
+.tabs-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tabs-row p-tablist {
+  flex: 1;
+  min-width: 0;
+}
+
+.new-tab-btn {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+// Drag-and-drop tab reordering (Angular CDK). p-tablist/p-tab still render normally —
+// this just wraps each tab so it can be picked up by its grip handle and dropped at
+// a new position among the other visible tabs.
+.tab-drop-list {
+  display: flex;
+  align-items: stretch;
+}
+
+.tab-drag-item {
+  display: flex;
+}
+
+.tab-drag-handle {
+  cursor: grab;
+  margin-right: 0.4rem;
+  color: var(--p-text-muted-color, #94a3b8);
+  font-size: 0.78rem;
+}
+
+.tab-drag-handle:active {
+  cursor: grabbing;
+}
+
+.cdk-drag-preview {
+  box-sizing: border-box;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  background: var(--p-surface-0, #fff);
+  opacity: 0.95;
+}
+
+.cdk-drag-placeholder {
+  opacity: 0.3;
+}
+
+.cdk-drag-animating {
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.tab-drop-list.cdk-drop-list-dragging .tab-drag-item:not(.cdk-drag-placeholder) {
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.tab-toolbar {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.rb-picker {
+  flex: 0 1 220px;
+  min-width: 160px;
+  max-width: 100%;
+}
+
+.level-filter {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--p-surface-200, #e2e8f0);
+}
+
+.level-filter label {
+  font-size: 0.85rem;
+  color: var(--p-text-muted-color, #898781);
+}
+
+.level-filter ::ng-deep .level-input {
+  width: 4.5rem;
+}
+
+.level-sep {
+  color: var(--p-text-muted-color, #898781);
+}
+
+.tab-toolbar-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.empty-tabs {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3rem 1rem;
+  color: var(--p-text-muted-color, #898781);
+}
+
+.empty-tabs .pi {
+  font-size: 2rem;
+}
+
+.empty-tab-items {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--p-text-muted-color, #898781);
+  border: 1px dashed var(--p-surface-300, #cbd5e1);
+  border-radius: 8px;
+}
+
+.tab-dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.tab-dialog-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.hidden-tabs-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 220px;
+  max-width: 320px;
+}
+
+.hidden-tabs-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--p-text-color, inherit);
+}
+
+.hidden-tab-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.hidden-tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hidden-tabs-empty {
+  font-size: 0.85rem;
+  color: var(--p-text-muted-color, #898781);
+}

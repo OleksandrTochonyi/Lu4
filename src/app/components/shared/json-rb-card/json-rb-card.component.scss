@@ -1,0 +1,374 @@
+// Same footprint as a small icon-only p-button, so the buttons after it (refresh,
+// info, hide) line up in the same spot whether or not this row has a map point.
+.action-spacer {
+  display: inline-block;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+}
+
+.rb-bg-default {
+  background: var(--p-red-300, #fca5a5);
+  box-shadow: inset 4px 0 0 0 var(--p-red-600, #dc2626);
+}
+
+.rb-bg-missed {
+  background: var(--p-surface-300, #cbd5e1);
+  box-shadow: inset 4px 0 0 0 var(--p-surface-500, #64748b);
+}
+
+.rb-bg-success {
+  background: var(--p-green-300, #86efac);
+  box-shadow: inset 4px 0 0 0 var(--p-green-600, #16a34a);
+}
+
+.rb-bg-warn {
+  background: var(--p-orange-300, #fdba74);
+  box-shadow: inset 4px 0 0 0 var(--p-orange-600, #ea580c);
+}
+
+.rb-bg-danger {
+  background: var(--p-red-200, #fecaca);
+  box-shadow: inset 4px 0 0 0 var(--p-red-500, #ef4444);
+}
+
+.rb-bg-secondary {
+  background: var(--p-surface-0, #fff);
+  box-shadow: inset 4px 0 0 0 var(--p-surface-200, #e2e8f0);
+}
+
+// Saturated status backgrounds sit dark enough that the default muted-grey text
+// needs bumping to near-black to stay readable (the pale versions didn't).
+.rb-bg-default,
+.rb-bg-missed,
+.rb-bg-success,
+.rb-bg-warn,
+.rb-bg-danger {
+  color: #1e293b;
+}
+
+.rb-bg-default .stat-label,
+.rb-bg-missed .stat-label,
+.rb-bg-success .stat-label,
+.rb-bg-warn .stat-label,
+.rb-bg-danger .stat-label,
+.rb-bg-default .resp-mini-label,
+.rb-bg-missed .resp-mini-label,
+.rb-bg-success .resp-mini-label,
+.rb-bg-warn .resp-mini-label,
+.rb-bg-danger .resp-mini-label {
+  color: #475569;
+}
+
+.rb-hidden {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--p-surface-100, #f1f5f9) 0,
+    var(--p-surface-100, #f1f5f9) 10px,
+    var(--p-surface-200, #e2e8f0) 10px,
+    var(--p-surface-200, #e2e8f0) 20px
+  ) !important;
+}
+
+.rb-row {
+  min-height: 0;
+  border-bottom: 1px solid var(--p-surface-200, #e2e8f0);
+  transition: background-color 0.15s ease;
+}
+
+.rb-row:hover {
+  filter: brightness(0.98);
+}
+
+:host:last-child .rb-row {
+  border-bottom: none;
+}
+
+.rb-row-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 15rem) 1fr auto;
+  align-items: center;
+}
+
+@media (max-width: 900px) {
+  .rb-row-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.hidden-flag {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--p-surface-900, #0f172a);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  pointer-events: none;
+}
+
+.rb-lvl {
+  margin-right: 8px;
+  color: var(--p-text-muted-color, #64748b);
+}
+
+.boss-meta {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.boss-locations {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+.resp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.resp-badge.pm {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.resp-badge .pi {
+  font-size: 0.72rem;
+}
+
+.resp-badge.resp-4 {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.resp-badge.resp-5 {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.resp-badge.resp-6 {
+  background: #ccfbf1;
+  color: #0f766e;
+}
+
+.resp-badge.resp-7 {
+  background: #fef9c3;
+  color: #a16207;
+}
+
+.resp-badge.resp-8 {
+  background: #fce7f3;
+  color: #be185d;
+}
+
+.resp-badge.resp-9 {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.resp-badge.resp-10 {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.resp-badge.resp-other {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.resp-controls {
+  min-width: 0;
+}
+
+.time-cluster {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  background: var(--p-surface-0, #fff);
+  border: 1px solid var(--p-surface-200, #e2e8f0);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.time-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--p-surface-200, #e2e8f0);
+  margin: 0.1rem 0;
+}
+
+.dead-time-field {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.dead-time-icon {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  margin-right: 0.3rem;
+}
+
+:host ::ng-deep .dead-time-input {
+  width: 9.25rem;
+}
+
+:host ::ng-deep .dead-time-input input {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.78rem;
+  border-color: transparent;
+  background: var(--p-surface-50, #f8fafc);
+  border-radius: 999px;
+}
+
+:host ::ng-deep .dead-time-input input:focus {
+  background: var(--p-surface-0, #fff);
+}
+
+.resp-mini {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  line-height: 1.1;
+}
+
+.resp-mini-icon {
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+.resp-mini-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.resp-mini-label {
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #94a3b8;
+  font-weight: 700;
+}
+
+.resp-mini-value {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--p-text-color, #1e293b);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.resp-mini-accent .resp-mini-icon,
+.resp-mini-accent .resp-mini-value {
+  color: var(--p-primary-color, #6366f1);
+}
+
+.history-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0.2rem 0.35rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.history-trigger:hover {
+  background: var(--p-surface-100, #f1f5f9);
+  color: var(--p-primary-color, #6366f1);
+}
+
+.history-trigger .pi {
+  font-size: 0.72rem;
+}
+
+.history-trigger-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.history-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.4rem;
+  border-radius: 8px;
+  background: var(--p-surface-50, #f8fafc);
+  border: 1px solid var(--p-surface-200, #e2e8f0);
+}
+
+.history-entry-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.history-entry-time {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--p-text-color, #1e293b);
+  font-variant-numeric: tabular-nums;
+}
+
+.history-entry-meta {
+  font-size: 0.68rem;
+  color: #94a3b8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-confirm {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #b91c1c;
+  white-space: nowrap;
+}
+
+:host ::ng-deep .rb-status-tag {
+  padding: 0.1rem 0.4rem;
+  font-size: 0.62rem;
+  flex-shrink: 0;
+}
+
+.loot-qty {
+  font-size: 0.68rem;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+}

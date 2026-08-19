@@ -1,0 +1,223 @@
+<div class="rb-map-page" #pageEl [style.height.px]="pageHeight()">
+  <!-- Toolbar -->
+  <div class="map-toolbar">
+    <div class="toolbar-group">
+      <span class="toolbar-title">RB Map (JSON)</span>
+      <span class="toolbar-count">{{ mapBosses().length }} точек</span>
+    </div>
+
+    <div class="toolbar-group">
+      <label class="filter-label">Уровень</label>
+      <p-inputNumber
+        [ngModel]="levelFrom()"
+        (ngModelChange)="onLevelFromChange($event)"
+        placeholder="от"
+        [min]="1"
+        [showButtons]="false"
+        styleClass="level-input"
+      />
+      <span class="filter-dash">—</span>
+      <p-inputNumber
+        [ngModel]="levelTo()"
+        (ngModelChange)="onLevelToChange($event)"
+        placeholder="до"
+        [min]="1"
+        [showButtons]="false"
+        styleClass="level-input"
+      />
+      <button
+        pButton
+        type="button"
+        icon="pi pi-filter-slash"
+        class="p-button-text p-button-sm"
+        (click)="resetFilters()"
+        title="Сбросить фильтр"
+      ></button>
+    </div>
+
+    <div class="toolbar-group">
+      <button
+        pButton
+        type="button"
+        label="Добавить точку"
+        icon="pi pi-map-marker"
+        class="p-button-sm"
+        (click)="openAddDialog()"
+      ></button>
+    </div>
+  </div>
+
+  <!-- Placing hint -->
+  <div class="placing-hint" *ngIf="placingBoss() as pb">
+    <i class="pi pi-map-marker"></i>
+    <span>Кликните на карте, чтобы разместить <strong>{{ pb.displayName }}</strong></span>
+    <button pButton type="button" label="Отмена" class="p-button-text p-button-sm" (click)="cancelPlacing()"></button>
+  </div>
+
+  <!-- Legend -->
+  <div class="map-legend">
+    <span class="legend-item"><span class="dot" style="background:#3b82f6"></span> Не в респе</span>
+    <span class="legend-item"><span class="dot" style="background:#f59e0b"></span> Скоро респ</span>
+    <span class="legend-item"><span class="dot" style="background:#22c55e"></span> В респе</span>
+    <span class="legend-item"><span class="dot" style="background:#ef4444"></span> Первый прошёл</span>
+    <span class="legend-item"><span class="dot" style="background:#64748b"></span> Проебан</span>
+  </div>
+
+  <!-- Zoom controls -->
+  <div class="zoom-controls">
+    <button pButton type="button" icon="pi pi-plus" class="p-button-rounded p-button-sm" (click)="zoomIn()"></button>
+    <button pButton type="button" icon="pi pi-minus" class="p-button-rounded p-button-sm" (click)="zoomOut()"></button>
+    <button pButton type="button" icon="pi pi-refresh" class="p-button-rounded p-button-sm" (click)="resetView()" title="Сбросить вид"></button>
+  </div>
+
+  <!-- Map viewport -->
+  <div
+    class="map-viewport"
+    [class.placing]="placingBossId()"
+    (pointerdown)="onViewportPointerDown($event)"
+    (wheel)="onWheel($event)"
+  >
+    <div class="map-inner" [style.transform]="mapTransform()">
+      <img
+        #mapImage
+        class="map-image"
+        [src]="mapSrc"
+        alt="Interlude map"
+        draggable="false"
+        (load)="onMapImageLoad()"
+        (click)="onMapClick($event)"
+      />
+
+      <button
+        *ngFor="let boss of mapBosses(); trackBy: trackBoss"
+        type="button"
+        class="rb-point"
+        [class.selected]="selectedBossId() === boss.id"
+        [class.pulsing]="isPulsing(boss)"
+        [style.left.%]="pointLeft(boss)"
+        [style.top.%]="pointTop(boss)"
+        [style.background]="pointColor(boss)"
+        (pointerdown)="onPointPointerDown($event, boss)"
+        [title]="'[' + boss.lvl + '] ' + boss.displayName"
+      ></button>
+    </div>
+  </div>
+
+  <!-- Info popup -->
+  <div
+    class="rb-popup"
+    *ngIf="selectedBoss() as boss"
+    [style.left.px]="popupPos()?.x ?? 0"
+    [style.top.px]="popupPos()?.y ?? 0"
+  >
+    <button type="button" class="rb-popup-close" (click)="closePopup()" aria-label="Закрыть">
+      <i class="pi pi-times"></i>
+    </button>
+
+    <div class="rb-popup-header">
+      <p-tag [value]="boss.status" [severity]="tagSeverity(boss)" />
+      <span class="rb-popup-title">
+        <span class="rb-popup-lvl">[{{ boss.lvl }}]</span> {{ boss.displayName }}
+      </span>
+    </div>
+
+    <div class="rb-popup-times">
+      <div class="time-box">
+        <span class="time-label">Мин. респ</span>
+        <span class="time-value">{{ displayMinResp() ? (displayMinResp() | date : 'dd.MM HH:mm' : 'Europe/Kyiv') : '—' }}</span>
+      </div>
+      <div class="time-box">
+        <span class="time-label">Макс. респ</span>
+        <span class="time-value">{{ displayMaxResp() ? (displayMaxResp() | date : 'dd.MM HH:mm' : 'Europe/Kyiv') : '—' }}</span>
+      </div>
+    </div>
+
+    <div class="time-box full">
+      <span class="time-label">{{ timeLeftLabel() }}</span>
+      <span class="time-value strong">{{ respElapsedLabel() != null ? respElapsedLabel() : (timeLeft() ? (timeLeft() | date : 'HH:mm:ss') : '—') }}</span>
+    </div>
+
+    <div class="rb-popup-meta">
+      <span
+        class="resp-badge"
+        [ngClass]="respBadgeClass(boss.stats.minResp)"
+        *ngIf="boss.stats.minResp != null"
+      >
+        <i class="pi pi-clock"></i> {{ boss.stats.minResp }}ч
+      </span>
+      <span class="resp-badge pm" *ngIf="boss.stats.plusResp != null">
+        <i class="pi pi-sort-alt"></i> ±{{ boss.stats.plusResp }}ч
+      </span>
+    </div>
+
+    <app-boss-stats [stats]="boss.stats"></app-boss-stats>
+
+    <div class="rb-popup-loot" *ngIf="boss.loot.length">
+      <div class="loot-list">
+        <div class="loot-item" *ngFor="let loot of boss.loot; trackBy: trackIndex">
+          <span class="loot-icon">
+            <img *ngIf="loot.imgUrl" [src]="loot.imgUrl" [alt]="loot.displayName" loading="lazy" draggable="false" />
+          </span>
+          <div class="loot-name-block">
+            <span class="loot-name">{{ loot.displayName }}</span>
+            <span class="loot-qty" *ngIf="loot.qty != null">×{{ loot.qty }}</span>
+          </div>
+          <app-chance-badge [chance]="loot.chance"></app-chance-badge>
+          <app-grade-badge [grade]="loot.grade"></app-grade-badge>
+        </div>
+      </div>
+    </div>
+
+    <div class="rb-popup-actions">
+      <button pButton type="button" label="Обновить респ" icon="pi pi-refresh" class="p-button-sm" (click)="refreshRespSelected()"></button>
+      <button pButton type="button" label="Переместить" icon="pi pi-arrows-alt" class="p-button-sm p-button-text" (click)="startMoveSelected()"></button>
+      <button
+        *ngIf="boss.mapSource === 'manual'"
+        pButton
+        type="button"
+        label="Удалить"
+        icon="pi pi-trash"
+        class="p-button-sm p-button-text p-button-danger"
+        (click)="removeSelectedPoint()"
+      ></button>
+    </div>
+  </div>
+</div>
+
+<!-- Add point dialog -->
+<p-dialog
+  header="Добавить точку на карту"
+  [visible]="addDialogVisible()"
+  (visibleChange)="addDialogVisible.set($event)"
+  [modal]="true"
+  [style]="{ width: '420px', maxWidth: '95vw' }"
+  [draggable]="false"
+  [dismissableMask]="true"
+>
+  <div class="add-dialog-body">
+    <label class="add-dialog-label">Выберите РБ</label>
+    <p-select
+      [options]="placeableOptions()"
+      [ngModel]="pendingBossId()"
+      (ngModelChange)="pendingBossId.set($event)"
+      placeholder="Босс без точки на карте"
+      [filter]="true"
+      filterBy="label"
+      appendTo="body"
+      styleClass="add-dialog-select"
+    />
+    <p class="add-dialog-hint" *ngIf="!placeableOptions().length">Все РБ уже размещены на карте.</p>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button pButton type="button" label="Отмена" class="p-button-text" (click)="addDialogVisible.set(false)"></button>
+    <button
+      pButton
+      type="button"
+      label="Разместить"
+      icon="pi pi-check"
+      [disabled]="!pendingBossId()"
+      (click)="confirmAdd()"
+    ></button>
+  </ng-template>
+</p-dialog>

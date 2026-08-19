@@ -15,15 +15,20 @@ function addHours(date: Date | null, hours: any): Date | null {
   return new Date(date.getTime() + hoursNumber * 60 * 60 * 1000);
 }
 
-function calculateStatus(
+// `now` defaults to Date.now() for one-shot callers (enrichRbItem below), but callers
+// that need this to recompute live — e.g. inside an Angular computed() ticking off a
+// signal — should pass their own reactive `now` value explicitly, since calling
+// Date.now() internally wouldn't register as a dependency and the computed would never
+// re-run on its own as time passes.
+export function calculateStatus(
   minResp: Date | null,
   maxResp: Date | null,
   secondMinResp: Date | null,
-  secondMaxResp: Date | null
+  secondMaxResp: Date | null,
+  now: number = Date.now()
 ): RbStatus {
   if (!minResp || !maxResp || !secondMinResp || !secondMaxResp) return RbStatus.Unknown;
 
-  const now = Date.now();
   const hourMs = 60 * 60 * 1000;
   const min = minResp.getTime();
   const max = maxResp.getTime();

@@ -18,4 +18,20 @@
         background: #f8f9fa !important;
         border-radius: 4px !important;
     }
+
+    // Small pill badge for "NEW" menu items — the default p-badge is sized/shaped
+    // for a numeric count, so it needs trimming down to sit neatly next to text.
+    ::ng-deep .new-badge.p-badge {
+        min-width: unset;
+        height: auto;
+        padding: 1px 6px;
+        border-radius: 999px;
+        font-size: 0.6rem;
+        font-weight: 800;
+        letter-spacing: 0.03em;
+        line-height: 1.3;
+        background: linear-gradient(135deg, #34d399, #10b981);
+        color: #fff;
+        box-shadow: 0 1px 3px rgba(16, 185, 129, 0.4);
+    }
 }

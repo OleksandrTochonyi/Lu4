@@ -1,0 +1,45 @@
+<div class="boss-stats">
+	<div class="stat-group stat-group-hp">
+		<div class="stat-group-icon"><i class="pi pi-heart-fill"></i></div>
+		<div class="stat-group-body">
+			<span class="stat-group-label">HP</span>
+			<span class="stat-group-value">{{ stats()?.hp ?? '—' }}</span>
+		</div>
+	</div>
+
+	<div class="stat-group stat-group-combat">
+		<div class="stat-group-header"><i class="pi pi-bolt"></i> Боевые характеристики</div>
+		<div class="stat-group-grid">
+			<div class="stat-cell">
+				<span class="stat-cell-label">P.Atk</span>
+				<span class="stat-cell-value">{{ stats()?.patk ?? '—' }}</span>
+			</div>
+			<div class="stat-cell">
+				<span class="stat-cell-label">M.Atk</span>
+				<span class="stat-cell-value">{{ stats()?.matk ?? '—' }}</span>
+			</div>
+			<div class="stat-cell">
+				<span class="stat-cell-label">P.Def</span>
+				<span class="stat-cell-value">{{ stats()?.pdef ?? '—' }}</span>
+			</div>
+			<div class="stat-cell">
+				<span class="stat-cell-label">M.Def</span>
+				<span class="stat-cell-value">{{ stats()?.mdef ?? '—' }}</span>
+			</div>
+		</div>
+	</div>
+
+	<div class="stat-group stat-group-reward">
+		<div class="stat-group-header"><i class="pi pi-gift"></i> Опыт</div>
+		<div class="stat-group-grid stat-group-grid-2">
+			<div class="stat-cell">
+				<span class="stat-cell-label">EXP</span>
+				<span class="stat-cell-value">{{ stats()?.exp ?? '—' }}</span>
+			</div>
+			<div class="stat-cell">
+				<span class="stat-cell-label">SP</span>
+				<span class="stat-cell-value">{{ stats()?.sp ?? '—' }}</span>
+			</div>
+		</div>
+	</div>
+</div>

@@ -1,0 +1,42 @@
+.chance-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.chance-badge .pi {
+  font-size: 0.6rem;
+}
+
+// Frequent drops (≥10%) — plain, low-key.
+.chance-frequent {
+  background: var(--p-surface-100, #f1f5f9);
+  color: #64748b;
+}
+
+// Common (1–10%).
+.chance-common {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+// Uncommon (0.1–1%).
+.chance-uncommon {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+// Rare (<0.1%) — worth noticing.
+.chance-rare {
+  background: linear-gradient(135deg, #fce7f3, #fecdd3);
+  color: #be123c;
+  font-weight: 800;
+}
