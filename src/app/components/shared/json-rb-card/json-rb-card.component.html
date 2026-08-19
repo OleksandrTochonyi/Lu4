@@ -136,13 +136,15 @@
 	<div class="flex flex-col gap-2 min-w-72 max-w-80">
 		<div class="text-sm font-medium text-surface-900 dark:text-surface-0">История изменений</div>
 
-		@if (respHistory().length) {
+		@if (historyEntries().length) {
 			<div class="flex flex-col gap-1">
-				@for (entry of respHistory(); track $index) {
+				@for (entry of historyEntries(); track $index) {
 					<div class="history-entry">
 						<div class="history-entry-info">
 							<span class="history-entry-time">
-								{{ entry.killTime ? (toDate(entry.killTime) | date : 'dd.MM.yy HH:mm') : 'без времени' }}
+								{{ entry.from ? (toDate(entry.from) | date : 'dd.MM.yy HH:mm') : 'без времени' }}
+								<i class="pi pi-arrow-right history-entry-arrow"></i>
+								{{ entry.to ? (toDate(entry.to) | date : 'dd.MM.yy HH:mm') : 'без времени' }}
 							</span>
 							<span class="history-entry-meta">
 								{{ entry.changedBy || 'кто-то' }} · {{ toDate(entry.changedAt) | date : 'dd.MM HH:mm' }}

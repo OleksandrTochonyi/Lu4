@@ -52,17 +52,16 @@ export class RbJsonRespService {
     const snap = await getDoc(ref);
     const existing = snap.exists() ? (snap.data() as RbRespRecord) : null;
 
+    // Log a history entry for every change, including the very first time this boss's
+    // kill time is ever set — that's still "who set it and when", worth keeping just
+    // like any later change (killTime: null here means "was never set before").
     const history = [...(existing?.history ?? [])];
-    // Only log a history entry when there was an actual previous value to record —
-    // going from "never set" to a first kill time isn't a change worth an audit line.
-    if (existing?.killTime) {
-      history.unshift({
-        killTime: existing.killTime,
-        changedAt: Timestamp.now(),
-        changedBy: this.auth.currentUser?.email ?? 'unknown',
-      });
-      history.length = Math.min(history.length, MAX_HISTORY);
-    }
+    history.unshift({
+      killTime: existing?.killTime ?? null,
+      changedAt: Timestamp.now(),
+      changedBy: this.auth.currentUser?.email ?? 'unknown',
+    });
+    history.length = Math.min(history.length, MAX_HISTORY);
 
     await setDoc(
       ref,

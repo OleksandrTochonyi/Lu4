@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, OnInit, computed, effect, inject, input, output, signal } from '@angular/core';
+import { Timestamp } from 'firebase/firestore';
 import { Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
@@ -220,17 +221,33 @@ export class JsonRbCardComponent implements OnInit {
 
   respHistory = computed<RespHistoryEntry[]>(() => this.rb()?.respHistory ?? []);
 
+  // Each raw history entry only stores the value it *replaced* — pair it with the
+  // value it was replaced BY (the entry above it, or the boss's current kill time for
+  // the most recent entry) so the popover can show "from X to Y", not just "was X".
+  historyEntries = computed<{ from: Timestamp | null; to: Timestamp | null; changedAt: Timestamp; changedBy: string }[]>(() => {
+    const entries = this.respHistory();
+    const currentKillTime = this.rb()?.lastDeadTime ?? null;
+    return entries.map((entry, i) => ({
+      from: entry.killTime,
+      to: i === 0 ? currentKillTime : entries[i - 1].killTime,
+      changedAt: entry.changedAt,
+      changedBy: entry.changedBy,
+    }));
+  });
+
   // Quick plain-text preview shown on hover (via pTooltip) — the interactive
   // restore-with-confirmation list lives in the click-to-open popover instead,
   // since a hover tooltip disappears the moment the pointer leaves it.
   historyTooltip = computed<string>(() => {
-    const entries = this.respHistory();
+    const entries = this.historyEntries();
     if (!entries.length) return '';
     return entries
       .map((e) => {
-        const time = e.killTime ? this.toDate(e.killTime) : null;
-        const timeLabel = time ? this.formatRuDateTime(time) : '—';
-        return `${timeLabel} (${e.changedBy || 'кто-то'})`;
+        const fromTime = e.from ? this.toDate(e.from) : null;
+        const toTime = e.to ? this.toDate(e.to) : null;
+        const fromLabel = fromTime ? this.formatRuDateTime(fromTime) : '—';
+        const toLabel = toTime ? this.formatRuDateTime(toTime) : '—';
+        return `${fromLabel} → ${toLabel} (${e.changedBy || 'кто-то'})`;
       })
       .join(' • ');
   });

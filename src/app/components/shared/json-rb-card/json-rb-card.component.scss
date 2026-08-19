@@ -337,10 +337,19 @@
 }
 
 .history-entry-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--p-text-color, #1e293b);
   font-variant-numeric: tabular-nums;
+}
+
+.history-entry-arrow {
+  font-size: 0.62rem;
+  color: #94a3b8;
 }
 
 .history-entry-meta {
