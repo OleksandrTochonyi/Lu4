@@ -105,10 +105,11 @@
 
   <!-- Info popup -->
   <div
+    #popupEl
     class="rb-popup"
     *ngIf="selectedBoss() as boss"
-    [style.left.px]="popupPos()?.x ?? 0"
-    [style.top.px]="popupPos()?.y ?? 0"
+    [style.left.px]="popupLeft()"
+    [style.top.px]="popupTop()"
   >
     <button type="button" class="rb-popup-close" (click)="closePopup()" aria-label="Закрыть">
       <i class="pi pi-times"></i>
@@ -153,7 +154,12 @@
     <app-boss-stats [stats]="boss.stats"></app-boss-stats>
 
     <div class="rb-popup-loot" *ngIf="boss.loot.length">
-      <div class="loot-list">
+      <button type="button" class="loot-toggle" (click)="toggleLoot()">
+        <i class="pi" [ngClass]="lootVisible() ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
+        <span>{{ lootVisible() ? 'Скрыть дроп' : 'Показать дроп' }}</span>
+        <span class="loot-count">{{ boss.loot.length }}</span>
+      </button>
+      <div class="loot-list" *ngIf="lootVisible()">
         <div class="loot-item" *ngFor="let loot of boss.loot; trackBy: trackIndex">
           <span class="loot-icon">
             <img *ngIf="loot.imgUrl" [src]="loot.imgUrl" [alt]="loot.displayName" loading="lazy" draggable="false" />

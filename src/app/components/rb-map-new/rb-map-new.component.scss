@@ -228,7 +228,9 @@
   max-width: 92vw;
   max-height: 70vh;
   overflow-y: auto;
-  transform: translate(-50%, calc(-100% - 18px));
+  // left/top are computed in TS (placePopup) to keep the popup on-screen — flipping
+  // above<->below the clicked point and clamping horizontally — so no static
+  // translate() here; left/top ARE the box's actual top-left corner.
   padding: 0.9rem 1rem 1rem;
   border-radius: 14px;
   background: #ffffff;
@@ -385,10 +387,51 @@
 }
 
 /* ---------- Loot ---------- */
+.rb-popup-loot {
+  margin-bottom: 0.75rem;
+}
+
+.loot-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.loot-toggle:hover {
+  background: #f1f5f9;
+}
+
+.loot-toggle i {
+  font-size: 0.7rem;
+  color: #64748b;
+}
+
+.loot-toggle .loot-count {
+  margin-left: auto;
+  min-width: 20px;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-align: center;
+}
+
 .loot-list {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
+  margin-top: 0.4rem;
   max-height: 220px;
   overflow-y: auto;
   padding-right: 0.15rem;

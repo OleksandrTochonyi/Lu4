@@ -6,6 +6,7 @@ import {
   HostListener,
   afterNextRender,
   computed,
+  effect,
   inject,
   signal,
   viewChild,
@@ -77,6 +78,7 @@ export class RbMapNewComponent {
 
   private mapImage = viewChild<ElementRef<HTMLImageElement>>('mapImage');
   private pageEl = viewChild<ElementRef<HTMLDivElement>>('pageEl');
+  private popupEl = viewChild<ElementRef<HTMLDivElement>>('popupEl');
 
   private jsonBosses = signal<any[]>([]);
   readonly loading = signal(true);
@@ -92,7 +94,15 @@ export class RbMapNewComponent {
   readonly translateY = signal(0);
 
   readonly selectedBossId = signal<string | null>(null);
+  // popupPos is the anchor point (the click / focused point on screen) — popupLeft/Top
+  // below are the actual on-screen box position, kept inside the viewport by flipping
+  // above<->below (and clamping horizontally) once the popup's real rendered size is known.
   readonly popupPos = signal<{ x: number; y: number } | null>(null);
+  readonly popupLeft = signal(0);
+  readonly popupTop = signal(0);
+  // Loot is hidden by default so the popup stays short enough to fit the viewport even
+  // when a focused boss lands centered on screen — shown only on demand.
+  readonly lootVisible = signal(false);
 
   readonly addDialogVisible = signal(false);
   readonly placingBossId = signal<string | null>(null);
@@ -128,10 +138,49 @@ export class RbMapNewComponent {
       this.updatePageHeight();
       this.tryFocus();
     });
+
+    // Re-measure the popup and reposition (flip above<->below, clamp horizontally)
+    // whenever its anchor point or content height (loot expanded/collapsed) changes.
+    // Runs after the DOM actually reflects that state, so the measured size is real.
+    effect(() => {
+      const pos = this.popupPos();
+      this.lootVisible();
+      if (!pos) return;
+      setTimeout(() => this.placePopup(pos));
+    });
   }
 
   onMapImageLoad(): void {
     this.tryFocus();
+  }
+
+  @HostListener('window:resize')
+  onWindowResizeRepositionPopup(): void {
+    const pos = this.popupPos();
+    if (pos) this.placePopup(pos);
+  }
+
+  private placePopup(pos: { x: number; y: number }): void {
+    const el = this.popupEl()?.nativeElement;
+    if (!el) return;
+
+    const margin = 8;
+    const gap = 18;
+    const width = el.offsetWidth;
+    const height = el.offsetHeight;
+
+    let left = pos.x - width / 2;
+    left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
+
+    const spaceAbove = pos.y - gap;
+    const spaceBelow = window.innerHeight - pos.y - gap;
+    // Prefer above (matches the old visual default); flip below only when there's
+    // truly not enough room above but there is below.
+    let top = spaceAbove >= height || spaceAbove >= spaceBelow ? pos.y - gap - height : pos.y + gap;
+    top = Math.max(margin, Math.min(top, window.innerHeight - height - margin));
+
+    this.popupLeft.set(left);
+    this.popupTop.set(top);
   }
 
   private tryFocus(): void {
@@ -160,6 +209,7 @@ export class RbMapNewComponent {
     this.translateY.set(-zoom * offsetY);
 
     this.selectedBossId.set(boss.id);
+    this.lootVisible.set(false);
     const page = this.pageEl()?.nativeElement.getBoundingClientRect();
     if (page) {
       this.popupPos.set({ x: page.left + page.width / 2, y: page.top + page.height / 2 });
@@ -495,6 +545,7 @@ export class RbMapNewComponent {
     // Points are not draggable: a click just opens the info popup.
     event.stopPropagation();
     this.selectedBossId.set(boss.id);
+    this.lootVisible.set(false);
     this.popupPos.set({ x: event.clientX, y: event.clientY });
   }
 
@@ -575,6 +626,11 @@ export class RbMapNewComponent {
   closePopup(): void {
     this.selectedBossId.set(null);
     this.popupPos.set(null);
+    this.lootVisible.set(false);
+  }
+
+  toggleLoot(): void {
+    this.lootVisible.update((v) => !v);
   }
 
   // ---------- Add / place flow ----------
