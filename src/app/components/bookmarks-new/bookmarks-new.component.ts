@@ -197,23 +197,38 @@ export class BookmarksNewComponent {
       .subscribe(() => this.now.set(Date.now()));
   }
 
-  activeTabItems = computed(() => {
+  // Everything except the live resp filters — stays free of a `now` dependency, so
+  // item object references are stable across renders unless the tab/hidden-set/items
+  // actually change (no per-second rebuild).
+  private baseActiveTabItems = computed(() => {
     const tab = this.activeTab();
     if (!tab) return [];
 
     const idSet = new Set(tab.rbIds ?? []);
     const hidden = this.hiddenIds();
-    const now = this.now();
-    const hourMs = 60 * 60 * 1000;
-    const onlyResp = this.showOnlyResp();
-    const oneHour = this.showOneHourToResp();
 
     return this.items()
       .filter((item) => idSet.has(item?.id))
-      .map((item) => ({ ...item, hidden: hidden.has(getRbKey(item)) }))
-      .filter((item) => {
-        if (!onlyResp && !oneHour) return true;
+      .map((item) => ({ ...item, hidden: hidden.has(getRbKey(item)) }));
+  });
 
+  // Reads `this.now()` only when a resp filter is active — see the matching comment on
+  // HomeNewComponent.visibleItems for why: recreating a boss's object every second
+  // while its kill-time is being edited resets the datepicker mid-edit.
+  activeTabItems = computed(() => {
+    const items = this.baseActiveTabItems();
+    const onlyResp = this.showOnlyResp();
+    const oneHour = this.showOneHourToResp();
+
+    if (!onlyResp && !oneHour) {
+      return items.slice().sort((a, b) => Number(a?.lvl ?? 0) - Number(b?.lvl ?? 0));
+    }
+
+    const now = this.now();
+    const hourMs = 60 * 60 * 1000;
+
+    return items
+      .filter((item) => {
         const status = calculateStatus(item?.minResp ?? null, item?.maxResp ?? null, item?.secondMinResp ?? null, item?.secondMaxResp ?? null, now);
         const inResp = status === RbStatus.InResp || status === RbStatus.SecondResp;
 

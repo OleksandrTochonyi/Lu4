@@ -311,9 +311,10 @@ export class JsonRbCardComponent implements OnInit {
   private sendRespStartNotification(): void {
     const rb = this.rb();
     const rbName = String(rb?.displayName ?? rb?.name ?? '').trim() || '???';
+    const rbLvl = rb?.lvl;
     const mapUrl = `${SITE_URL}/rb-map-new?focus=${encodeURIComponent(rb?.id ?? '')}`;
     const text =
-      `РБ ${rbName} вошел в респ! Хули сидишь? Пиздуй чекать!!\n\n` +
+      `РБ ${rbName}${rbLvl != null ? `[${rbLvl}]` : ''} вошел в респ! Хули сидишь? Пиздуй чекать!!\n\n` +
       `<a href="${mapUrl}">Посмотреть на карте</a>`;
     void this.tgService.sendMessageToTg(text).catch(() => null);
   }

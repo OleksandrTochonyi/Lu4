@@ -130,12 +130,11 @@ export class HomeNewComponent {
     });
   }
 
-  visibleItems = computed(() => {
+  // Everything except the live resp filters — item object references here stay stable
+  // across renders as long as the underlying data/these filters don't change (no `now`
+  // dependency), so this never recreates a boss's object on its own.
+  private baseFilteredItems = computed(() => {
     const items = this.items() ?? [];
-    const now = this.now();
-    const hourMs = 60 * 60 * 1000;
-    const onlyResp = this.showOnlyResp();
-    const oneHour = this.showOneHourToResp();
     const from = this.levelFrom();
     const to = this.levelTo();
     const query = this.nameQuery().trim().toLowerCase();
@@ -158,8 +157,30 @@ export class HomeNewComponent {
         if (from != null && level < from) return false;
         if (to != null && level > to) return false;
 
-        if (!onlyResp && !oneHour) return true;
+        return true;
+      });
+  });
 
+  // Reads `this.now()` only when a resp filter is actually active — so editing a kill
+  // time (which re-renders `<app-json-rb-card>` with a "new" rb object every second
+  // when this ticks) isn't disrupted while browsing with no resp filter on. When a
+  // filter IS active this only filters/sorts baseFilteredItems()'s existing objects —
+  // it never clones them — so a boss's card keeps the same object reference across
+  // ticks unless it actually enters/leaves the filtered set.
+  visibleItems = computed(() => {
+    const items = this.baseFilteredItems();
+    const onlyResp = this.showOnlyResp();
+    const oneHour = this.showOneHourToResp();
+
+    if (!onlyResp && !oneHour) {
+      return items.slice().sort((a, b) => Number(a.lvl ?? 0) - Number(b.lvl ?? 0));
+    }
+
+    const now = this.now();
+    const hourMs = 60 * 60 * 1000;
+
+    return items
+      .filter((item) => {
         const status = calculateStatus(item?.minResp ?? null, item?.maxResp ?? null, item?.secondMinResp ?? null, item?.secondMaxResp ?? null, now);
         const inResp = status === RbStatus.InResp || status === RbStatus.SecondResp;
 
