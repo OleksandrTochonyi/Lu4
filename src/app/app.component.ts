@@ -47,7 +47,9 @@ export class AppComponent {
 
   get isLoginPage(): boolean {
     const url = this.currentUrl || this.location.path(true) || this.router.url;
-    return url === '/login' || url.startsWith('/login?') || url.startsWith('/login/');
+    return (
+      url === '/login' || url.startsWith('/login?') || url.startsWith('/login/')
+    );
   }
 
   get showMenubar(): boolean {
@@ -65,19 +67,20 @@ export class AppComponent {
 
   private readonly allMenuItems: (MenuItem & { adminOnly?: boolean })[] = [
     {
-      label: 'Home',
-      icon: 'pi pi-home',
-      routerLink: '/',
-    },
-    {
       label: 'Bookmarks',
       icon: 'pi pi-bookmark',
-      routerLink: '/bookmarks',
+      routerLink: '/',
     },
     {
       label: 'RB Map',
       icon: 'pi pi-map',
-      routerLink: '/rb-map',
+      routerLink: '/rb-map-new',
+    },
+    {
+      label: 'RB List',
+      icon: 'pi pi-list',
+      routerLink: '/rb-list-new',
+      adminOnly: true,
     },
     {
       label: 'Clan Info',
@@ -91,42 +94,17 @@ export class AppComponent {
       routerLink: '/raids',
       adminOnly: true,
     },
-    {
-      label: 'RB List',
-      icon: 'pi pi-list',
-      routerLink: '/rb-list',
-      adminOnly: true,
-    },
+    // {
+    //   label: 'RB List',
+    //   icon: 'pi pi-list',
+    //   routerLink: '/rb-list',
+    //   adminOnly: true,
+    // },
     {
       label: 'Statistics',
       icon: 'pi pi-chart-bar',
       routerLink: '/startistics',
       adminOnly: true,
-    },
-    // {
-    //   label: 'Home',
-    //   icon: 'pi pi-home',
-    //   routerLink: '/home-new',
-    //   badge: 'NEW',
-    // },
-    {
-      label: 'Bookmarks',
-      icon: 'pi pi-bookmark',
-      routerLink: '/bookmarks-new',
-      badge: 'NEW',
-    },
-    {
-      label: 'RB List',
-      icon: 'pi pi-list',
-      routerLink: '/rb-list-new',
-      adminOnly: true,
-      badge: 'NEW',
-    },
-    {
-      label: 'RB Map',
-      icon: 'pi pi-map',
-      routerLink: '/rb-map-new',
-      badge: 'NEW',
     },
   ];
 
@@ -136,7 +114,7 @@ export class AppComponent {
     this.router.events
       .pipe(
         filter((e): e is NavigationEnd => e instanceof NavigationEnd),
-        takeUntilDestroyed(this.destroyRef)
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((e) => {
         this.currentUrl = e.urlAfterRedirects;
@@ -145,7 +123,9 @@ export class AppComponent {
     this.authService.isAdmin$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((isAdmin) => {
-        this.items = this.allMenuItems.filter((item) => isAdmin || !item.adminOnly);
+        this.items = this.allMenuItems.filter(
+          (item) => isAdmin || !item.adminOnly,
+        );
       });
   }
 
@@ -172,4 +152,3 @@ export class AppComponent {
     }
   }
 }
-

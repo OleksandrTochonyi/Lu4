@@ -86,13 +86,15 @@
 					</p-tabpanels>
 				</p-tabs>
 
-				<p-button
-					icon="pi pi-plus"
-					label="Новая закладка"
-					class="new-tab-btn"
-					size="small"
-					(onClick)="openCreateTabDialog()"
-				></p-button>
+				<div class="p-button-wrapper">
+					<p-button
+						icon="pi pi-plus"
+						label="Новая закладка"
+						class="new-tab-btn"
+						size="small"
+						(onClick)="openCreateTabDialog()"
+					></p-button>
+				</div>
 			</div>
 
 			@if (activeTab(); as tab) {
