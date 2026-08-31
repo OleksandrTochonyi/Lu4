@@ -142,9 +142,9 @@
 					<div class="history-entry">
 						<div class="history-entry-info">
 							<span class="history-entry-time">
-								{{ entry.from ? (toDate(entry.from) | date : 'dd.MM.yy HH:mm') : 'без времени' }}
+								<span class="history-entry-from">{{ entry.from ? (toDate(entry.from) | date : 'dd.MM.yy HH:mm') : 'без времени' }}</span>
 								<i class="pi pi-arrow-right history-entry-arrow"></i>
-								{{ entry.to ? (toDate(entry.to) | date : 'dd.MM.yy HH:mm') : 'без времени' }}
+								<span class="history-entry-to">{{ entry.to ? (toDate(entry.to) | date : 'dd.MM.yy HH:mm') : 'без времени' }}</span>
 							</span>
 							<span class="history-entry-meta">
 								{{ entry.changedBy || 'кто-то' }} · {{ toDate(entry.changedAt) | date : 'dd.MM HH:mm' }}

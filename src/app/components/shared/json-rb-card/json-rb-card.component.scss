@@ -347,6 +347,22 @@
   font-variant-numeric: tabular-nums;
 }
 
+.history-entry-from {
+  padding: 0.05rem 0.3rem;
+  border-radius: 5px;
+  color: #b91c1c;
+  background: rgba(185, 28, 28, 0.1);
+  text-decoration: line-through;
+  text-decoration-color: rgba(185, 28, 28, 0.5);
+}
+
+.history-entry-to {
+  padding: 0.05rem 0.3rem;
+  border-radius: 5px;
+  color: #15803d;
+  background: rgba(21, 128, 61, 0.12);
+}
+
 .history-entry-arrow {
   font-size: 0.62rem;
   color: #94a3b8;

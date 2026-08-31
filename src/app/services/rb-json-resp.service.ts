@@ -4,7 +4,7 @@ import { Firestore, collection, collectionData, doc, getDoc, setDoc } from '@ang
 import { Timestamp } from 'firebase/firestore';
 import { Observable, map } from 'rxjs';
 
-const MAX_HISTORY = 3;
+const MAX_HISTORY = 5;
 
 export interface RespHistoryEntry {
   killTime: Timestamp | null;
@@ -21,7 +21,7 @@ export interface RbRespRecord {
 // Kill-time storage for the db.json raid-boss catalog, kept in its own collection
 // (separate from the legacy `raid-boss` docs) so it never mixes with the old app's
 // data. Doc id = the db.json monster id. Every time the kill time changes, the
-// previous value is pushed onto `history` (capped at 3) along with who changed it
+// previous value is pushed onto `history` (capped at 5) along with who changed it
 // and when — an audit trail, not just the latest value.
 @Injectable({
   providedIn: 'root',
