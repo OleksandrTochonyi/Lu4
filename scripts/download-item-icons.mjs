@@ -28,6 +28,26 @@ const CONCURRENCY = 16;
  */
 const FALLBACKS = {
   'bow-of-periel.webp': 'https://masterwork.wiki/i64/weapon_hazard_bow_i01.png',
+  // 17 items that 404 on lu4db.ru — recovered from l2api.dev's icon set
+  // (https://l2api.dev/icons/<iconFile>). PNG bytes; browsers sniff them fine.
+  // A few are approximate (set + slot match) where the exact piece isn't listed.
+  'dark-crystal-robe-stockings.webp': 'https://l2api.dev/icons/armor_t76_l_i00.png',
+  'tm-dle-dual.webp': 'https://l2api.dev/icons/weapon_dual_sword_i00.png',
+  'doom-tunic.webp': 'https://l2api.dev/icons/armor_t73_u_i00.png',
+  'doom-gaiters.webp': 'https://l2api.dev/icons/armor_t71_l_i00.png',
+  'doom-stockings.webp': 'https://l2api.dev/icons/armor_t73_l_i00.png',
+  'blue-wolf-light-boots.webp': 'https://l2api.dev/icons/armor_t69_b_i00.png',
+  'blue-wolf-light-gloves.webp': 'https://l2api.dev/icons/armor_t69_g_i00.png',
+  'blue-wolf-light-helmet.webp': 'https://l2api.dev/icons/armor_leather_helmet_i00.png',
+  'blue-wolf-circlet.webp': 'https://l2api.dev/icons/armor_leather_helmet_i00.png',
+  'blue-wolf-leather-leggings.webp': 'https://l2api.dev/icons/armor_t69_l_i00.png',
+  'avadon-helmet.webp': 'https://l2api.dev/icons/armor_helmet_i00.png',
+  'avadon-leather-leggings.webp': 'https://l2api.dev/icons/armor_t67_l_i00.png',
+  'half-plate-gauntlets-design.webp': 'https://l2api.dev/icons/etc_pouch_brown_i00.png',
+  'earring-of-binding.webp': 'https://l2api.dev/icons/accessary_earing_of_binding_i00.png',
+  'ring-of-binding.webp': 'https://l2api.dev/icons/accessary_ring_of_binding_i00.png',
+  'necklace-of-binding.webp': 'https://l2api.dev/icons/accessary_necklace_of_binding_i00.png',
+  'antidote.webp': 'https://l2api.dev/icons/etc_herb_green_i00.png',
 };
 
 const raw = JSON.parse(await readFile(DATA, 'utf8'));

@@ -4,6 +4,7 @@
  */
 export const WAREHOUSE_EMAILS: readonly string[] = [
   'analcrush@gmail.com',
+  'dianta2025@gmail.com',
 ];
 
 /** case-insensitive membership check */

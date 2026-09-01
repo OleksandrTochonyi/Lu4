@@ -124,8 +124,7 @@
       <div
         class="cd-tr"
         *ngFor="let n of rollup(); trackBy: trackNode"
-        [class.short]="n.missing > 0"
-        [class.covered]="n.missing === 0"
+        [ngClass]="'st-' + n.status"
       >
         <span class="c-name">
           <img *ngIf="n.icon" [src]="n.icon" [alt]="n.name" (error)="imgError($event)" />
