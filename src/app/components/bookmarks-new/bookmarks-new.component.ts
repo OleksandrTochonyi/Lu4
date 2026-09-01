@@ -134,6 +134,42 @@ export class BookmarksNewComponent {
     return options.filter((opt) => matchesLevel(opt.level));
   });
 
+  // The "add all / remove all" toggle only makes sense once the picker list is
+  // actually narrowed to a level range — bulk-adding the entire catalog isn't a
+  // thing anyone wants. Requires both bounds ("от-до").
+  levelRangeActive = computed(() => this.pickerLevelFrom() != null && this.pickerLevelTo() != null);
+
+  // True when every RB currently visible in the picker (after the level filter) is
+  // already in the active tab — drives the checkbox's checked state and its label
+  // (all in → "Убрать все", otherwise → "Добавить все").
+  allFilteredSelected = computed(() => {
+    const tab = this.activeTab();
+    if (!tab) return false;
+    const filtered = this.filteredRbOptions();
+    if (!filtered.length) return false;
+    const idSet = new Set(tab.rbIds ?? []);
+    return filtered.every((opt) => idSet.has(opt.value));
+  });
+
+  toggleAllFiltered(): void {
+    const tab = this.activeTab();
+    if (!tab) return;
+
+    const filteredIds = this.filteredRbOptions().map((opt) => opt.value);
+    if (!filteredIds.length) return;
+
+    const current = new Set(tab.rbIds ?? []);
+    const allSelected = filteredIds.every((id) => current.has(id));
+
+    if (allSelected) {
+      for (const id of filteredIds) current.delete(id);
+    } else {
+      for (const id of filteredIds) current.add(id);
+    }
+
+    this.updateTabRbIds(tab.id, [...current]);
+  }
+
   // Red/yellow/green breakdown shown on each bookmark's header, alongside the total
   // count — mirrors the old Bookmarks page. Recomputed live off `this.now()` (see its
   // declaration) rather than each item's stale `.status` snapshot.
@@ -343,6 +379,53 @@ export class BookmarksNewComponent {
       acceptButtonStyleClass: 'p-button-danger',
       rejectButtonStyleClass: 'p-button-text',
       accept: () => this.deleteTab(tab.id),
+    });
+  }
+
+  // Wipe the kill time for every RB in a bookmark at once (each one's rb-resp-time
+  // doc gets killTime: null, same as clearing it on the card). Always behind a
+  // confirm — it's a bulk, shared-data change.
+  confirmClearAllResp(tab: CustomBossTab, event: Event): void {
+    event.stopPropagation();
+
+    const rbIds = tab.rbIds ?? [];
+    if (!rbIds.length) return;
+
+    this.confirmationService.confirm({
+      target: event.target as EventTarget,
+      header: 'Очистить респы',
+      message: `Вы точно хотите удалить время убийства у всех РБ в закладке "${tab.name}" (${rbIds.length})?`,
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Очистить',
+      rejectLabel: 'Отмена',
+      acceptButtonStyleClass: 'p-button-danger',
+      rejectButtonStyleClass: 'p-button-text',
+      accept: () => this.clearAllResp(tab),
+    });
+  }
+
+  private clearAllResp(tab: CustomBossTab): void {
+    const rbIds = [...(tab.rbIds ?? [])];
+    if (!rbIds.length) return;
+
+    const idSet = new Set(rbIds);
+    this.items.update((items) =>
+      (items ?? []).map((item) =>
+        idSet.has(item?.id) ? enrichJsonRb({ ...item, lastDeadTime: null }) : item
+      )
+    );
+
+    Promise.allSettled(rbIds.map((id) => this.rbJsonResp.setKillTime(id, null))).then((results) => {
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      if (failed) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: `Не удалось очистить: ${failed} из ${rbIds.length}`,
+          life: 3500,
+        });
+      } else {
+        this.messageService.add({ severity: 'success', summary: 'Респы очищены', life: 2500 });
+      }
     });
   }
 

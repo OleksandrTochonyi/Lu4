@@ -177,6 +177,31 @@
   color: var(--p-text-muted-color, #898781);
 }
 
+// "Добавить все / убрать все" — only rendered once a level range is set, sits just
+// under the level inputs inside the picker's header so it reads as part of that
+// filter block.
+.level-toggle-all {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--p-surface-200, #e2e8f0);
+  background: var(--p-surface-50, #f8fafc);
+}
+
+.level-toggle-all label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--p-text-color, inherit);
+  cursor: pointer;
+  user-select: none;
+}
+
+.level-toggle-all-count {
+  font-weight: 400;
+  color: var(--p-text-muted-color, #898781);
+}
+
 .tab-toolbar-actions {
   display: flex;
   gap: 0.25rem;

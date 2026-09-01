@@ -138,10 +138,34 @@
 							></p-button>
 						}
 					</div>
+					@if (levelRangeActive()) {
+						<div class="level-toggle-all">
+							<p-checkbox
+								inputId="picker-toggle-all"
+								[ngModel]="allFilteredSelected()"
+								(ngModelChange)="toggleAllFiltered()"
+								[binary]="true"
+							></p-checkbox>
+							<label for="picker-toggle-all">
+								{{ allFilteredSelected() ? 'Убрать все' : 'Добавить все' }}
+								<span class="level-toggle-all-count">({{ filteredRbOptions().length }})</span>
+							</label>
+						</div>
+					}
 					</ng-template>
 					</p-multiSelect>
 
 					<div class="tab-toolbar-actions">
+						<p-button
+							icon="pi pi-eraser"
+							label="Очистить респы"
+							[text]="true"
+							[severity]="'danger'"
+							size="small"
+							[disabled]="!tab.rbIds.length"
+							ariaLabel="Очистить все респы в этой закладке"
+							(onClick)="confirmClearAllResp(tab, $event)"
+						></p-button>
 						<p-button
 							icon="pi pi-sliders-h"
 							[label]="'Фильтры' + ((showOnlyResp() || showOneHourToResp()) ? ' •' : '')"
