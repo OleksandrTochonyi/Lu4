@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 
 import { LoginComponent } from './components/login/login.component';
-import { ConstPartyListComponent } from './components/const-party-list/const-party-list.component';
+import { UsersComponent } from './components/users/users.component';
 import { RbSessionListComponent } from './components/rb-session-list/rb-session-list.component';
 import { StatisticsComponent } from './components/statistics/statistics.component';
 import { RaidBossListComponent } from './components/raid-boss-list/raid-boss-list.component';
@@ -17,8 +17,8 @@ import { loginRedirectGuard } from './guards/login-redirect.guard';
 
 export const routes: Routes = [
 	{ path: '', component: BookmarksNewComponent, canActivate: [authGuard] },
-	{ path: 'users', component: ConstPartyListComponent, canActivate: [authGuard, adminGuard] },
-	{ path: 'const-party', component: ConstPartyListComponent, canActivate: [authGuard, adminGuard] },
+	{ path: 'users', component: UsersComponent, canActivate: [authGuard] },
+	{ path: 'const-party', component: UsersComponent, canActivate: [authGuard] },
 	{ path: 'raids', component: RbSessionListComponent, canActivate: [authGuard, adminGuard] },
 	{ path: 'rb-list', component: RaidBossListComponent, canActivate: [authGuard, adminGuard] },
 	{ path: 'rb-map', component: RbMapComponent, canActivate: [authGuard] },

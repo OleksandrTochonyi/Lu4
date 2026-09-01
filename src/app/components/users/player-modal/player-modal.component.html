@@ -1,0 +1,325 @@
+<div class="pm">
+  <!-- ------------------------------------------------------- info form -->
+  <aside class="pm-info">
+    <form class="pm-form" [formGroup]="form" (ngSubmit)="saveInfo()">
+      <div class="pm-field pm-full">
+        <label>Имя персонажа *</label>
+        <input pInputText formControlName="name" autocomplete="off" />
+      </div>
+
+      <div class="pm-field pm-full" *ngIf="canManage()">
+        <label>Почта</label>
+        <input pInputText formControlName="email" type="email" autocomplete="off" placeholder="player@mail.com" />
+        <small class="pm-hint">Видна только админам и ПЛ этого пака.</small>
+      </div>
+
+      <div class="pm-field">
+        <label>Расса *</label>
+        <p-dropdown
+          [options]="raceOptions"
+          optionLabel="label"
+          optionValue="value"
+          formControlName="race"
+          placeholder="Выбрать"
+          appendTo="body"
+        ></p-dropdown>
+      </div>
+
+      <div class="pm-field">
+        <label>Профессия *</label>
+        <p-dropdown
+          [options]="professionOptions()"
+          optionLabel="label"
+          optionValue="value"
+          formControlName="profession"
+          [placeholder]="selectedRaceId() ? 'Выбрать' : 'Сначала расса'"
+          appendTo="body"
+        ></p-dropdown>
+      </div>
+
+      <div class="pm-field">
+        <label>Уровень *</label>
+        <p-inputNumber formControlName="level" [min]="1" [max]="85" [showButtons]="true"></p-inputNumber>
+      </div>
+
+      <div class="pm-field">
+        <label>Роль *</label>
+        <p-dropdown
+          [options]="roleOptions"
+          optionLabel="label"
+          optionValue="value"
+          formControlName="role"
+          placeholder="Выбрать"
+          appendTo="body"
+        ></p-dropdown>
+      </div>
+
+      <div class="pm-field pm-check">
+        <p-checkbox formControlName="isPL" [binary]="true" inputId="pm-pl"></p-checkbox>
+        <label for="pm-pl">Пати-лидер (ПЛ)</label>
+      </div>
+
+      <div class="pm-field pm-check">
+        <p-checkbox formControlName="isTwink" [binary]="true" inputId="pm-twink"></p-checkbox>
+        <label for="pm-twink">Твинк</label>
+      </div>
+
+      <div class="pm-viewonly pm-full" *ngIf="!canManage() && !canSelfEdit()">
+        <i class="pi pi-lock"></i> Только просмотр
+      </div>
+      <div class="pm-selfedit pm-full" *ngIf="canSelfEdit()">
+        <i class="pi pi-user-edit"></i> Это ваш персонаж - можно менять свой уровень и снаряжение
+      </div>
+
+      <div class="pm-actions pm-full">
+        <button
+          *ngIf="canManage() || canSelfEdit()"
+          pButton
+          type="submit"
+          [label]="mode() === 'create' ? 'Создать игрока' : 'Сохранить'"
+          class="p-button-sm"
+          [disabled]="savingInfo() || form.invalid"
+        ></button>
+        <button
+          pButton
+          type="button"
+          label="Закрыть"
+          class="p-button-sm p-button-text"
+          (click)="requestClose.emit()"
+        ></button>
+      </div>
+    </form>
+
+    <!-- gear summary (edit mode only) -->
+    <div class="pm-gear" *ngIf="mode() === 'edit'">
+      <div class="pm-gear-head">
+        <span>Снаряжение</span>
+        <span class="pm-score" title="Сумма грейдов надетых предметов">
+          <i class="pi pi-bolt"></i> {{ gearScore() }}
+        </span>
+      </div>
+      <div class="pm-grade-bars">
+        <div class="gb" *ngFor="let g of grades">
+          <span class="gb-key" [ngClass]="gradeClass(g)">{{ g }}</span>
+          <span class="gb-val">{{ gradeBreakdown()[g] }}</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- -------------------------------------------------------- paperdoll -->
+  <section class="pm-board">
+    <ng-container *ngIf="mode() === 'edit'; else needSave">
+      <div class="pm-readonly" *ngIf="!canEditGear()">
+        <i class="pi pi-lock"></i> Только просмотр — снаряжение меняет админ, ПЛ или сам игрок
+      </div>
+
+      <div class="paperdoll">
+        <img [src]="inventoryImg" alt="Инвентарь" class="paperdoll-img" />
+
+        <button
+          *ngFor="let slot of slots; trackBy: trackBySlot"
+          type="button"
+          class="slot"
+          [ngClass]="slotStateClass(slot)"
+          [class.slot--noact]="!canEditGear() || isLegsLocked(slot)"
+          [style.left.%]="slot.x"
+          [style.top.%]="slot.y"
+          [pTooltip]="slotItem(slot)?.name || slot.label"
+          tooltipPosition="top"
+          [attr.title]="null"
+          (click)="openPicker(slot)"
+        >
+          <ng-container *ngIf="slotItem(slot) as it; else emptySlot">
+            <span class="slot-chip" [ngClass]="gradeClass(it.grade)">
+              <img
+                *ngIf="it.icon"
+                class="slot-icon"
+                [src]="it.icon"
+                (error)="imgError($event)"
+                alt=""
+              />
+              <span class="slot-name" *ngIf="!it.icon">{{ it.name }}</span>
+              <span class="slot-grade">{{ it.grade }}</span>
+            </span>
+            <i class="pi pi-lock slot-mark" *ngIf="isLegsLocked(slot)"></i>
+            <span class="slot-mark slot-mark--fb" *ngIf="slot.chest && chestIsFullBody()">FB</span>
+          </ng-container>
+          <ng-template #emptySlot>
+            <i class="pi pi-plus slot-plus" *ngIf="canEditGear(); else emptyGlyph"></i>
+            <ng-template #emptyGlyph><span class="slot-glyph">{{ slot.glyph }}</span></ng-template>
+          </ng-template>
+        </button>
+      </div>
+
+      <ul class="pm-equipped" *ngIf="equippedItems().length">
+        <li *ngFor="let it of equippedItems(); trackBy: trackByItem">
+          <img
+            *ngIf="it.icon; else eqDot"
+            class="pm-eq-icon"
+            [src]="it.icon"
+            (error)="imgError($event)"
+            alt=""
+          />
+          <ng-template #eqDot><span class="dot" [ngClass]="gradeClass(it.grade)"></span></ng-template>
+          <span class="pm-eq-name">{{ it.name }}</span>
+          <span class="pm-eq-grade" [ngClass]="gradeClass(it.grade)">{{ it.grade }}</span>
+        </li>
+      </ul>
+
+      <p class="pm-hint">
+        <i class="pi pi-info-circle"></i>
+        Нажмите на ячейку, чтобы выбрать предмет. Для нагрудника есть галочка
+        «цельная броня» - тогда он займёт и поножи.
+      </p>
+    </ng-container>
+
+    <ng-template #needSave>
+      <div class="pm-missing">
+        <i class="pi pi-save"></i>
+        <p>Создайте игрока, чтобы настроить снаряжение</p>
+      </div>
+    </ng-template>
+  </section>
+</div>
+
+<!-- --------------------------------------------------------- item picker -->
+<p-dialog
+  [visible]="pickerSlot() !== null"
+  (visibleChange)="!$event && closePicker()"
+  [modal]="true"
+  [draggable]="false"
+  [dismissableMask]="true"
+  appendTo="body"
+  styleClass="picker-dialog"
+  [style]="{ width: '580px', maxWidth: '96vw' }"
+>
+  <ng-template pTemplate="header">
+    <div class="picker-head" *ngIf="pickerSlot() as slot">
+      <span class="picker-glyph">{{ slot.glyph }}</span>
+      <div>
+        <div class="picker-title">{{ slot.label }}</div>
+        <div class="picker-cat">{{ categoryLabel[slot.category] }}</div>
+      </div>
+    </div>
+  </ng-template>
+
+  <div class="picker-body" *ngIf="pickerSlot() as slot">
+    <div class="picker-fb" *ngIf="slot.chest">
+      <p-checkbox
+        [ngModel]="pickerFullBody()"
+        (ngModelChange)="pickerFullBody.set($event)"
+        [binary]="true"
+        inputId="fb"
+      ></p-checkbox>
+      <label for="fb">Цельная броня (занимает нагрудник + поножи)</label>
+    </div>
+
+    <div class="picker-tools">
+      <input
+        pInputText
+        type="text"
+        class="picker-search"
+        placeholder="Поиск по названию…"
+        [ngModel]="pickerSearch()"
+        (ngModelChange)="pickerSearch.set($event)"
+      />
+      <p-dropdown
+        [options]="sortOptions"
+        optionLabel="label"
+        optionValue="value"
+        [ngModel]="pickerSort()"
+        (ngModelChange)="pickerSort.set($event)"
+        appendTo="body"
+        styleClass="picker-sort"
+      ></p-dropdown>
+    </div>
+
+    <div class="picker-row2">
+      <div class="picker-grades">
+        <button
+          *ngFor="let g of grades"
+          type="button"
+          class="grade-toggle"
+          [ngClass]="[gradeClass(g), isGradeActive(g) ? 'is-on' : '']"
+          (click)="toggleGrade(g)"
+        >
+          {{ g }}
+        </button>
+      </div>
+
+      <label class="picker-all" *ngIf="slot.category !== 'weapon'">
+        <p-checkbox
+          [ngModel]="pickerShowAll()"
+          (ngModelChange)="pickerShowAll.set($event)"
+          [binary]="true"
+          inputId="all"
+        ></p-checkbox>
+        <span>Все предметы раздела</span>
+      </label>
+    </div>
+
+    <div class="picker-list">
+      <button
+        *ngFor="let it of pickerItems(); trackBy: trackByItem"
+        type="button"
+        class="picker-item"
+        [class.is-current]="isEquippedInPicker(it)"
+        [class.picker-item--warn]="!slotFits(it)"
+        (click)="pickItem(it)"
+      >
+        <img
+          *ngIf="it.icon"
+          class="pi-icon"
+          [src]="it.icon"
+          (error)="imgError($event)"
+          alt=""
+        />
+        <span class="pi-grade" [ngClass]="gradeClass(it.grade)">{{ it.grade }}</span>
+        <span class="pi-name">{{ it.name }}</span>
+        <span class="pi-sub">{{ it.subtype }}</span>
+        <i
+          *ngIf="!slotFits(it)"
+          class="pi pi-info-circle pi-warn"
+          (click)="$event.stopPropagation()"
+          [pTooltip]="
+            'Внимание: тип этого предмета определён автоматически и может не совпадать со слотом «' +
+            (pickerSlot()?.label || '') +
+            '». Наденется как есть.'
+          "
+          tooltipPosition="left"
+        ></i>
+        <i class="pi pi-check pi-cur" *ngIf="isEquippedInPicker(it)"></i>
+      </button>
+
+      <div class="picker-empty" *ngIf="pickerItems().length === 0">Ничего не найдено</div>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button
+      *ngIf="pendingItemId()"
+      pButton
+      type="button"
+      icon="pi pi-times"
+      label="Снять"
+      class="p-button-sm p-button-text p-button-danger picker-foot-left"
+      (click)="markUnequip()"
+    ></button>
+    <button
+      pButton
+      type="button"
+      label="Отмена"
+      class="p-button-sm p-button-text"
+      (click)="closePicker()"
+    ></button>
+    <button
+      pButton
+      type="button"
+      label="Сохранить"
+      class="p-button-sm"
+      [disabled]="!pickerDirty() || savingPicker()"
+      (click)="savePicker()"
+    ></button>
+  </ng-template>
+</p-dialog>

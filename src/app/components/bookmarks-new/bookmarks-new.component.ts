@@ -382,19 +382,38 @@ export class BookmarksNewComponent {
     });
   }
 
-  // Wipe the kill time for every RB in a bookmark at once (each one's rb-resp-time
-  // doc gets killTime: null, same as clearing it on the card). Always behind a
+  /** true once a raid boss actually has a kill time set */
+  private hasKillTime(item: any): boolean {
+    return item?.deadTime instanceof Date || item?.lastDeadTime != null;
+  }
+
+  /** ids of the RBs in this tab that currently have a kill time (nothing else needs clearing) */
+  private tabRespRbIds(tab: CustomBossTab): string[] {
+    const idSet = new Set(tab.rbIds ?? []);
+    return this.items()
+      .filter((item) => idSet.has(item?.id) && this.hasKillTime(item))
+      .map((item) => item.id as string);
+  }
+
+  /** how many RBs in this tab have a kill time — drives the button's label + disabled state */
+  tabRespCount(tab: CustomBossTab): number {
+    return this.tabRespRbIds(tab).length;
+  }
+
+  // Wipe the kill time for every RB in a bookmark *that has one* (each one's
+  // rb-resp-time doc gets killTime: null, same as clearing it on the card).
+  // RBs with no time are skipped — there's nothing to delete. Always behind a
   // confirm — it's a bulk, shared-data change.
   confirmClearAllResp(tab: CustomBossTab, event: Event): void {
     event.stopPropagation();
 
-    const rbIds = tab.rbIds ?? [];
+    const rbIds = this.tabRespRbIds(tab);
     if (!rbIds.length) return;
 
     this.confirmationService.confirm({
       target: event.target as EventTarget,
       header: 'Очистить респы',
-      message: `Вы точно хотите удалить время убийства у всех РБ в закладке "${tab.name}" (${rbIds.length})?`,
+      message: `Вы точно хотите удалить время убийства у РБ с временем в закладке "${tab.name}" (${rbIds.length})?`,
       icon: 'pi pi-exclamation-triangle',
       acceptLabel: 'Очистить',
       rejectLabel: 'Отмена',
@@ -405,7 +424,7 @@ export class BookmarksNewComponent {
   }
 
   private clearAllResp(tab: CustomBossTab): void {
-    const rbIds = [...(tab.rbIds ?? [])];
+    const rbIds = this.tabRespRbIds(tab);
     if (!rbIds.length) return;
 
     const idSet = new Set(rbIds);

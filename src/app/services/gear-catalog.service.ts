@@ -1,0 +1,217 @@
+import { Injectable, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import {
+  Firestore,
+  collection,
+  collectionData,
+  doc,
+  setDoc,
+} from '@angular/fire/firestore';
+import { Observable, combineLatest, of } from 'rxjs';
+import { catchError, map, shareReplay, startWith } from 'rxjs/operators';
+
+import { CatalogItem, EXTRA_ITEMS, Grade, ItemCategory, isGrade } from '../data/clan-mock-data';
+
+/** raw entry shape in assets/data/data.json → itemCatalog.items */
+interface RawItem {
+  id: string;
+  name: string;
+  kind: string;
+  grade: string | null;
+  slot: string | null;
+  equipmentType: string | null;
+  section?: string | null;
+  icon?: string | null;
+}
+
+/** icons in data.json are site-relative, e.g. "/media/site/img/chain-hood.webp" */
+const ICON_BASE = 'https://lu4db.ru';
+
+function iconUrl(icon: string | null | undefined): string | undefined {
+  if (!icon) return undefined;
+  if (/^https?:\/\//.test(icon)) return icon;
+  return ICON_BASE + (icon.startsWith('/') ? icon : '/' + icon);
+}
+
+/** user-authored correction, stored in Firestore `item-overrides/{id}` */
+export interface ItemOverride {
+  id: string;
+  category?: ItemCategory;
+  subtype?: string;
+  grade?: Grade;
+}
+
+const WEAPON_SUBTYPE: Record<string, string> = {
+  'Sword 1H': 'sword',
+  'Sword 2H': 'sword',
+  'Sword Mag 1H': 'sword',
+  'Blunt 1H': 'blunt',
+  'Blunt 2H': 'blunt',
+  Staff: 'staff',
+  Dagger: 'dagger',
+  Bow: 'bow',
+  Spear: 'spear',
+  Fist: 'fist',
+  'Dual Sword': 'dual',
+};
+
+const SLOT_MAP: Record<string, { category: ItemCategory; subtype: string }> = {
+  l_ear: { category: 'jewelry', subtype: 'earring' },
+  neck: { category: 'jewelry', subtype: 'necklace' },
+  l_ring: { category: 'jewelry', subtype: 'ring' },
+  head: { category: 'armor', subtype: 'helmet' },
+  chest: { category: 'armor', subtype: 'upper' },
+  legs: { category: 'armor', subtype: 'lower' },
+  gloves: { category: 'armor', subtype: 'gloves' },
+  feet: { category: 'armor', subtype: 'boots' },
+};
+
+function sectionGrade(section: string | null | undefined): string | null {
+  const m = /(?:armor|weapon|jewelry)-(NG|D|C|B|A|S)$/.exec(section ?? '');
+  return m ? m[1] : null;
+}
+
+/** Guess category + subtype from the item name when data.json has no `slot`. */
+function inferFromName(name: string, section: string): { category: ItemCategory; subtype: string } | null {
+  const n = name.toLowerCase();
+
+  if (section.startsWith('weapon-')) {
+    if (/\bbow\b/.test(n)) return { category: 'weapon', subtype: 'bow' };
+    if (/dagger|dirk|stiletto|knife/.test(n)) return { category: 'weapon', subtype: 'dagger' };
+    if (/staff|rod\b|wand/.test(n)) return { category: 'weapon', subtype: 'staff' };
+    if (/spear|pike|trident|partisan|lance|glaive|halberd|fauchard/.test(n))
+      return { category: 'weapon', subtype: 'spear' };
+    if (/cestus|knuckle|fist|nunchaku|claw/.test(n)) return { category: 'weapon', subtype: 'fist' };
+    if (/mace|hammer|club|mallet|maul|morning star|blunt|scepter|bonebreaker/.test(n))
+      return { category: 'weapon', subtype: 'blunt' };
+    if (/dual|twin|two swords/.test(n)) return { category: 'weapon', subtype: 'dual' };
+    if (/sword|blade|sabre|saber|rapier|katana|falchion|scimitar|cutlass|edge\b/.test(n))
+      return { category: 'weapon', subtype: 'sword' };
+    return { category: 'weapon', subtype: 'other' };
+  }
+
+  if (section.startsWith('jewelry-')) {
+    if (/earring/.test(n)) return { category: 'jewelry', subtype: 'earring' };
+    if (/necklace|torque|carcanet|pendant|amulet/.test(n))
+      return { category: 'jewelry', subtype: 'necklace' };
+    if (/ring/.test(n)) return { category: 'jewelry', subtype: 'ring' };
+    return { category: 'jewelry', subtype: 'unknown' };
+  }
+
+  if (section.startsWith('armor-')) {
+    if (/shield|bulwark|aspis|hoplon|targe/.test(n)) return { category: 'shield', subtype: 'shield' };
+    if (/sigil/.test(n)) return { category: 'shield', subtype: 'sigil' };
+    if (
+      /helmet|helm\b|hood|circlet|coif|casque|shako|tiara|\bcrown\b|\bhat\b|bandana|\bcap\b|sallet|barbute|skullcap|mask|facemask|headgear/.test(
+        n,
+      )
+    )
+      return { category: 'armor', subtype: 'helmet' };
+    if (/gauntlet|glove|bracer|mitten|\bcuffs?\b|handguard/.test(n))
+      return { category: 'armor', subtype: 'gloves' };
+    if (/boots|shoes|greaves|sabaton|solleret|footgear|moccasin|sandals|treads/.test(n))
+      return { category: 'armor', subtype: 'boots' };
+    if (/gaiters|stockings|leggings?|hose\b|tights|breeches|pants|trousers|leg guard|leggins/.test(n))
+      return { category: 'armor', subtype: 'lower' };
+    if (
+      /breastplate|tunic|mail shirt|mail\b|plate\b|cuirass|shirt|armo|jerkin|caftan|brigandine|robe|hauberk|byrnie|scale|leather\b|doublet|vest|eldarake|tegmethir/.test(
+        n,
+      )
+    )
+      return { category: 'armor', subtype: 'upper' };
+    return { category: 'armor', subtype: 'unknown' };
+  }
+
+  return null;
+}
+
+function mapEntry(o: RawItem): CatalogItem | null {
+  if (o.kind !== 'finished') return null;
+  if (/[*]/.test(o.name)) return null; // enchant-route duplicate rows
+
+  const gradeRaw = String(o.grade ?? '').toUpperCase();
+  const grade = isGrade(gradeRaw) ? gradeRaw : sectionGrade(o.section);
+  if (!grade || !isGrade(grade)) return null;
+
+  let mapped: { category: ItemCategory; subtype: string } | null = null;
+
+  if (o.slot && SLOT_MAP[o.slot]) {
+    mapped = { ...SLOT_MAP[o.slot] };
+  } else if (o.slot === 'r_hand') {
+    mapped = { category: 'weapon', subtype: WEAPON_SUBTYPE[o.equipmentType ?? ''] ?? 'other' };
+  } else if (o.slot === 'l_hand') {
+    mapped = { category: 'shield', subtype: /sigil/i.test(o.name) ? 'sigil' : 'shield' };
+  } else if (!o.slot) {
+    mapped = inferFromName(o.name, o.section ?? '');
+  }
+
+  if (!mapped) return null;
+
+  return {
+    id: o.id,
+    name: o.name,
+    category: mapped.category,
+    subtype: mapped.subtype,
+    grade: grade as Grade,
+    icon: iconUrl(o.icon),
+  };
+}
+
+@Injectable({ providedIn: 'root' })
+export class GearCatalogService {
+  private http = inject(HttpClient);
+  private firestore = inject(Firestore);
+  private overridesCol = collection(this.firestore, 'item-overrides');
+
+  private readonly base$: Observable<CatalogItem[]> = this.http
+    .get<any>('assets/data/data.json')
+    .pipe(
+      map((data) => {
+        const raw = data?.itemCatalog?.items ?? {};
+        const list: CatalogItem[] = [];
+        for (const entry of Object.values<RawItem>(raw)) {
+          const m = mapEntry(entry);
+          if (m) list.push(m);
+        }
+        return [...list, ...EXTRA_ITEMS];
+      }),
+      catchError(() => of([...EXTRA_ITEMS])),
+      shareReplay({ bufferSize: 1, refCount: false }),
+    );
+
+  private readonly overrides$: Observable<ItemOverride[]> = (
+    collectionData(this.overridesCol, { idField: 'id' }) as Observable<ItemOverride[]>
+  ).pipe(
+    startWith([] as ItemOverride[]),
+    catchError(() => of([] as ItemOverride[])),
+  );
+
+  /** Full equip catalogue with user corrections applied. */
+  readonly items$: Observable<CatalogItem[]> = combineLatest([this.base$, this.overrides$]).pipe(
+    map(([items, overrides]) => {
+      const ovr = new Map(overrides.map((o) => [o.id, o]));
+      return items
+        .map((it) => {
+          const o = ovr.get(it.id);
+          if (!o) return it;
+          return {
+            ...it,
+            category: o.category ?? it.category,
+            subtype: o.subtype ?? it.subtype,
+            grade: (o.grade ?? it.grade) as Grade,
+          };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }),
+    shareReplay({ bufferSize: 1, refCount: false }),
+  );
+
+  /** Persist a user-authored type/grade correction for one item. */
+  async setOverride(itemId: string, patch: Omit<ItemOverride, 'id'>): Promise<void> {
+    const clean: Record<string, unknown> = {};
+    if (patch.category) clean['category'] = patch.category;
+    if (patch.subtype) clean['subtype'] = patch.subtype;
+    if (patch.grade) clean['grade'] = patch.grade;
+    await setDoc(doc(this.firestore, `item-overrides/${itemId}`), clean, { merge: true });
+  }
+}

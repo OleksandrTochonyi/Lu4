@@ -1,0 +1,247 @@
+<div class="clan-page">
+  <p-confirmDialog></p-confirmDialog>
+
+  <header class="clan-head">
+    <div class="clan-head-text">
+      <h1>Клан — паки и игроки</h1>
+      <p>
+        Паков: <b>{{ packsCount() }}</b> · Основ: <b>{{ mainsCount() }}</b>
+        <ng-container *ngIf="twinksCount()"> · Твинков: <b>{{ twinksCount() }}</b></ng-container>
+      </p>
+    </div>
+
+    <button *ngIf="access.canManagePacks()" pButton type="button" icon="pi pi-plus" label="Создать пак"
+      class="p-button-sm" (click)="openCreatePack()"></button>
+  </header>
+
+  <div class="clan-note" *ngIf="!access.isAdmin()">
+    <i class="pi pi-info-circle"></i>
+    <span>
+      Создавать паки может только админ. Вы можете управлять составом только в паке, где вы —
+      <b>ПЛ</b>. Остальные паки доступны для просмотра.
+    </span>
+  </div>
+
+  <div class="clan-body">
+    <!-- ------------------------------------------------------------ rail -->
+    <aside class="rail">
+      <div class="rail-title">Паки</div>
+
+      <div class="rail-list">
+        <button *ngFor="let group of sortedGroups(); trackBy: trackByGroup" type="button" class="pack-tab"
+          [class.pack-tab--active]="selectedGroupId() === group.id" (click)="selectGroup(group)">
+          <span class="pack-tab-name">{{ group.displayName }}</span>
+          <span class="pack-tab-tags">
+            <p-tag *ngIf="isPlHere(group)" value="Вы ПЛ" severity="success" styleClass="tag-xs"></p-tag>
+            <p-badge [value]="group.users.length" severity="secondary"></p-badge>
+          </span>
+        </button>
+
+        <div class="rail-empty" *ngIf="!loading() && sortedGroups().length === 0">
+          Пока нет паков
+        </div>
+
+        <form *ngIf="showCreatePack()" class="pack-create" [formGroup]="createPackForm" (ngSubmit)="createPack()">
+          <label>Название пака</label>
+          <input pInputText formControlName="displayName" placeholder="CP Dandy #1" />
+          <label>ПЛ (имя, необязательно)</label>
+          <input pInputText formControlName="leaderName" placeholder="Имя персонажа" />
+          <div class="pack-create-actions">
+            <button pButton type="submit" label="Создать" class="p-button-sm" [disabled]="creatingPack()"></button>
+            <button pButton type="button" label="Отмена" class="p-button-sm p-button-text"
+              (click)="cancelCreatePack()"></button>
+          </div>
+        </form>
+      </div>
+    </aside>
+
+    <!-- ---------------------------------------------------------- detail -->
+    <section class="detail">
+      <!-- one member row, reused for mains and twinks -->
+      <ng-template #memberRow let-user let-twink="twink">
+        <div class="ml-row" [class.ml-row--pl]="user.isPL" [class.ml-row--twink]="twink"
+          [class.ml-row--me]="access.isSelf(user)" role="button" tabindex="0" (click)="openPlayer(user)"
+          (keydown.enter)="openPlayer(user)" (keydown.space)="$event.preventDefault(); openPlayer(user)">
+          <span class="ml-c-name">
+            <span class="ml-avatar" [attr.data-grade]="dominantGrade(user)">
+              {{ (user.name || '?').charAt(0).toUpperCase() }}
+            </span>
+            <span class="ml-name-block">
+              <span class="ml-name">
+                {{ user.name || 'Без имени' }}
+                <i class="pi pi-star-fill ml-pl" *ngIf="user.isPL" title="Пати-лидер"></i>
+                <span class="ml-me-tag" *ngIf="access.isSelf(user)" (click)="$event.stopPropagation()"
+                  pTooltip="Ну и нахер ты сюда навёл? С первого раза не понимаешь?" tooltipPosition="top">
+                  Это ты
+                </span>
+                <span class="ml-twink-tag" *ngIf="twink">твинк</span>
+              </span>
+              <span class="ml-email" *ngIf="canManageSelected() && user.email">{{ user.email }}</span>
+            </span>
+          </span>
+
+          <span class="ml-c-cls">
+            <span class="ml-prof">{{ user.profession || '—' }}</span>
+            <span class="ml-race" *ngIf="user.race">{{ raceName(user.race) }}</span>
+          </span>
+
+          <span class="ml-c-lvl">
+            <span class="chip chip-lvl" [attr.data-grade]="levelGrade(user.level || 1)">
+              {{ user.level || 1 }}
+            </span>
+          </span>
+
+          <span class="ml-c-role">
+            <span class="chip chip-role" *ngIf="user.role" [style.background]="roleColor(user.role).bg"
+              [style.color]="roleColor(user.role).fg">{{ user.role }}</span>
+            <span class="ml-muted" *ngIf="!user.role">—</span>
+          </span>
+
+          <span class="ml-c-gear">
+            <span class="ml-gearbar">
+              <span *ngFor="let b of gradeBars(user)" class="ml-gearseg" [ngClass]="'grade-' + b.grade.toLowerCase()"
+                [style.width.%]="b.pct"
+                [pTooltip]="b.grade + ': ' + b.count + ' шт. (' + (b.pct | number: '1.0-0') + '%)'"
+                tooltipPosition="top"></span>
+            </span>
+            <span class="ml-gear-txt">
+              <ng-container *ngIf="gradeBars(user).length; else noGear">
+                <span class="ml-gear-tag" *ngFor="let b of gradeBars(user)">
+                  <app-grade-badge [grade]="b.grade"></app-grade-badge>
+                  {{ b.count }}
+                </span>
+              </ng-container>
+              <ng-template #noGear><span class="ml-gear-none">нет шмота</span></ng-template>
+              <span class="ml-gear-total">{{ equippedCount(user) }}/{{ totalSlots }}</span>
+            </span>
+          </span>
+
+          <span class="ml-c-act">
+            <button *ngIf="canManageSelected()" pButton type="button" icon="pi pi-trash"
+              class="p-button-sm p-button-text p-button-danger ml-act-btn"
+              (click)="$event.stopPropagation(); $event.preventDefault(); confirmDeleteMember(user)"></button>
+            <i class="pi pi-angle-right ml-chevron"></i>
+          </span>
+        </div>
+      </ng-template>
+
+      <ng-container *ngIf="selectedGroup() as group; else pickPack">
+        <div class="detail-head">
+          <div class="detail-head-main">
+            <ng-container *ngIf="editingPackId() === group.id; else packTitle">
+              <input pInputText class="detail-title-edit" [formControl]="editPackForm.controls.displayName"
+                (keydown.enter)="$event.preventDefault(); savePack(group)" />
+            </ng-container>
+            <ng-template #packTitle>
+              <h2 class="detail-title">{{ group.displayName }}</h2>
+            </ng-template>
+
+            <div class="detail-meta">
+              <span
+                class="chip chip-neutral"
+                [pTooltip]="
+                  mainMembers(group).length +
+                  ' основ' +
+                  (twinkMembers(group).length ? ' + ' + twinkMembers(group).length + ' твинков' : '')
+                "
+                tooltipPosition="top"
+              >
+                <i class="pi pi-users"></i> {{ mainMembers(group).length }}
+                <span class="chip-sub" *ngIf="twinkMembers(group).length"
+                  >+{{ twinkMembers(group).length }} тв.</span
+                >
+              </span>
+              <span class="chip chip-pl" *ngIf="leaderOf(group) as pl">
+                <i class="pi pi-star-fill"></i> ПЛ: {{ pl.name }}
+              </span>
+              <span class="chip chip-warn" *ngIf="!leaderOf(group)">ПЛ не назначен</span>
+            </div>
+          </div>
+
+          <div class="detail-head-actions">
+            <ng-container *ngIf="editingPackId() === group.id">
+              <button pButton type="button" icon="pi pi-check" class="p-button-sm p-button-text"
+                [disabled]="savingPack()" (click)="savePack(group)"></button>
+              <button pButton type="button" icon="pi pi-times" class="p-button-sm p-button-text p-button-secondary"
+                (click)="cancelEditPack()"></button>
+            </ng-container>
+
+            <ng-container *ngIf="editingPackId() !== group.id">
+              <button *ngIf="access.canManagePacks()" pButton type="button" icon="pi pi-pencil"
+                class="p-button-sm p-button-text" pTooltip="Переименовать" (click)="startEditPack(group)"></button>
+              <button *ngIf="access.canManagePacks()" pButton type="button" icon="pi pi-trash"
+                class="p-button-sm p-button-text p-button-danger" pTooltip="Удалить пак"
+                (click)="confirmDeletePack(group)"></button>
+              <button *ngIf="canManageSelected()" pButton type="button" icon="pi pi-user-plus" label="Игрок"
+                class="p-button-sm" (click)="openCreatePlayer()"></button>
+            </ng-container>
+          </div>
+        </div>
+
+        <div class="detail-readonly" *ngIf="!canManageSelected()">
+          <i class="pi pi-lock"></i> Только просмотр — вы не ПЛ этого пака
+        </div>
+
+        <div class="member-list" *ngIf="group.users.length; else noMembers">
+          <div class="ml-head">
+            <span class="ml-c-name">Игрок</span>
+            <span class="ml-c-cls">Профа</span>
+            <span class="ml-c-lvl">Ур.</span>
+            <span class="ml-c-role">Роль</span>
+            <span class="ml-c-gear">Снаряжение</span>
+            <span class="ml-c-act"></span>
+          </div>
+
+          <ng-container *ngFor="let user of mainMembers(group); trackBy: trackByUser">
+            <ng-container *ngTemplateOutlet="memberRow; context: { $implicit: user, twink: false }"></ng-container>
+          </ng-container>
+
+          <ng-container *ngIf="twinkMembers(group) as tw">
+            <button type="button" class="ml-subhead" *ngIf="tw.length" [class.is-open]="twinksOpen()"
+              (click)="toggleTwinks()">
+              <i class="pi" [ngClass]="twinksOpen() ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
+              <i class="pi pi-clone"></i> Твинки
+              <span class="ml-subhead-n">{{ tw.length }}</span>
+            </button>
+            <ng-container *ngIf="twinksOpen()">
+              <ng-container *ngFor="let user of tw; trackBy: trackByUser">
+                <ng-container *ngTemplateOutlet="memberRow; context: { $implicit: user, twink: true }"></ng-container>
+              </ng-container>
+            </ng-container>
+          </ng-container>
+        </div>
+
+        <ng-template #noMembers>
+          <div class="detail-empty">
+            <i class="pi pi-users"></i>
+            <p>В паке пока нет игроков</p>
+            <button *ngIf="canManageSelected()" pButton type="button" icon="pi pi-user-plus" label="Добавить игрока"
+              class="p-button-sm" (click)="openCreatePlayer()"></button>
+          </div>
+        </ng-template>
+      </ng-container>
+
+      <ng-template #pickPack>
+        <div class="detail-empty">
+          <i class="pi pi-arrow-left"></i>
+          <p>Выберите пак слева</p>
+        </div>
+      </ng-template>
+    </section>
+  </div>
+</div>
+
+<!-- --------------------------------------------------- unified player modal -->
+<p-dialog [visible]="modalOpen()" (visibleChange)="!$event && closePlayer()" [modal]="true" [draggable]="false"
+  [dismissableMask]="true" [style]="{ width: '900px', maxWidth: '96vw' }" styleClass="player-card-dialog">
+  <ng-template pTemplate="header">
+    <span class="pcd-title">
+      <i class="pi pi-id-card"></i>
+      {{ modalUserId() ? 'Игрок' : 'Новый игрок' }}
+      <small *ngIf="selectedGroup() as g">· {{ g.displayName }}</small>
+    </span>
+  </ng-template>
+
+  <app-player-modal *ngIf="modalOpen() && selectedGroup() as g" [group]="g" [userId]="modalUserId()"
+    (saved)="onPlayerSaved($event)" (requestClose)="closePlayer()"></app-player-modal>
+</p-dialog>

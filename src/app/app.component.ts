@@ -86,7 +86,6 @@ export class AppComponent {
       label: 'Clan Info',
       icon: 'pi pi-users',
       routerLink: '/users',
-      adminOnly: true,
     },
     {
       label: 'Raids',

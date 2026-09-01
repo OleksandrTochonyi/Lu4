@@ -158,12 +158,12 @@
 					<div class="tab-toolbar-actions">
 						<p-button
 							icon="pi pi-eraser"
-							label="Очистить респы"
+							[label]="tabRespCount(tab) ? 'Очистить респы (' + tabRespCount(tab) + ')' : 'Очистить респы'"
 							[text]="true"
 							[severity]="'danger'"
 							size="small"
-							[disabled]="!tab.rbIds.length"
-							ariaLabel="Очистить все респы в этой закладке"
+							[disabled]="!tabRespCount(tab)"
+							ariaLabel="Очистить респы у РБ, у которых есть время"
 							(onClick)="confirmClearAllResp(tab, $event)"
 						></p-button>
 						<p-button
