@@ -183,8 +183,6 @@
           <th pSortableColumn="name">Предмет <p-sortIcon field="name" /></th>
           <th pSortableColumn="category" style="width: 8rem">Тип <p-sortIcon field="category" /></th>
           <th pSortableColumn="gradeRank" style="width: 6rem">Грейд <p-sortIcon field="gradeRank" /></th>
-          <th style="width: 7rem">На складе</th>
-          <th pSortableColumn="craftable" style="width: 7rem">Рецепт <p-sortIcon field="craftable" /></th>
         </tr>
       </ng-template>
       <ng-template pTemplate="body" let-e>
@@ -200,23 +198,11 @@
             <app-grade-badge *ngIf="showGrade(e.category)" [grade]="e.grade" />
             <span *ngIf="!showGrade(e.category)" class="wh-muted">—</span>
           </td>
-          <td>
-            <span *ngIf="stockQtyFor(e) !== null; else noStock" class="wh-instock">
-              {{ stockQtyFor(e) }}
-            </span>
-            <ng-template #noStock><span class="wh-muted">—</span></ng-template>
-          </td>
-          <td>
-            <i
-              class="pi"
-              [ngClass]="e.craftable ? 'pi-check wh-yes' : 'pi-minus wh-muted'"
-            ></i>
-          </td>
         </tr>
       </ng-template>
       <ng-template pTemplate="emptymessage">
         <tr>
-          <td colspan="5" class="wh-empty-cell">Ничего не найдено под фильтры</td>
+          <td colspan="3" class="wh-empty-cell">Ничего не найдено под фильтры</td>
         </tr>
       </ng-template>
     </p-table>
