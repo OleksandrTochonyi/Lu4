@@ -1,0 +1,203 @@
+<p-dialog
+  [visible]="true"
+  (visibleChange)="onVisibleChange($event)"
+  [modal]="true"
+  [closable]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [dismissableMask]="true"
+  [style]="{ width: 'min(760px, 96vw)' }"
+  styleClass="cd-dialog"
+  (onHide)="close()"
+>
+  <ng-template pTemplate="header">
+    <div class="cd-head">
+      <img
+        *ngIf="entry().icon"
+        [src]="entry().icon"
+        [alt]="entry().name"
+        (error)="imgError($event)"
+      />
+      <div class="cd-head-txt">
+        <div class="cd-title">
+          {{ entry().name }}
+          <app-grade-badge *ngIf="showGrade(entry().category)" [grade]="entry().grade" />
+        </div>
+        <div class="cd-sub">{{ entry().section }}</div>
+      </div>
+    </div>
+  </ng-template>
+
+  <ng-container *ngIf="recipe() as r; else noRecipe">
+    <!-- controls -->
+    <div class="cd-controls">
+      <label class="cd-field">
+        <span>Сколько крафтим</span>
+        <p-inputNumber
+          [ngModel]="craftQty()"
+          (ngModelChange)="craftQty.set($event || 1)"
+          [min]="1"
+          [showButtons]="true"
+          [step]="1"
+          inputStyleClass="cd-qty-input"
+        />
+      </label>
+
+      <div class="cd-field" *ngIf="recipeOptions().length > 1">
+        <span>Вариант</span>
+        <div class="cd-seg">
+          <button
+            *ngFor="let o of recipeOptions()"
+            type="button"
+            class="cd-seg-btn"
+            [class.active]="recipeIndex() === o.value"
+            (click)="setRecipe(o.value)"
+          >
+            {{ o.label }}
+          </button>
+        </div>
+      </div>
+
+      <label class="cd-toggle">
+        <input type="checkbox" [checked]="deep()" (change)="deep.set(!deep())" />
+        <span>Полный список базовых ресурсов</span>
+      </label>
+    </div>
+
+    <!-- summary -->
+    <div class="cd-summary" [class.ok]="fullyStocked()" [class.bad]="!fullyStocked()">
+      <i class="pi" [ngClass]="fullyStocked() ? 'pi-check-circle' : 'pi-exclamation-triangle'"></i>
+      <span *ngIf="fullyStocked() && !needsSubcraft()">
+        На складе всё есть — можно крафтить.
+      </span>
+      <span *ngIf="fullyStocked() && needsSubcraft()">
+        Прямых ресурсов нет, но их хватает, чтобы докрафтить промежуточные — сборка возможна.
+      </span>
+      <span *ngIf="!fullyStocked()">
+        Не хватает базовых ресурсов:
+        {{ shortfall().length }}
+        {{ shortfall().length === 1 ? 'позиция' : 'позиций' }}.
+      </span>
+      <span class="cd-cannow">
+        Хватит на <b>{{ canCraftNow() }}</b> шт (с учётом докрафта).
+      </span>
+    </div>
+
+    <!-- direct tree -->
+    <div class="cd-tree-bar" *ngIf="!deep()">
+      <span class="cd-legend"><i class="pi pi-sitemap"></i> составной ресурс — можно раскрыть</span>
+      <span class="cd-spacer"></span>
+      <button type="button" class="cd-mini" (click)="expandAll()">Раскрыть всё</button>
+      <button type="button" class="cd-mini" (click)="collapseAll()">Свернуть всё</button>
+    </div>
+    <div class="cd-table" *ngIf="!deep()">
+      <div class="cd-tr cd-tr--h">
+        <span class="c-name">Ресурс</span>
+        <span class="c-num">Нужно</span>
+        <span class="c-num">Есть</span>
+        <span class="c-num">Не хватает</span>
+      </div>
+      <ng-container *ngFor="let n of tree(); trackBy: trackNode">
+        <ng-container *ngTemplateOutlet="rowTpl; context: { $implicit: n, depth: 0 }"></ng-container>
+      </ng-container>
+    </div>
+
+    <!-- shortfall shopping list -->
+    <div class="cd-short" *ngIf="!deep() && shortfall().length">
+      <div class="cd-short-h">Докупить / нафармить:</div>
+      <div class="cd-short-list">
+        <span class="cd-short-item" *ngFor="let n of shortfall(); trackBy: trackNode">
+          <img *ngIf="n.icon" [src]="n.icon" [alt]="n.name" (error)="imgError($event)" />
+          {{ n.name }} <b>×{{ n.effShort }}</b>
+        </span>
+      </div>
+    </div>
+
+    <!-- flat roll-up -->
+    <div class="cd-table" *ngIf="deep()">
+      <div class="cd-tr cd-tr--h">
+        <span class="c-name">Базовый ресурс</span>
+        <span class="c-num">Нужно</span>
+        <span class="c-num">Есть</span>
+        <span class="c-num">Не хватает</span>
+      </div>
+      <div
+        class="cd-tr"
+        *ngFor="let n of rollup(); trackBy: trackNode"
+        [class.short]="n.missing > 0"
+        [class.covered]="n.missing === 0"
+      >
+        <span class="c-name">
+          <img *ngIf="n.icon" [src]="n.icon" [alt]="n.name" (error)="imgError($event)" />
+          {{ n.name }}
+          <app-grade-badge *ngIf="showGrade(n.category)" [grade]="n.grade" />
+        </span>
+        <span class="c-num">{{ n.need }}</span>
+        <span class="c-num">{{ n.have }}</span>
+        <span class="c-num c-miss">{{ n.missing || '—' }}</span>
+      </div>
+    </div>
+  </ng-container>
+
+  <ng-template #noRecipe>
+    <div class="cd-empty">
+      <i class="pi pi-info-circle"></i>
+      Для этого предмета в базе нет рецепта крафта.
+    </div>
+  </ng-template>
+
+  <ng-template pTemplate="footer">
+    <button pButton type="button" label="Закрыть" class="p-button-text" (click)="close()"></button>
+  </ng-template>
+</p-dialog>
+
+<!-- recursive row -->
+<ng-template #rowTpl let-n let-depth="depth">
+  <div
+    class="cd-tr"
+    [ngClass]="'st-' + n.status"
+    [class.cd-tr--composite]="isComposite(n)"
+    [style.--depth]="depth"
+  >
+    <span class="c-name">
+      <button
+        *ngIf="isComposite(n)"
+        type="button"
+        class="cd-exp"
+        (click)="toggleRow(n)"
+        [attr.aria-expanded]="isExpanded(n)"
+      >
+        <i class="pi" [ngClass]="isExpanded(n) ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
+      </button>
+      <span class="cd-exp cd-exp--ghost" *ngIf="!isComposite(n)"></span>
+
+      <img *ngIf="n.icon" [src]="n.icon" [alt]="n.name" (error)="imgError($event)" />
+      <span class="cd-name-txt" [class.cd-name-txt--btn]="isComposite(n)" (click)="isComposite(n) && toggleRow(n)">
+        {{ n.name }}
+      </span>
+      <app-grade-badge *ngIf="showGrade(n.category)" [grade]="n.grade" />
+
+      <span class="cd-tag cd-tag--composite" *ngIf="isComposite(n)">
+        <i class="pi pi-sitemap"></i> составной
+      </span>
+      <span class="cd-tag cd-tag--sub" *ngIf="n.status === 'craftable'">докрафт из ресурсов</span>
+      <span class="cd-tag" *ngIf="n.status === 'covered' && n.craftable && !n.children.length">крафт</span>
+    </span>
+    <span class="c-num">{{ n.need }}</span>
+    <span class="c-num">{{ n.have }}</span>
+    <span class="c-num c-miss">
+      <ng-container [ngSwitch]="n.status">
+        <span *ngSwitchCase="'covered'">—</span>
+        <span *ngSwitchCase="'craftable'" class="c-miss--sub" pTooltip="Прямого ресурса нет, но хватает на докрафт">
+          {{ n.missing }}<i class="pi pi-sync"></i>
+        </span>
+        <span *ngSwitchCase="'short'">{{ n.effShort }}</span>
+      </ng-container>
+    </span>
+  </div>
+  <ng-container *ngIf="isExpanded(n)">
+    <ng-container *ngFor="let c of n.children; trackBy: trackNode">
+      <ng-container *ngTemplateOutlet="rowTpl; context: { $implicit: c, depth: depth + 1 }"></ng-container>
+    </ng-container>
+  </ng-container>
+</ng-template>

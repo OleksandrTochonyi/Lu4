@@ -14,10 +14,12 @@ import { MenubarModule } from 'primeng/menubar';
 import { RippleModule } from 'primeng/ripple';
 import { ToastModule } from 'primeng/toast';
 import { MenuItem } from 'primeng/api';
+import { combineLatest } from 'rxjs';
 import { filter } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { AuthService } from './services/auth.service';
+import { isWarehouseEmail } from './data/warehouse-access';
 
 @Component({
   selector: 'app-root',
@@ -65,7 +67,10 @@ export class AppComponent {
     return true;
   }
 
-  private readonly allMenuItems: (MenuItem & { adminOnly?: boolean })[] = [
+  private readonly allMenuItems: (MenuItem & {
+    adminOnly?: boolean;
+    warehouseOnly?: boolean;
+  })[] = [
     {
       label: 'Bookmarks',
       icon: 'pi pi-bookmark',
@@ -86,6 +91,12 @@ export class AppComponent {
       label: 'Clan Info',
       icon: 'pi pi-users',
       routerLink: '/users',
+    },
+    {
+      label: 'WH',
+      icon: 'pi pi-box',
+      routerLink: '/warehouse',
+      warehouseOnly: true,
     },
     {
       label: 'Raids',
@@ -119,11 +130,13 @@ export class AppComponent {
         this.currentUrl = e.urlAfterRedirects;
       });
 
-    this.authService.isAdmin$
+    combineLatest([this.authService.isAdmin$, this.authService.user$])
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((isAdmin) => {
+      .subscribe(([isAdmin, user]) => {
+        const canWarehouse = isAdmin || isWarehouseEmail(user?.email);
         this.items = this.allMenuItems.filter(
-          (item) => isAdmin || !item.adminOnly,
+          (item) =>
+            (isAdmin || !item.adminOnly) && (canWarehouse || !item.warehouseOnly),
         );
       });
   }

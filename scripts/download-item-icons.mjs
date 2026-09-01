@@ -32,9 +32,9 @@ const FALLBACKS = {
 
 const raw = JSON.parse(await readFile(DATA, 'utf8'));
 const items = Object.values(raw?.itemCatalog?.items ?? {});
-const icons = [
-  ...new Set(items.filter((o) => o?.kind === 'finished' && o?.icon).map((o) => o.icon)),
-];
+// every catalogue row that carries an icon — finished gear, resources, parts,
+// recipes, misc — so the Warehouse craft catalogue can show them all.
+const icons = [...new Set(items.filter((o) => o?.icon).map((o) => o.icon))];
 
 await mkdir(OUT, { recursive: true });
 

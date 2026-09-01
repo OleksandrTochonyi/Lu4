@@ -1,0 +1,337 @@
+<p-confirmDialog />
+
+<div class="wh-page">
+  <div class="wh-head">
+    <div class="wh-head-text">
+      <h1>Склад</h1>
+      <p>Ресурсы клана и расчёт нехватки по крафту</p>
+    </div>
+    <div class="wh-seg">
+      <button
+        type="button"
+        class="wh-seg-btn"
+        [class.active]="view() === 'stock'"
+        (click)="view.set('stock')"
+      >
+        <i class="pi pi-box"></i> Ресурсы
+        <span class="wh-seg-count">{{ stock().length }}</span>
+      </button>
+      <button
+        type="button"
+        class="wh-seg-btn"
+        [class.active]="view() === 'craft'"
+        (click)="view.set('craft')"
+      >
+        <i class="pi pi-hammer"></i> Каталог крафта
+        <span class="wh-seg-count">{{ catalog().length }}</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- =============================================== STOCK =============== -->
+  <section *ngIf="view() === 'stock'" class="wh-body">
+    <div class="wh-toolbar">
+      <span class="wh-search">
+        <i class="pi pi-search"></i>
+        <input
+          pInputText
+          type="text"
+          [ngModel]="stockSearch()"
+          (ngModelChange)="stockSearch.set($event)"
+          placeholder="Поиск ресурса…"
+        />
+      </span>
+      <div class="wh-spacer"></div>
+      <span class="wh-total">Всего единиц: <b>{{ stockTotal() }}</b></span>
+      <button pButton type="button" icon="pi pi-plus" label="Добавить ресурс" (click)="openAdd()"></button>
+    </div>
+
+    <div class="wh-table" *ngIf="filteredStock().length; else emptyStock">
+      <div class="wh-tr wh-tr--h">
+        <span class="c-name">Ресурс</span>
+        <span class="c-qty">Количество</span>
+        <span class="c-act"></span>
+      </div>
+
+      <div class="wh-tr" *ngFor="let item of filteredStock(); trackBy: trackStock">
+        <span class="c-name">
+          <img *ngIf="item.icon" [src]="item.icon" [alt]="item.name" (error)="imgError($event)" />
+          <span class="c-name-txt">{{ item.name }}</span>
+          <app-grade-badge [grade]="item.grade" />
+        </span>
+
+        <span class="c-qty">
+          <ng-container *ngIf="editId() === item.id; else showQty">
+            <p-inputNumber
+              [ngModel]="editVal()"
+              (ngModelChange)="editVal.set($event || 0)"
+              [min]="0"
+              [showButtons]="true"
+              buttonLayout="horizontal"
+              inputStyleClass="wh-qty-input"
+              decrementButtonClass="p-button-secondary"
+              incrementButtonClass="p-button-secondary"
+            />
+            <button
+              pButton
+              type="button"
+              icon="pi pi-check"
+              class="p-button-sm p-button-success"
+              [disabled]="savingQty()"
+              (click)="saveEdit(item)"
+            ></button>
+            <button
+              pButton
+              type="button"
+              icon="pi pi-times"
+              class="p-button-sm p-button-text"
+              (click)="cancelEdit()"
+            ></button>
+          </ng-container>
+          <ng-template #showQty>
+            <button pButton type="button" icon="pi pi-minus" class="p-button-sm p-button-text wh-bump" (click)="bump(item, -1)"></button>
+            <button class="wh-qty-val" type="button" (click)="startEdit(item)" pTooltip="Изменить количество">
+              {{ item.qty }}
+            </button>
+            <button pButton type="button" icon="pi pi-plus" class="p-button-sm p-button-text wh-bump" (click)="bump(item, 1)"></button>
+          </ng-template>
+        </span>
+
+        <span class="c-act">
+          <button
+            pButton
+            type="button"
+            icon="pi pi-history"
+            class="p-button-sm p-button-text"
+            [disabled]="!item.history.length"
+            [pTooltip]="lastChangeText(item)"
+            tooltipPosition="left"
+            [escape]="false"
+            (click)="openHistory(item)"
+          ></button>
+          <button
+            pButton
+            type="button"
+            icon="pi pi-trash"
+            class="p-button-sm p-button-text p-button-danger"
+            pTooltip="Удалить"
+            (click)="confirmDelete(item)"
+          ></button>
+        </span>
+      </div>
+    </div>
+
+    <ng-template #emptyStock>
+      <div class="wh-empty">
+        <i class="pi pi-inbox"></i>
+        <p>{{ stockSearch() ? 'Ничего не найдено' : 'Склад пуст — добавьте первый ресурс' }}</p>
+      </div>
+    </ng-template>
+  </section>
+
+  <!-- =============================================== CRAFT =============== -->
+  <section *ngIf="view() === 'craft'" class="wh-body">
+    <div class="wh-filters">
+      <span class="wh-search">
+        <i class="pi pi-search"></i>
+        <input
+          pInputText
+          type="text"
+          [ngModel]="craftSearch()"
+          (ngModelChange)="craftSearch.set($event)"
+          placeholder="Поиск предмета…"
+        />
+      </span>
+
+      <div class="wh-chips">
+        <button
+          *ngFor="let c of categories"
+          type="button"
+          class="wh-chip"
+          [class.active]="catFilter() === c"
+          (click)="toggleCat(c)"
+        >
+          {{ categoryLabel[c] }}
+        </button>
+      </div>
+
+      <div class="wh-chips">
+        <button
+          *ngFor="let g of grades"
+          type="button"
+          class="wh-chip wh-chip--grade"
+          [class.active]="gradeFilter().has(g)"
+          (click)="toggleGrade(g)"
+        >
+          {{ g }}
+        </button>
+      </div>
+    </div>
+
+    <p-table
+      [value]="filteredCatalog()"
+      [paginator]="true"
+      [rows]="25"
+      [rowsPerPageOptions]="[25, 50, 100]"
+      [scrollable]="true"
+      scrollHeight="flex"
+      styleClass="wh-p-table p-datatable-sm"
+      [globalFilterFields]="['name']"
+    >
+      <ng-template pTemplate="header">
+        <tr>
+          <th pSortableColumn="name">Предмет <p-sortIcon field="name" /></th>
+          <th pSortableColumn="category" style="width: 8rem">Тип <p-sortIcon field="category" /></th>
+          <th pSortableColumn="gradeRank" style="width: 6rem">Грейд <p-sortIcon field="gradeRank" /></th>
+          <th style="width: 7rem">На складе</th>
+          <th pSortableColumn="craftable" style="width: 7rem">Рецепт <p-sortIcon field="craftable" /></th>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="body" let-e>
+        <tr class="wh-row" (click)="openDetail(e)">
+          <td>
+            <div class="wh-item">
+              <img *ngIf="e.icon" [src]="e.icon" [alt]="e.name" (error)="imgError($event)" />
+              <span>{{ e.name }}</span>
+            </div>
+          </td>
+          <td>{{ catLabel(e.category) }}</td>
+          <td>
+            <app-grade-badge *ngIf="showGrade(e.category)" [grade]="e.grade" />
+            <span *ngIf="!showGrade(e.category)" class="wh-muted">—</span>
+          </td>
+          <td>
+            <span *ngIf="stockQtyFor(e) !== null; else noStock" class="wh-instock">
+              {{ stockQtyFor(e) }}
+            </span>
+            <ng-template #noStock><span class="wh-muted">—</span></ng-template>
+          </td>
+          <td>
+            <i
+              class="pi"
+              [ngClass]="e.craftable ? 'pi-check wh-yes' : 'pi-minus wh-muted'"
+            ></i>
+          </td>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="5" class="wh-empty-cell">Ничего не найдено под фильтры</td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </section>
+</div>
+
+<!-- =============================================== ADD DIALOG =========== -->
+<p-dialog
+  [visible]="addOpen()"
+  (visibleChange)="$event || closeAdd()"
+  (onHide)="closeAdd()"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  header="Добавить ресурс"
+  [style]="{ width: 'min(460px, 96vw)' }"
+>
+  <div class="wh-add">
+    <label class="wh-add-field">
+      <span>Ресурс</span>
+      <p-autoComplete
+        [ngModel]="addPick() ?? addName()"
+        (ngModelChange)="onAddNameInput($event)"
+        [suggestions]="addSuggestions()"
+        (completeMethod)="searchCatalog($event)"
+        (onSelect)="onPick($event)"
+        field="label"
+        [dropdown]="true"
+        [forceSelection]="false"
+        placeholder="Начните вводить название…"
+        appendTo="body"
+        styleClass="wh-ac"
+      >
+        <ng-template let-s pTemplate="item">
+          <div class="wh-sugg">
+            <img *ngIf="s.icon" [src]="s.icon" [alt]="s.name" (error)="imgError($event)" />
+            <span>{{ s.label }}</span>
+          </div>
+        </ng-template>
+      </p-autoComplete>
+      <small class="wh-hint">
+        Список доступных ресурсов.
+      </small>
+    </label>
+
+    <label class="wh-add-field">
+      <span>Начальное количество</span>
+      <p-inputNumber
+        [ngModel]="addQty()"
+        (ngModelChange)="addQty.set($event || 0)"
+        [min]="0"
+        [showButtons]="true"
+      />
+    </label>
+
+    <div class="wh-add-dup" *ngIf="addDuplicate() as dup">
+      <i class="pi pi-exclamation-triangle"></i>
+      «{{ dup.name }}» уже на складе ({{ dup.qty }} шт).
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button pButton type="button" label="Отмена" class="p-button-text" (click)="closeAdd()"></button>
+    <button
+      pButton
+      type="button"
+      label="Добавить"
+      icon="pi pi-plus"
+      [disabled]="adding() || !addName().trim() || !!addDuplicate()"
+      (click)="submitAdd()"
+    ></button>
+  </ng-template>
+</p-dialog>
+
+<!-- =============================================== HISTORY DIALOG ======= -->
+<p-dialog
+  [visible]="!!historyItem()"
+  (visibleChange)="$event || closeHistory()"
+  (onHide)="closeHistory()"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: 'min(460px, 96vw)' }"
+>
+  <ng-template pTemplate="header">
+    <span class="wh-hist-title">
+      История · {{ historyItem()?.name }}
+    </span>
+  </ng-template>
+
+  <ul class="wh-hist-list" *ngIf="historyItem() as hi">
+    <li *ngFor="let h of hi.history">
+      <div class="wh-hist-row">
+        <span class="wh-hist-who">{{ h.byName }}</span>
+        <span class="wh-hist-move">
+          {{ h.from }} <i class="pi pi-arrow-right"></i>
+          <b [class.up]="h.to > h.from" [class.down]="h.to < h.from">{{ h.to }}</b>
+          <span class="wh-hist-diff">({{ h.to > h.from ? '+' : '' }}{{ h.to - h.from }})</span>
+        </span>
+      </div>
+      <div class="wh-hist-meta">
+        <span>{{ fmtTs(h.ts) }}</span>
+        <span class="wh-hist-email">{{ h.byEmail }}</span>
+      </div>
+    </li>
+    <li *ngIf="!hi.history.length" class="wh-muted">Изменений ещё не было</li>
+  </ul>
+  <p class="wh-hint">Сохраняются последние 5 изменений.</p>
+</p-dialog>
+
+<!-- =============================================== CRAFT DETAIL ========= -->
+<app-craft-detail
+  *ngIf="detailEntry() as e"
+  [entry]="e"
+  [allEntries]="catalog()"
+  [stock]="stock()"
+  (requestClose)="closeDetail()"
+/>
