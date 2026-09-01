@@ -75,7 +75,7 @@ export const PROFESSIONS_BY_RACE: Record<string, string[]> = {
     'Shillien Elder',
   ],
   orc: ['Destroyer', 'Tyrant', 'Overlord', 'Warcryer'],
-  dwarf: ['Bounty Hunter', 'Warsmith'],
+  dwarf: ['Bounty Hunter', 'Warsmith', 'Глиномес'],
 };
 
 export function professionsForRace(raceId: string | null | undefined): string[] {
@@ -204,7 +204,7 @@ export const EQUIP_SLOTS: EquipSlot[] = [
 
   // row 4
   { id: 'weapon', label: 'Оружие', category: 'weapon', glyph: '⚔️', x: 37, y: 59 },
-  { id: 'shield', label: 'Щит / Сигил', category: 'shield', glyph: '🛡️', x: 70, y: 59 },
+  { id: 'shield', label: 'Щит', category: 'shield', glyph: '🛡️', x: 70, y: 59 },
 
   // row 5 — earrings
   { id: 'necklace', label: 'Серьга 1', category: 'jewelry', subtypes: ['earring'], glyph: '🧿', x: 20, y: 75.5 },
@@ -227,9 +227,50 @@ export function slotAcceptsItem(slot: EquipSlot, item: CatalogItem): boolean {
 /** pseudo equipment key: the chest item is worn as a one-piece ("full body") */
 export const CHEST_FULLBODY_KEY = 'chestFullBody';
 
+/** pseudo equipment key suffix: `<slotId>__enc` holds the item's enchant level */
+export const ENCHANT_SUFFIX = '__enc';
+export const MAX_ENCHANT = 16;
+
+export function enchantKey(slotId: string): string {
+  return slotId + ENCHANT_SUFFIX;
+}
+
+/** read the enchant level (0..MAX_ENCHANT) for a slot */
+export function readEnchant(
+  equipment: Record<string, string> | null | undefined,
+  slotId: string,
+): number {
+  const n = Number((equipment ?? {})[enchantKey(slotId)]);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.min(MAX_ENCHANT, Math.round(n));
+}
+
+/** badge colour for an enchant level — 0..+3 grey, then a distinct colour per step */
+const ENCHANT_COLORS: Record<number, string> = {
+  4: '#16a34a',
+  5: '#22c55e',
+  6: '#65a30d',
+  7: '#ca8a04',
+  8: '#d97706',
+  9: '#ea580c',
+  10: '#dc2626',
+  11: '#e11d48',
+  12: '#db2777',
+  13: '#c026d3',
+  14: '#9333ea',
+  15: '#7c3aed',
+  16: '#f59e0b',
+};
+
+export function enchantColor(level: number): string {
+  const v = Math.max(0, Math.min(MAX_ENCHANT, Math.round(level || 0)));
+  if (v <= 3) return '#94a3b8';
+  return ENCHANT_COLORS[v] ?? '#94a3b8';
+}
+
 /**
  * Expand a stored equipment map into a real slotId -> itemId map:
- *  - drops the CHEST_FULLBODY_KEY flag
+ *  - drops the CHEST_FULLBODY_KEY flag and every `__enc` entry
  *  - when the flag is set, mirrors the chest item into the `legs` slot so a
  *    one-piece armor counts as two pieces everywhere (stats, gear score, …)
  */
@@ -239,7 +280,7 @@ export function expandEquipment(
   const src = equipment ?? {};
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(src)) {
-    if (k === CHEST_FULLBODY_KEY) continue;
+    if (k === CHEST_FULLBODY_KEY || k.endsWith(ENCHANT_SUFFIX)) continue;
     out[k] = v;
   }
   if (src[CHEST_FULLBODY_KEY] === '1' && out['chest']) out['legs'] = out['chest'];

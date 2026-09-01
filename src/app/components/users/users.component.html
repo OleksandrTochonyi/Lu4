@@ -101,7 +101,7 @@
             <span class="ml-gearbar">
               <span *ngFor="let b of gradeBars(user)" class="ml-gearseg" [ngClass]="'grade-' + b.grade.toLowerCase()"
                 [style.width.%]="b.pct"
-                [pTooltip]="b.grade + ': ' + b.count + ' шт. (' + (b.pct | number: '1.0-0') + '%)'"
+                [pTooltip]="b.grade + ': ' + b.count + ' из ' + totalSlots"
                 tooltipPosition="top"></span>
             </span>
             <span class="ml-gear-txt">

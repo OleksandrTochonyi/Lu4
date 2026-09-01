@@ -15,26 +15,14 @@
 
       <div class="pm-field">
         <label>Расса *</label>
-        <p-dropdown
-          [options]="raceOptions"
-          optionLabel="label"
-          optionValue="value"
-          formControlName="race"
-          placeholder="Выбрать"
-          appendTo="body"
-        ></p-dropdown>
+        <p-dropdown [options]="raceOptions" optionLabel="label" optionValue="value" formControlName="race"
+          placeholder="Выбрать" appendTo="body"></p-dropdown>
       </div>
 
       <div class="pm-field">
         <label>Профессия *</label>
-        <p-dropdown
-          [options]="professionOptions()"
-          optionLabel="label"
-          optionValue="value"
-          formControlName="profession"
-          [placeholder]="selectedRaceId() ? 'Выбрать' : 'Сначала расса'"
-          appendTo="body"
-        ></p-dropdown>
+        <p-dropdown [options]="professionOptions()" optionLabel="label" optionValue="value" formControlName="profession"
+          [placeholder]="selectedRaceId() ? 'Выбрать' : 'Сначала расса'" appendTo="body"></p-dropdown>
       </div>
 
       <div class="pm-field">
@@ -44,14 +32,8 @@
 
       <div class="pm-field">
         <label>Роль *</label>
-        <p-dropdown
-          [options]="roleOptions"
-          optionLabel="label"
-          optionValue="value"
-          formControlName="role"
-          placeholder="Выбрать"
-          appendTo="body"
-        ></p-dropdown>
+        <p-dropdown [options]="roleOptions" optionLabel="label" optionValue="value" formControlName="role"
+          placeholder="Выбрать" appendTo="body"></p-dropdown>
       </div>
 
       <div class="pm-field pm-check">
@@ -72,21 +54,11 @@
       </div>
 
       <div class="pm-actions pm-full">
-        <button
-          *ngIf="canManage() || canSelfEdit()"
-          pButton
-          type="submit"
-          [label]="mode() === 'create' ? 'Создать игрока' : 'Сохранить'"
-          class="p-button-sm"
-          [disabled]="savingInfo() || form.invalid"
-        ></button>
-        <button
-          pButton
-          type="button"
-          label="Закрыть"
-          class="p-button-sm p-button-text"
-          (click)="requestClose.emit()"
-        ></button>
+        <button *ngIf="canManage() || canSelfEdit()" pButton type="submit"
+          [label]="mode() === 'create' ? 'Создать игрока' : 'Сохранить'" class="p-button-sm"
+          [disabled]="savingInfo() || form.invalid"></button>
+        <button pButton type="button" label="Закрыть" class="p-button-sm p-button-text"
+          (click)="requestClose.emit()"></button>
       </div>
     </form>
 
@@ -94,15 +66,30 @@
     <div class="pm-gear" *ngIf="mode() === 'edit'">
       <div class="pm-gear-head">
         <span>Снаряжение</span>
-        <span class="pm-score" title="Сумма грейдов надетых предметов">
+        <span class="pm-score"
+          title="Сумма грейдов надетых предметов (D=1 … S=5) + бонус за заточку: +1 с +3, дальше +1 за каждую заточку">
           <i class="pi pi-bolt"></i> {{ gearScore() }}
         </span>
       </div>
+
       <div class="pm-grade-bars">
         <div class="gb" *ngFor="let g of grades">
           <span class="gb-key" [ngClass]="gradeClass(g)">{{ g }}</span>
           <span class="gb-val">{{ gradeBreakdown()[g] }}</span>
         </div>
+      </div>
+
+      <div class="pm-equipped-card" *ngIf="equippedRows().length">
+        <ul class="pm-equipped">
+          <li *ngFor="let r of equippedRows(); trackBy: trackByRow">
+            <img *ngIf="r.item.icon; else eqDot" class="pm-eq-icon" [src]="r.item.icon" (error)="imgError($event)"
+              alt="" />
+            <ng-template #eqDot><span class="dot" [ngClass]="gradeClass(r.item.grade)"></span></ng-template>
+            <span class="pm-eq-name">{{ r.item.name }}</span>
+            <span class="pm-eq-ench" *ngIf="r.ench > 0" [style.color]="enchantColor(r.ench)">+{{ r.ench }}</span>
+            <span class="pm-eq-grade" [ngClass]="gradeClass(r.item.grade)">{{ r.item.grade }}</span>
+          </li>
+        </ul>
       </div>
     </div>
   </aside>
@@ -117,33 +104,26 @@
       <div class="paperdoll">
         <img [src]="inventoryImg" alt="Инвентарь" class="paperdoll-img" />
 
-        <button
-          *ngFor="let slot of slots; trackBy: trackBySlot"
-          type="button"
-          class="slot"
-          [ngClass]="slotStateClass(slot)"
-          [class.slot--noact]="!canEditGear() || isLegsLocked(slot)"
-          [style.left.%]="slot.x"
-          [style.top.%]="slot.y"
-          [pTooltip]="slotItem(slot)?.name || slot.label"
-          tooltipPosition="top"
-          [attr.title]="null"
-          (click)="openPicker(slot)"
-        >
+        <button *ngFor="let slot of slots; trackBy: trackBySlot" type="button" class="slot"
+          [ngClass]="slotStateClass(slot)" [class.slot--noact]="!canEditGear() || isLegsLocked(slot)"
+          [style.left.%]="slot.x" [style.top.%]="slot.y" [pTooltip]="slotItem(slot)?.name || slot.label"
+          tooltipPosition="top" [attr.title]="null" (click)="openPicker(slot)">
           <ng-container *ngIf="slotItem(slot) as it; else emptySlot">
             <span class="slot-chip" [ngClass]="gradeClass(it.grade)">
-              <img
-                *ngIf="it.icon"
-                class="slot-icon"
-                [src]="it.icon"
-                (error)="imgError($event)"
-                alt=""
-              />
+              <img *ngIf="it.icon" class="slot-icon" [src]="it.icon" (error)="imgError($event)" alt="" />
               <span class="slot-name" *ngIf="!it.icon">{{ it.name }}</span>
               <span class="slot-grade">{{ it.grade }}</span>
             </span>
             <i class="pi pi-lock slot-mark" *ngIf="isLegsLocked(slot)"></i>
             <span class="slot-mark slot-mark--fb" *ngIf="slot.chest && chestIsFullBody()">FB</span>
+            <span class="slot-ench" [class.slot-ench--set]="slotEnchant(slot) > 0"
+              [class.slot-ench--max]="slotEnchant(slot) === maxEnchant"
+              [style.background]="slotEnchant(slot) > 0 ? enchantColor(slotEnchant(slot)) : null" role="button"
+              [attr.tabindex]="canEditGear() && !isLegsLocked(slot) ? 0 : null" [pTooltip]="
+                'Заточка: +' + slotEnchant(slot) + (canEditGear() ? ' — нажмите, чтобы изменить' : '')
+              " tooltipPosition="left" (click)="$event.stopPropagation(); openEnch(slot)"
+              (keydown.enter)="$event.stopPropagation(); openEnch(slot)">{{ slotEnchant(slot) > 0 ? '+' +
+              slotEnchant(slot) : '0' }}</span>
           </ng-container>
           <ng-template #emptySlot>
             <i class="pi pi-plus slot-plus" *ngIf="canEditGear(); else emptyGlyph"></i>
@@ -151,21 +131,6 @@
           </ng-template>
         </button>
       </div>
-
-      <ul class="pm-equipped" *ngIf="equippedItems().length">
-        <li *ngFor="let it of equippedItems(); trackBy: trackByItem">
-          <img
-            *ngIf="it.icon; else eqDot"
-            class="pm-eq-icon"
-            [src]="it.icon"
-            (error)="imgError($event)"
-            alt=""
-          />
-          <ng-template #eqDot><span class="dot" [ngClass]="gradeClass(it.grade)"></span></ng-template>
-          <span class="pm-eq-name">{{ it.name }}</span>
-          <span class="pm-eq-grade" [ngClass]="gradeClass(it.grade)">{{ it.grade }}</span>
-        </li>
-      </ul>
 
       <p class="pm-hint">
         <i class="pi pi-info-circle"></i>
@@ -184,16 +149,9 @@
 </div>
 
 <!-- --------------------------------------------------------- item picker -->
-<p-dialog
-  [visible]="pickerSlot() !== null"
-  (visibleChange)="!$event && closePicker()"
-  [modal]="true"
-  [draggable]="false"
-  [dismissableMask]="true"
-  appendTo="body"
-  styleClass="picker-dialog"
-  [style]="{ width: '580px', maxWidth: '96vw' }"
->
+<p-dialog [visible]="pickerSlot() !== null" (visibleChange)="!$event && closePicker()" [modal]="true"
+  [draggable]="false" [dismissableMask]="true" appendTo="body" styleClass="picker-dialog"
+  [style]="{ width: '580px', maxWidth: '96vw' }">
   <ng-template pTemplate="header">
     <div class="picker-head" *ngIf="pickerSlot() as slot">
       <span class="picker-glyph">{{ slot.glyph }}</span>
@@ -206,89 +164,43 @@
 
   <div class="picker-body" *ngIf="pickerSlot() as slot">
     <div class="picker-fb" *ngIf="slot.chest">
-      <p-checkbox
-        [ngModel]="pickerFullBody()"
-        (ngModelChange)="pickerFullBody.set($event)"
-        [binary]="true"
-        inputId="fb"
-      ></p-checkbox>
+      <p-checkbox [ngModel]="pickerFullBody()" (ngModelChange)="pickerFullBody.set($event)" [binary]="true"
+        inputId="fb"></p-checkbox>
       <label for="fb">Цельная броня (занимает нагрудник + поножи)</label>
     </div>
 
     <div class="picker-tools">
-      <input
-        pInputText
-        type="text"
-        class="picker-search"
-        placeholder="Поиск по названию…"
-        [ngModel]="pickerSearch()"
-        (ngModelChange)="pickerSearch.set($event)"
-      />
-      <p-dropdown
-        [options]="sortOptions"
-        optionLabel="label"
-        optionValue="value"
-        [ngModel]="pickerSort()"
-        (ngModelChange)="pickerSort.set($event)"
-        appendTo="body"
-        styleClass="picker-sort"
-      ></p-dropdown>
+      <input pInputText type="text" class="picker-search" placeholder="Поиск по названию…" [ngModel]="pickerSearch()"
+        (ngModelChange)="pickerSearch.set($event)" />
     </div>
 
     <div class="picker-row2">
       <div class="picker-grades">
-        <button
-          *ngFor="let g of grades"
-          type="button"
-          class="grade-toggle"
-          [ngClass]="[gradeClass(g), isGradeActive(g) ? 'is-on' : '']"
-          (click)="toggleGrade(g)"
-        >
+        <button *ngFor="let g of grades" type="button" class="grade-toggle"
+          [ngClass]="[gradeClass(g), isGradeActive(g) ? 'is-on' : '']" (click)="toggleGrade(g)">
           {{ g }}
         </button>
       </div>
 
       <label class="picker-all" *ngIf="slot.category !== 'weapon'">
-        <p-checkbox
-          [ngModel]="pickerShowAll()"
-          (ngModelChange)="pickerShowAll.set($event)"
-          [binary]="true"
-          inputId="all"
-        ></p-checkbox>
+        <p-checkbox [ngModel]="pickerShowAll()" (ngModelChange)="pickerShowAll.set($event)" [binary]="true"
+          inputId="all"></p-checkbox>
         <span>Все предметы раздела</span>
       </label>
     </div>
 
     <div class="picker-list">
-      <button
-        *ngFor="let it of pickerItems(); trackBy: trackByItem"
-        type="button"
-        class="picker-item"
-        [class.is-current]="isEquippedInPicker(it)"
-        [class.picker-item--warn]="!slotFits(it)"
-        (click)="pickItem(it)"
-      >
-        <img
-          *ngIf="it.icon"
-          class="pi-icon"
-          [src]="it.icon"
-          (error)="imgError($event)"
-          alt=""
-        />
+      <button *ngFor="let it of pickerItems(); trackBy: trackByItem" type="button" class="picker-item"
+        [class.is-current]="isEquippedInPicker(it)" [class.picker-item--warn]="!slotFits(it)" (click)="pickItem(it)">
+        <img *ngIf="it.icon" class="pi-icon" [src]="it.icon" (error)="imgError($event)" alt="" />
         <span class="pi-grade" [ngClass]="gradeClass(it.grade)">{{ it.grade }}</span>
         <span class="pi-name">{{ it.name }}</span>
         <span class="pi-sub">{{ it.subtype }}</span>
-        <i
-          *ngIf="!slotFits(it)"
-          class="pi pi-info-circle pi-warn"
-          (click)="$event.stopPropagation()"
-          [pTooltip]="
+        <i *ngIf="!slotFits(it)" class="pi pi-info-circle pi-warn" (click)="$event.stopPropagation()" [pTooltip]="
             'Внимание: тип этого предмета определён автоматически и может не совпадать со слотом «' +
             (pickerSlot()?.label || '') +
             '». Наденется как есть.'
-          "
-          tooltipPosition="left"
-        ></i>
+          " tooltipPosition="left"></i>
         <i class="pi pi-check pi-cur" *ngIf="isEquippedInPicker(it)"></i>
       </button>
 
@@ -297,29 +209,44 @@
   </div>
 
   <ng-template pTemplate="footer">
-    <button
-      *ngIf="pendingItemId()"
-      pButton
-      type="button"
-      icon="pi pi-times"
-      label="Снять"
-      class="p-button-sm p-button-text p-button-danger picker-foot-left"
-      (click)="markUnequip()"
-    ></button>
-    <button
-      pButton
-      type="button"
-      label="Отмена"
-      class="p-button-sm p-button-text"
-      (click)="closePicker()"
-    ></button>
-    <button
-      pButton
-      type="button"
-      label="Сохранить"
-      class="p-button-sm"
-      [disabled]="!pickerDirty() || savingPicker()"
-      (click)="savePicker()"
-    ></button>
+    <button *ngIf="pendingItemId()" pButton type="button" icon="pi pi-times" label="Снять"
+      class="p-button-sm p-button-text p-button-danger picker-foot-left" (click)="markUnequip()"></button>
+    <button pButton type="button" label="Отмена" class="p-button-sm p-button-text" (click)="closePicker()"></button>
+    <button pButton type="button" label="Сохранить" class="p-button-sm" [disabled]="!pickerDirty() || savingPicker()"
+      (click)="savePicker()"></button>
+  </ng-template>
+</p-dialog>
+
+<!-- --------------------------------------------------------- enchant editor -->
+<p-dialog [visible]="encSlot() !== null" (visibleChange)="!$event && closeEnch()" [modal]="true" [draggable]="false"
+  [dismissableMask]="true" appendTo="body" styleClass="picker-dialog" [style]="{ width: '360px', maxWidth: '94vw' }">
+  <ng-template pTemplate="header">
+    <span class="ench-head"><i class="pi pi-bolt"></i> Заточка — {{ encItemName() }}</span>
+  </ng-template>
+
+  <div class="ench-body">
+    <div class="ench-preview" [class.is-zero]="encValue() === 0" [class.is-max]="encValue() === maxEnchant"
+      [style.background]="encValue() > 0 ? enchantColor(encValue()) : null">
+      +{{ encValue() }}
+    </div>
+
+    <div class="ench-slider">
+      <input type="range" min="0" step="1" [max]="maxEnchant" [value]="encValue()"
+        (input)="setEnc(+$any($event.target).value)" class="ench-range"
+        [style.--pct]="(encValue() / maxEnchant) * 100 + '%'"
+        [style.--col]="encValue() > 0 ? enchantColor(encValue()) : '#94a3b8'" />
+      <div class="ench-scale">
+        <span>0</span>
+        <span>+{{ maxEnchant }}</span>
+      </div>
+    </div>
+
+    <p class="ench-note">Выберите заточку предмета.</p>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button pButton type="button" label="Отмена" class="p-button-sm p-button-text" (click)="closeEnch()"></button>
+    <button pButton type="button" label="Сохранить" class="p-button-sm" [disabled]="savingEnc()"
+      (click)="saveEnch()"></button>
   </ng-template>
 </p-dialog>

@@ -39,15 +39,18 @@ import {
   Grade,
   GRADES,
   GRADE_RANK,
+  MAX_ENCHANT,
   RACES,
+  enchantColor,
+  enchantKey,
   expandEquipment,
   isGrade,
   professionsForRace,
   raceName,
+  readEnchant,
   slotAcceptsItem,
 } from '../../../data/clan-mock-data';
 
-type SortMode = 'name' | 'grade-desc' | 'grade-asc';
 
 @Component({
   selector: 'app-player-modal',
@@ -89,11 +92,6 @@ export class PlayerModalComponent {
   readonly raceName = raceName;
   readonly raceOptions = RACES.map((r) => ({ label: r.name, value: r.id }));
   readonly roleOptions = COMBAT_ROLES.map((r) => ({ label: r, value: r }));
-  readonly sortOptions = [
-    { label: 'Грейд: сначала лучшие', value: 'grade-desc' as SortMode },
-    { label: 'Грейд: сначала слабые', value: 'grade-asc' as SortMode },
-    { label: 'По названию', value: 'name' as SortMode },
-  ];
 
   readonly mode = computed<'create' | 'edit'>(() => (this.userId() ? 'edit' : 'create'));
   readonly user = computed<ConstPartyUser | null>(() => {
@@ -139,16 +137,34 @@ export class PlayerModalComponent {
     () => this.equipment()[CHEST_FULLBODY_KEY] === '1' && !!this.itemById(this.equipment()['chest']),
   );
 
-  readonly equippedItems = computed<CatalogItem[]>(() => {
+  /** equipped items with their slot + enchant — weapon, then armor, then jewelry */
+  readonly equippedRows = computed(() => {
     const eq = expandEquipment(this.equipment());
-    return EQUIP_SLOTS.map((s) => this.itemById(eq[s.id])).filter((it): it is CatalogItem => !!it);
+    const catOrder: Record<string, number> = { weapon: 0, shield: 1, armor: 2, jewelry: 3 };
+    return EQUIP_SLOTS.map((s) => {
+      const item = this.itemById(eq[s.id]);
+      if (!item) return null;
+      const encFrom = s.id === 'legs' && this.chestIsFullBody() ? 'chest' : s.id;
+      return { slot: s, item, ench: readEnchant(this.equipment(), encFrom) };
+    })
+      .filter((r): r is { slot: EquipSlot; item: CatalogItem; ench: number } => !!r)
+      .sort((a, b) => (catOrder[a.item.category] ?? 9) - (catOrder[b.item.category] ?? 9));
   });
+
+  /** enchant contribution to the gear score: +1 once an item reaches +3, then +1 per level beyond */
+  private enchantBonus(level: number): number {
+    return level >= 3 ? level - 2 : 0;
+  }
+
   readonly gearScore = computed(() =>
-    this.equippedItems().reduce((sum, it) => sum + GRADE_RANK[it.grade], 0),
+    this.equippedRows().reduce(
+      (sum, r) => sum + GRADE_RANK[r.item.grade] + this.enchantBonus(r.ench),
+      0,
+    ),
   );
   readonly gradeBreakdown = computed(() => {
     const counts: Record<Grade, number> = { D: 0, C: 0, B: 0, A: 0, S: 0 };
-    for (const it of this.equippedItems()) counts[it.grade]++;
+    for (const r of this.equippedRows()) counts[r.item.grade]++;
     return counts;
   });
 
@@ -157,7 +173,6 @@ export class PlayerModalComponent {
   readonly pickerSlot = signal<EquipSlot | null>(null);
   readonly pickerSearch = signal('');
   readonly pickerGrades = signal<Set<Grade>>(new Set());
-  readonly pickerSort = signal<SortMode>('grade-desc');
   readonly pickerFullBody = signal(false);
   readonly pickerShowAll = signal(false);
   readonly savingPicker = signal(false);
@@ -189,7 +204,6 @@ export class PlayerModalComponent {
     if (!slot) return [];
     const q = this.pickerSearch().trim().toLowerCase();
     const grades = this.pickerGrades();
-    const sort = this.pickerSort();
     const showAll = this.pickerShowAll();
 
     const list = this.allItems().filter((it) => {
@@ -199,17 +213,13 @@ export class PlayerModalComponent {
       return showAll ? it.category === slot.category : slotAcceptsItem(slot, it);
     });
 
-    list.sort((a, b) => {
-      // when showing the whole category, keep the ones that fit this slot on top
-      if (showAll) {
-        const fa = slotAcceptsItem(slot, a) ? 0 : 1;
-        const fb = slotAcceptsItem(slot, b) ? 0 : 1;
-        if (fa !== fb) return fa - fb;
-      }
-      if (sort === 'name') return a.name.localeCompare(b.name);
-      const diff = GRADE_RANK[a.grade] - GRADE_RANK[b.grade];
-      return (sort === 'grade-asc' ? diff : -diff) || a.name.localeCompare(b.name);
-    });
+    // catalogue order (alphabetical, from the service). When showing the whole
+    // category, keep the items that actually fit this slot on top.
+    if (showAll) {
+      list.sort(
+        (a, b) => (slotAcceptsItem(slot, a) ? 0 : 1) - (slotAcceptsItem(slot, b) ? 0 : 1),
+      );
+    }
     return list;
   });
 
@@ -269,6 +279,7 @@ export class PlayerModalComponent {
 
   trackBySlot = (_: number, s: EquipSlot) => s.id;
   trackByItem = (_: number, it: CatalogItem) => it.id;
+  trackByRow = (_: number, r: { slot: EquipSlot }) => r.slot.id;
 
   imgError(e: Event): void {
     const el = e.target as HTMLImageElement | null;
@@ -336,6 +347,65 @@ export class PlayerModalComponent {
     return !!slot && slotAcceptsItem(slot, item);
   }
 
+  /* -------- enchant -------- */
+
+  readonly maxEnchant = MAX_ENCHANT;
+  enchantColor = enchantColor;
+
+  /** enchant level shown on a slot (legs mirrors the chest when full-body) */
+  slotEnchant(slot: EquipSlot): number {
+    const from = this.isLegsLocked(slot) ? 'chest' : slot.id;
+    return readEnchant(this.equipment(), from);
+  }
+
+  readonly encSlot = signal<EquipSlot | null>(null);
+  readonly encValue = signal(0);
+  readonly savingEnc = signal(false);
+  readonly encItemName = computed(
+    () => this.itemById(this.equipment()[this.encSlot()?.id ?? ''])?.name ?? '',
+  );
+
+  openEnch(slot: EquipSlot): void {
+    if (!this.canEditGear() || this.isLegsLocked(slot) || !this.slotItem(slot)) return;
+    this.encSlot.set(slot);
+    this.encValue.set(this.slotEnchant(slot));
+  }
+
+  closeEnch(): void {
+    this.encSlot.set(null);
+  }
+
+  setEnc(n: number): void {
+    const v = Math.max(0, Math.min(MAX_ENCHANT, Math.round(Number(n) || 0)));
+    this.encValue.set(v);
+  }
+
+  async saveEnch(): Promise<void> {
+    const slot = this.encSlot();
+    if (!slot || this.savingEnc() || !this.canEditGear()) return;
+
+    const next: Record<string, string> = { ...this.equipment() };
+    const k = enchantKey(slot.id);
+    if (this.encValue() > 0) next[k] = String(this.encValue());
+    else delete next[k];
+
+    this.savingEnc.set(true);
+    try {
+      await this.persist(next);
+      this.messageService.add({ severity: 'success', summary: 'Заточка сохранена', life: 1400 });
+      this.closeEnch();
+    } catch (e) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Не удалось сохранить',
+        detail: e instanceof Error ? e.message : '',
+        life: 5000,
+      });
+    } finally {
+      this.savingEnc.set(false);
+    }
+  }
+
   /* -------- picker actions -------- */
 
   openPicker(slot: EquipSlot): void {
@@ -343,7 +413,6 @@ export class PlayerModalComponent {
     this.pickerSlot.set(slot);
     this.pickerSearch.set('');
     this.pickerGrades.set(new Set());
-    this.pickerSort.set('grade-desc');
     this.pickerShowAll.set(false);
     this.pickerSel.set(undefined);
     this.pickerFullBody.set(slot.chest ? this.chestIsFullBody() : false);
@@ -389,8 +458,11 @@ export class PlayerModalComponent {
 
     if (sel === null) {
       delete next[slot.id];
+      delete next[enchantKey(slot.id)];
       if (slot.chest) delete next[CHEST_FULLBODY_KEY];
     } else if (typeof sel === 'string') {
+      // a different item goes in → its enchant starts fresh
+      if (this.equipment()[slot.id] !== sel) delete next[enchantKey(slot.id)];
       next[slot.id] = sel;
     }
 

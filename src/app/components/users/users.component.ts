@@ -217,17 +217,20 @@ export class UsersComponent {
     return this.gradeBars(user).find((b) => b.pct > 50)?.grade ?? null;
   }
 
-  /** per-grade breakdown of equipped items, D→S, only grades that occur */
+  /**
+   * Per-grade breakdown of equipped items, D→S (only grades that occur).
+   * `pct` is the share of ALL slots, so the bar fills to equippedCount/totalSlots
+   * (e.g. 11/12 → ~92%, the rest stays as empty track).
+   */
   gradeBars(user: ConstPartyUser): { grade: Grade; count: number; pct: number }[] {
     const items = this.userItems(user);
-    const total = items.length;
     const counts = {} as Record<Grade, number>;
     for (const g of GRADES) counts[g] = 0;
     for (const it of items) counts[it.grade]++;
     return GRADES.filter((g) => counts[g] > 0).map((g) => ({
       grade: g,
       count: counts[g],
-      pct: total ? (counts[g] / total) * 100 : 0,
+      pct: (counts[g] / this.totalSlots) * 100,
     }));
   }
 
