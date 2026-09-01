@@ -1,10 +1,11 @@
 /**
- * Mirror the item icons referenced by src/assets/data/data.json into
- * public/assets/item-icons/ so the Clan page doesn't depend on lu4db.ru
+ * Mirror the item icons referenced by src/assets/data/data.json AND the raid-boss
+ * drop/spoil icons in src/assets/data/db.json into public/assets/item-icons/, so
+ * neither the Clan page nor the raid-boss loot popovers depend on lu4db.ru
  * (which isn't reachable for every user).
  *
  * Run:  node scripts/download-item-icons.mjs
- * Re-run whenever data.json changes. Existing non-empty files are skipped.
+ * Re-run whenever data.json or db.json changes. Existing non-empty files are skipped.
  */
 import { readFile, mkdir, writeFile, readdir, stat, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -12,6 +13,7 @@ import path from 'node:path';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const DATA = path.join(ROOT, 'src/assets/data/data.json');
+const DB = path.join(ROOT, 'src/assets/data/db.json');
 const OUT = path.join(ROOT, 'public/assets/item-icons');
 const BASE = 'https://lu4db.ru';
 const CONCURRENCY = 16;
@@ -54,7 +56,15 @@ const raw = JSON.parse(await readFile(DATA, 'utf8'));
 const items = Object.values(raw?.itemCatalog?.items ?? {});
 // every catalogue row that carries an icon — finished gear, resources, parts,
 // recipes, misc — so the Warehouse craft catalogue can show them all.
-const icons = [...new Set(items.filter((o) => o?.icon).map((o) => o.icon))];
+const dataIcons = items.filter((o) => o?.icon).map((o) => o.icon);
+
+// raid-boss drop/spoil icons from db.json (site-relative "/media/site/img/x.webp")
+const db = JSON.parse(await readFile(DB, 'utf8'));
+const dropIcons = (db?.monsters ?? []).flatMap((m) =>
+  [...(m.drop ?? []), ...(m.spoil ?? [])].map((d) => d?.imageUrl).filter(Boolean),
+);
+
+const icons = [...new Set([...dataIcons, ...dropIcons])];
 
 await mkdir(OUT, { recursive: true });
 

@@ -7,9 +7,11 @@ import { RaidBossService } from './raid-boss.service';
 import { RbJsonMapService } from './rb-json-map.service';
 import { RbJsonRespService, RespHistoryEntry } from './rb-json-resp.service';
 
-// Static image host for drop icons stored in db.json ("imageUrl" there is a
-// site-relative path, e.g. "/media/site/img/....webp").
-const IMAGE_HOST = 'https://lu4db.ru';
+// Drop icons stored in db.json ("imageUrl" there is a site-relative path, e.g.
+// "/media/site/img/proof-of-loyalty.webp"). Every one of them is mirrored into
+// public/assets/item-icons/ (see scripts/download-item-icons.mjs), so we serve
+// the local copy by basename and never touch lu4db.ru (unreachable for some users).
+const LOCAL_ICON_DIR = 'assets/item-icons/';
 
 // Grade order, highest first — used to sort loot and by the grade badge palette.
 const GRADE_SORT_ORDER: Record<string, number> = { S: 5, A: 4, B: 3, C: 2, D: 1, NG: 0 };
@@ -95,7 +97,8 @@ export interface JsonRb {
 
 function resolveImageUrl(path?: string): string {
   if (!path) return '';
-  return `${IMAGE_HOST}${path}`;
+  if (/^https?:\/\//i.test(path)) return path;
+  return LOCAL_ICON_DIR + path.split('/').pop();
 }
 
 function gradeRank(grade?: string): number {
