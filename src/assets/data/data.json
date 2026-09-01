@@ -2425,6 +2425,7 @@
             "level": 1,
             "price": 0,
             "section": "armor-A",
+            "grade": "A",
             "imageUrl": "/media/site/img/armor-of-nightmare.webp",
             "catalogId": "armor_of_nightmare"
         },
@@ -93963,7 +93964,7 @@
                 "name": "Leather Armor of Nightmare",
                 "section": "armor-A",
                 "kind": "finished",
-                "grade": null,
+                "grade": "A",
                 "icon": "/media/site/img/leather-armor-of-nightmare.webp",
                 "equipmentId": null,
                 "aliases": [],
@@ -94014,6 +94015,7 @@
                 "wiki": {
                     "kind": "armor",
                     "pieceName": "Leather Armor of Nightmare",
+                    "grade": "A",
                     "setName": "Nightmare Light Set",
                     "setBonuses": [
                         "ЛВК +2",

@@ -16,7 +16,6 @@ import { GradeBadgeComponent } from '../shared/grade-badge/grade-badge.component
 import { CraftDetailComponent } from './craft-detail/craft-detail.component';
 import {
   CRAFT_CATEGORY_LABEL,
-  CRAFT_GRADES,
   CraftCatalogService,
   CraftCategory,
   CraftEntry,
@@ -62,9 +61,12 @@ export class WarehouseComponent {
   private confirmationService = inject(ConfirmationService);
 
   readonly categoryLabel = CRAFT_CATEGORY_LABEL;
-  readonly grades = CRAFT_GRADES;
-  // only categories that actually contain craftable rows
-  readonly categories: CraftCategory[] = ['weapon', 'armor', 'jewelry', 'resource', 'other'];
+  // craftable categories worth showing — "Прочее" (other) is hidden
+  readonly categories: CraftCategory[] = ['weapon', 'armor', 'jewelry', 'resource'];
+  // grades offered / kept in the craft catalogue — NG, D and S are dropped
+  readonly craftGrades: CraftGrade[] = ['C', 'B', 'A'];
+  private readonly hiddenCraftGrades = new Set<CraftGrade>(['NG', 'D', 'S']);
+  private readonly hiddenCraftCategories = new Set<CraftCategory>(['other']);
 
   readonly view = signal<'stock' | 'craft'>('stock');
 
@@ -311,6 +313,9 @@ export class WarehouseComponent {
     return this.catalog().filter((e) => {
       // only ever show craftable rows (something with a recipe)
       if (!e.craftable) return false;
+      // "Прочее" and NG / D / S graded rows are excluded from the catalogue
+      if (this.hiddenCraftCategories.has(e.category)) return false;
+      if (e.grade && this.hiddenCraftGrades.has(e.grade)) return false;
       if (cat && e.category !== cat) return false;
       if (grades.size && (!e.grade || !grades.has(e.grade))) return false;
       if (q && !normName(e.name).includes(q)) return false;

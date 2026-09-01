@@ -92,6 +92,16 @@ function normGrade(g: unknown): CraftGrade | null {
   return (CRAFT_GRADES as string[]).includes(u) ? (u as CraftGrade) : null;
 }
 
+/**
+ * Many gear rows carry no `grade` of their own but their `section` does, e.g.
+ * "weapon-A", "armor-B", "jewelry-C" (Carnage Bow, Barakiel's Axe, …). Fall back
+ * to that suffix. Only plain gear sections — "*-parts-A" / "*-recipes-A" don't match.
+ */
+function sectionGrade(section: string): CraftGrade | null {
+  const m = /(?:weapon|armor|jewelry)-(NG|D|C|B|A|S)$/i.exec(section);
+  return m ? (m[1].toUpperCase() as CraftGrade) : null;
+}
+
 function sectionCategory(section: string, kind: string): CraftCategory {
   const s = section ?? '';
   if (/recipe/i.test(s) || kind === 'recipe') return 'recipe';
@@ -161,7 +171,7 @@ export class CraftCatalogService {
         recipes = [toRecipe(o.materialRecipe, 'material')];
       }
 
-      const grade = normGrade(o.grade);
+      const grade = normGrade(o.grade) ?? sectionGrade(String(o.section ?? ''));
       return {
         id: String(o.id),
         name: String(o.name ?? ''),
