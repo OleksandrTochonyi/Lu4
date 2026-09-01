@@ -24,13 +24,19 @@ interface RawItem {
   icon?: string | null;
 }
 
-/** icons in data.json are site-relative, e.g. "/media/site/img/chain-hood.webp" */
-const ICON_BASE = 'https://lu4db.ru';
+/**
+ * Icons in data.json are site-relative, e.g. "/media/site/img/chain-hood.webp".
+ * We serve them from a local mirror bundled under `public/assets/item-icons/`
+ * (see scripts/download-item-icons.mjs) so they load for everyone regardless of
+ * whether lu4db.ru is reachable. A missing file 404s and the <img> onerror hides it.
+ */
+const LOCAL_ICON_DIR = 'assets/item-icons/';
 
 function iconUrl(icon: string | null | undefined): string | undefined {
   if (!icon) return undefined;
-  if (/^https?:\/\//.test(icon)) return icon;
-  return ICON_BASE + (icon.startsWith('/') ? icon : '/' + icon);
+  if (/^https?:\/\//.test(icon)) return icon; // already absolute — keep as-is
+  const file = icon.split('/').pop();
+  return file ? LOCAL_ICON_DIR + file : undefined;
 }
 
 /** user-authored correction, stored in Firestore `item-overrides/{id}` */
