@@ -16,6 +16,20 @@ const OUT = path.join(ROOT, 'public/assets/item-icons');
 const BASE = 'https://lu4db.ru';
 const CONCURRENCY = 16;
 
+/**
+ * A handful of "SA" (special-ability) weapons are missing/broken on lu4db.ru but
+ * exist on masterwork.wiki under a different internal name — keyed by the local
+ * filename (basename of data.json's `icon`), tried when the lu4db.ru fetch fails.
+ * masterwork.wiki icon URLs look like
+ * https://masterwork.wiki/i64/weapon_<internal-name>_i01.png — the internal name
+ * often doesn't match the display name (e.g. "Bow of Peril" → "hazard_bow"); a
+ * starting map of those is the weapon-name → imgUrl table in
+ * src/app/services/rb-data.ts. Add more pairs here as gaps turn up.
+ */
+const FALLBACKS = {
+  'bow-of-periel.webp': 'https://masterwork.wiki/i64/weapon_hazard_bow_i01.png',
+};
+
 const raw = JSON.parse(await readFile(DATA, 'utf8'));
 const items = Object.values(raw?.itemCatalog?.items ?? {});
 const icons = [
@@ -28,21 +42,39 @@ let ok = 0;
 let skipped = 0;
 let failed = 0;
 
+async function fetchImage(url) {
+  const res = await fetch(url, { redirect: 'follow' });
+  const type = res.headers.get('content-type') ?? '';
+  if (!res.ok || !type.startsWith('image/')) throw new Error(`${res.status} ${type}`);
+  return Buffer.from(await res.arrayBuffer());
+}
+
 async function grab(iconPath) {
-  const file = path.join(OUT, path.basename(iconPath));
+  const name = path.basename(iconPath);
+  const file = path.join(OUT, name);
   if (existsSync(file) && (await stat(file)).size > 0) {
     skipped++;
     return;
   }
   try {
-    const res = await fetch(BASE + iconPath, { redirect: 'follow' });
-    const type = res.headers.get('content-type') ?? '';
-    if (!res.ok || !type.startsWith('image/')) throw new Error(`${res.status} ${type}`);
-    await writeFile(file, Buffer.from(await res.arrayBuffer()));
+    await writeFile(file, await fetchImage(BASE + iconPath));
     ok++;
-  } catch (e) {
+  } catch (primaryErr) {
+    const fallback = FALLBACKS[name];
+    if (fallback) {
+      try {
+        await writeFile(file, await fetchImage(fallback));
+        ok++;
+        console.log(`  ↺ ${name} — recovered from fallback`);
+        return;
+      } catch (fallbackErr) {
+        failed++;
+        console.warn(`  ✗ ${iconPath} — ${primaryErr.message} (fallback also failed: ${fallbackErr.message})`);
+        return;
+      }
+    }
     failed++;
-    console.warn(`  ✗ ${iconPath} — ${e.message}`);
+    console.warn(`  ✗ ${iconPath} — ${primaryErr.message}`);
   }
 }
 

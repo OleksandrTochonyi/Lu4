@@ -92,10 +92,14 @@
           </button>
           <ul class="pm-equipped" *ngIf="isEqGroupOpen(grp.key)">
             <li *ngFor="let r of grp.rows; trackBy: trackByRow">
-              <img *ngIf="r.item.icon; else eqDot" class="pm-eq-icon" [src]="r.item.icon" (error)="imgError($event)"
+              <img *ngIf="r.item.icon; else eqDot" class="pm-eq-icon"
+                [src]="r.sa && r.item.iconSa ? r.item.iconSa : r.item.icon" (error)="imgError($event)"
                 alt="" />
               <ng-template #eqDot><span class="dot" [ngClass]="gradeClass(r.item.grade)"></span></ng-template>
-              <span class="pm-eq-name">{{ r.item.name }}</span>
+              <span class="pm-eq-name">
+                {{ r.item.name }}
+                <span class="pm-eq-sa" *ngIf="r.sa">СА: {{ r.sa }}</span>
+              </span>
               <span class="pm-eq-ench" *ngIf="r.ench > 0" [style.color]="enchantColor(r.ench)">+{{ r.ench }}</span>
               <span class="pm-eq-grade" [ngClass]="gradeClass(r.item.grade)">{{ r.item.grade }}</span>
             </li>
@@ -121,7 +125,8 @@
           tooltipPosition="top" [attr.title]="null" (click)="openPicker(slot)">
           <ng-container *ngIf="slotItem(slot) as it; else emptySlot">
             <span class="slot-chip" [ngClass]="gradeClass(it.grade)">
-              <img *ngIf="it.icon" class="slot-icon" [src]="it.icon" (error)="imgError($event)" alt="" />
+              <img *ngIf="it.icon" class="slot-icon" [src]="slotIconUrl(slot, it)"
+                (error)="imgError($event)" alt="" />
               <span class="slot-name" *ngIf="!it.icon">{{ it.name }}</span>
               <span class="slot-grade">{{ it.grade }}</span>
             </span>
@@ -135,10 +140,36 @@
               " tooltipPosition="left" (click)="$event.stopPropagation(); openEnch(slot)"
               (keydown.enter)="$event.stopPropagation(); openEnch(slot)">{{ slotEnchant(slot) > 0 ? '+' +
               slotEnchant(slot) : '0' }}</span>
+
+            <span *ngIf="slot.id === 'weapon' && weaponSaOptions().length" class="slot-sa"
+              [class.slot-sa--set]="!!weaponSa()"
+              [style.background]="weaponSa() ? saColor(weaponSaEffect()?.color ?? null) : null" role="button"
+              [attr.tabindex]="canEditGear() ? 0 : null"
+              [pTooltip]="weaponSa() ? ('СА: ' + weaponSa()) : 'Выбрать СА'" tooltipPosition="right"
+              (click)="$event.stopPropagation(); openSa()"
+              (keydown.enter)="$event.stopPropagation(); openSa()">СА</span>
           </ng-container>
           <ng-template #emptySlot>
             <i class="pi pi-plus slot-plus" *ngIf="canEditGear(); else emptyGlyph"></i>
             <ng-template #emptyGlyph><span class="slot-glyph">{{ slot.glyph }}</span></ng-template>
+          </ng-template>
+        </button>
+
+        <!-- tattoo (краска) slots — top-left column, 3 boxes -->
+        <button *ngFor="let t of tattooSlots; trackBy: trackByTattooSlot" type="button"
+          class="slot slot--tattoo" [class.slot--filled]="slotTattoo(t.id)"
+          [class.slot--empty]="!slotTattoo(t.id)" [class.slot--noact]="!canEditGear()"
+          [style.left.%]="t.x" [style.top.%]="t.y" [attr.title]="null" tooltipPosition="right"
+          [pTooltip]="slotTattoo(t.id)
+            ? (slotTattoo(t.id)!.plus + '+  /  ' + slotTattoo(t.id)!.minus + '−')
+            : 'Тату (краска)'"
+          (click)="openTattoo(t.id)">
+          <span class="tat-chip" *ngIf="slotTattoo(t.id) as tt; else emptyTat">
+            <img class="tat-icon" [src]="tattooImg(tt.plus)" (error)="imgError($event)" alt="" />
+          </span>
+          <ng-template #emptyTat>
+            <i class="pi pi-plus slot-plus" *ngIf="canEditGear(); else tatGlyph"></i>
+            <ng-template #tatGlyph><span class="slot-glyph">🎨</span></ng-template>
           </ng-template>
         </button>
       </div>
@@ -259,5 +290,105 @@
     <button pButton type="button" label="Отмена" class="p-button-sm p-button-text" (click)="closeEnch()"></button>
     <button pButton type="button" label="Сохранить" class="p-button-sm" [disabled]="savingEnc()"
       (click)="saveEnch()"></button>
+  </ng-template>
+</p-dialog>
+
+<!-- --------------------------------------------------------- SA (Special Ability) -->
+<p-dialog [visible]="saOpen()" (visibleChange)="!$event && closeSa()" [modal]="true" [draggable]="false"
+  [dismissableMask]="true" appendTo="body" styleClass="picker-dialog" [style]="{ width: '440px', maxWidth: '95vw' }">
+  <ng-template pTemplate="header">
+    <span class="sa-head">
+      <img *ngIf="weaponItem()?.icon" class="sa-head-icon" [src]="weaponItem()?.icon" (error)="imgError($event)"
+        alt="" />
+      <span>
+        <span class="sa-head-title">Special Ability</span>
+        <span class="sa-head-sub">{{ weaponItem()?.name }}</span>
+      </span>
+    </span>
+  </ng-template>
+
+  <div class="sa-body" *ngIf="saOpen()">
+    <div class="sa-current" [style.--sa]="saValue() ? saColor(saSelectedColor()) : '#94a3b8'">
+      <span class="sa-current-orb"></span>
+      <span class="sa-current-text">
+        <b>{{ saValue() || 'СА не выбран' }}</b>
+        <small>{{ saValue() ? (saSelectedEffect() || '') : 'оружие без special ability' }}</small>
+      </span>
+    </div>
+
+    <div class="sa-list">
+      <button type="button" class="sa-opt" [class.is-active]="!saValue()" (click)="saValue.set('')">
+        <span class="sa-opt-orb" style="--sa: #94a3b8"></span>
+        <span class="sa-opt-name">Без СА</span>
+        <i class="pi pi-check sa-opt-check" *ngIf="!saValue()"></i>
+      </button>
+
+      <button type="button" class="sa-opt" *ngFor="let s of weaponSaOptions()"
+        [class.is-active]="saValue() === s.name" (click)="pickSa(s.name)">
+        <span class="sa-opt-orb" [style.--sa]="saColor(s.color)"></span>
+        <span class="sa-opt-body">
+          <span class="sa-opt-name">{{ s.name }}<span class="sa-tier" *ngIf="s.tier"> · {{ s.tier }}</span></span>
+          <span class="sa-opt-effect">{{ s.effect }}</span>
+        </span>
+        <i class="pi pi-check sa-opt-check" *ngIf="saValue() === s.name"></i>
+      </button>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button pButton type="button" label="Отмена" class="p-button-sm p-button-text" (click)="closeSa()"></button>
+    <button pButton type="button" label="Сохранить" class="p-button-sm" [disabled]="savingSa()"
+      (click)="saveSa()"></button>
+  </ng-template>
+</p-dialog>
+
+<!-- --------------------------------------------------------- tattoo (краска) -->
+<p-dialog [visible]="tatSlotId() !== null" (visibleChange)="!$event && closeTattoo()" [modal]="true"
+  [draggable]="false" [dismissableMask]="true" appendTo="body" styleClass="picker-dialog"
+  [style]="{ width: '460px', maxWidth: '95vw' }">
+  <ng-template pTemplate="header">
+    <span class="sa-head">
+      <img *ngIf="tatCurrent() as tt" class="sa-head-icon" [src]="tattooImg(tt.plus)" (error)="imgError($event)"
+        alt="" />
+      <span class="tat-head-glyph" *ngIf="!tatCurrent()">🎨</span>
+      <span>
+        <span class="sa-head-title">Тату — слот {{ tatSlotIndex() }}</span>
+        <span class="sa-head-sub">Краска меняет два стата: один +, один −</span>
+      </span>
+    </span>
+  </ng-template>
+
+  <div class="tat-body" *ngIf="tatSlotId() !== null">
+    <div class="sa-current" [style.--sa]="tatCurrent() ? '#7c3aed' : '#94a3b8'">
+      <span class="sa-current-orb"></span>
+      <span class="sa-current-text">
+        <b>{{ tatCurrent() ? (tatCurrent()!.plus + '+   ' + tatCurrent()!.minus + '−') : 'Тату не выбрано' }}</b>
+        <small>{{ tatCurrent() ? 'нажмите «Сохранить», чтобы применить' : 'слот пуст' }}</small>
+      </span>
+    </div>
+
+    <div class="tat-groups">
+      <div class="tat-group" *ngFor="let grp of tattooGroups">
+        <div class="tat-group-h">{{ grp.label }}</div>
+        <div class="tat-grid">
+          <button type="button" class="tat-opt" *ngFor="let t of grp.items"
+            [class.is-active]="tatValue() === tattooCode(t)" (click)="pickTat(tattooCode(t))">
+            <img class="tat-opt-img" [src]="tattooImg(t.plus)" (error)="imgError($event)" alt="" />
+            <span class="tat-opt-label">
+              <span class="tat-plus">{{ t.plus }} +</span>
+              <span class="tat-minus">{{ t.minus }} −</span>
+            </span>
+            <i class="pi pi-check tat-opt-check" *ngIf="tatValue() === tattooCode(t)"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button pButton type="button" label="Отмена" class="p-button-sm p-button-text"
+      (click)="closeTattoo()"></button>
+    <button pButton type="button" label="Сохранить" class="p-button-sm" [disabled]="savingTat()"
+      (click)="saveTattoo()"></button>
   </ng-template>
 </p-dialog>

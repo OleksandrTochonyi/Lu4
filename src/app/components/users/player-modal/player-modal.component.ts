@@ -41,14 +41,26 @@ import {
   GRADE_RANK,
   MAX_ENCHANT,
   RACES,
+  SaEffect,
+  TATTOO_GROUPS,
+  TATTOO_SLOTS,
+  Tattoo,
+  TattooSlot,
+  WEAPON_SA_KEY,
   enchantColor,
   enchantKey,
   expandEquipment,
   isGrade,
+  parseTattoo,
   professionsForRace,
   raceName,
   readEnchant,
+  readTattoo,
+  readWeaponSa,
+  saColor,
   slotAcceptsItem,
+  tattooCode,
+  tattooImg,
 } from '../../../data/clan-mock-data';
 
 
@@ -146,8 +158,15 @@ export class PlayerModalComponent {
       const item = this.itemById(eq[s.id]);
       if (!item) return null;
       const encFrom = s.id === 'legs' && this.chestIsFullBody() ? 'chest' : s.id;
-      return { slot: s, item, ench: readEnchant(this.equipment(), encFrom) };
-    }).filter((r): r is { slot: EquipSlot; item: CatalogItem; ench: number } => !!r);
+      return {
+        slot: s,
+        item,
+        ench: readEnchant(this.equipment(), encFrom),
+        sa: s.id === 'weapon' ? this.weaponSa() : '',
+      };
+    }).filter(
+      (r): r is { slot: EquipSlot; item: CatalogItem; ench: number; sa: string } => !!r,
+    );
   }
 
   /**
@@ -190,7 +209,7 @@ export class PlayerModalComponent {
 
   /** the "Надето" list split into Оружие / Броня / Бижутерия blocks */
   readonly equippedGroups = computed(() => {
-    type Row = { slot: EquipSlot; item: CatalogItem; ench: number };
+    type Row = { slot: EquipSlot; item: CatalogItem; ench: number; sa: string };
     const groups: { key: string; label: string; rows: Row[] }[] = [
       { key: 'weapon', label: 'Оружие', rows: [] },
       { key: 'armor', label: 'Броня', rows: [] },
@@ -336,10 +355,17 @@ export class PlayerModalComponent {
   trackBySlot = (_: number, s: EquipSlot) => s.id;
   trackByItem = (_: number, it: CatalogItem) => it.id;
   trackByRow = (_: number, r: { slot: EquipSlot }) => r.slot.id;
+  trackByTattooSlot = (_: number, s: TattooSlot) => s.id;
 
   imgError(e: Event): void {
     const el = e.target as HTMLImageElement | null;
     if (el) el.style.display = 'none';
+  }
+
+  /** icon for a slot — the weapon shows its "-sa" glow variant while an SA is set */
+  slotIconUrl(slot: EquipSlot, it: CatalogItem): string | undefined {
+    if (slot.id === 'weapon' && this.weaponSa() && it.iconSa) return it.iconSa;
+    return it.icon;
   }
 
   /* -------- info save -------- */
@@ -462,6 +488,124 @@ export class PlayerModalComponent {
     }
   }
 
+  /* -------- weapon Special Ability (СА) -------- */
+
+  saColor = saColor;
+
+  readonly weaponItem = computed(() => this.itemById(this.equipment()['weapon']));
+  readonly weaponSa = computed(() => readWeaponSa(this.equipment()));
+  readonly weaponSaOptions = computed<SaEffect[]>(() => this.weaponItem()?.saEffects ?? []);
+  readonly weaponSaEffect = computed<SaEffect | null>(
+    () => this.weaponSaOptions().find((s) => s.name === this.weaponSa()) ?? null,
+  );
+
+  readonly saOpen = signal(false);
+  readonly saValue = signal(''); // pending SA name in the dialog ('' = none)
+  readonly savingSa = signal(false);
+
+  private saOption(name: string): SaEffect | null {
+    return this.weaponSaOptions().find((s) => s.name === name) ?? null;
+  }
+  readonly saSelectedEffect = computed(() => this.saOption(this.saValue())?.effect ?? '');
+  readonly saSelectedColor = computed(() => this.saOption(this.saValue())?.color ?? null);
+
+  openSa(): void {
+    const it = this.weaponItem();
+    if (!this.canEditGear() || !this.userId() || !it || !this.weaponSaOptions().length) return;
+    this.saValue.set(this.weaponSa());
+    this.saOpen.set(true);
+  }
+
+  closeSa(): void {
+    this.saOpen.set(false);
+  }
+
+  pickSa(name: string): void {
+    this.saValue.set(this.saValue() === name ? '' : name);
+  }
+
+  async saveSa(): Promise<void> {
+    if (this.savingSa() || !this.canEditGear() || !this.equipment()['weapon']) return;
+    const next: Record<string, string> = { ...this.equipment() };
+    if (this.saValue()) next[WEAPON_SA_KEY] = this.saValue();
+    else delete next[WEAPON_SA_KEY];
+
+    this.savingSa.set(true);
+    try {
+      await this.persist(next);
+      this.messageService.add({ severity: 'success', summary: 'СА сохранён', life: 1400 });
+      this.closeSa();
+    } catch (e) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Не удалось сохранить',
+        detail: e instanceof Error ? e.message : '',
+        life: 5000,
+      });
+    } finally {
+      this.savingSa.set(false);
+    }
+  }
+
+  /* -------- tattoo (краска / dye) -------- */
+
+  readonly tattooSlots = TATTOO_SLOTS;
+  readonly tattooGroups = TATTOO_GROUPS;
+  tattooImg = tattooImg;
+  tattooCode = tattooCode;
+
+  slotTattoo(slotId: string): Tattoo | null {
+    return readTattoo(this.equipment(), slotId);
+  }
+
+  readonly tatSlotId = signal<string | null>(null);
+  readonly tatValue = signal(''); // pending "PLUS/MINUS" code ('' = empty)
+  readonly savingTat = signal(false);
+
+  readonly tatCurrent = computed<Tattoo | null>(() => parseTattoo(this.tatValue()));
+  readonly tatSlotIndex = computed(
+    () => this.tattooSlots.findIndex((s) => s.id === this.tatSlotId()) + 1,
+  );
+
+  openTattoo(slotId: string): void {
+    if (!this.canEditGear() || !this.userId()) return;
+    this.tatValue.set(this.equipment()[slotId] ?? '');
+    this.tatSlotId.set(slotId);
+  }
+
+  closeTattoo(): void {
+    this.tatSlotId.set(null);
+  }
+
+  pickTat(code: string): void {
+    this.tatValue.set(this.tatValue() === code ? '' : code);
+  }
+
+  async saveTattoo(): Promise<void> {
+    const slotId = this.tatSlotId();
+    if (!slotId || this.savingTat() || !this.canEditGear()) return;
+
+    const next: Record<string, string> = { ...this.equipment() };
+    if (this.tatValue()) next[slotId] = this.tatValue();
+    else delete next[slotId];
+
+    this.savingTat.set(true);
+    try {
+      await this.persist(next);
+      this.messageService.add({ severity: 'success', summary: 'Тату сохранено', life: 1400 });
+      this.closeTattoo();
+    } catch (e) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Не удалось сохранить',
+        detail: e instanceof Error ? e.message : '',
+        life: 5000,
+      });
+    } finally {
+      this.savingTat.set(false);
+    }
+  }
+
   /* -------- picker actions -------- */
 
   openPicker(slot: EquipSlot): void {
@@ -516,9 +660,13 @@ export class PlayerModalComponent {
       delete next[slot.id];
       delete next[enchantKey(slot.id)];
       if (slot.chest) delete next[CHEST_FULLBODY_KEY];
+      if (slot.id === 'weapon') delete next[WEAPON_SA_KEY];
     } else if (typeof sel === 'string') {
-      // a different item goes in → its enchant starts fresh
-      if (this.equipment()[slot.id] !== sel) delete next[enchantKey(slot.id)];
+      // a different item goes in → its enchant (and weapon SA) start fresh
+      if (this.equipment()[slot.id] !== sel) {
+        delete next[enchantKey(slot.id)];
+        if (slot.id === 'weapon') delete next[WEAPON_SA_KEY];
+      }
       next[slot.id] = sel;
     }
 

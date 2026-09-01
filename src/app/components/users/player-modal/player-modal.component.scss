@@ -357,6 +357,60 @@
   cursor: default;
 }
 
+/* SA badge — bottom-right of the weapon slot, styled like .slot-ench but a bit bigger */
+.slot-sa {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  min-width: 1.3rem;
+  height: 1.3rem;
+  padding: 0 0.28rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  color: #fff;
+  background: #64748b;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+.slot:not(.slot--noact) .slot-sa:hover {
+  transform: scale(1.12);
+}
+.slot-sa--set {
+  box-shadow: 0 0 0 1.5px #fff, 0 0 8px rgba(255, 255, 255, 0.7);
+}
+.slot--noact .slot-sa {
+  cursor: default;
+}
+
+/* tattoo (краска) slots — small boxes in the top-left column */
+.slot--tattoo {
+  width: 9%;
+  border-radius: 7px;
+}
+.tat-chip {
+  width: 100%;
+  height: 100%;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.58);
+  box-shadow: inset 0 0 0 2px #7c3aed;
+}
+.tat-icon {
+  width: 86%;
+  height: 86%;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+
 /* lives inside the "Снаряжение" card, below the grade bars */
 .pm-equipped-card {
   width: 100%;
@@ -453,6 +507,17 @@
   white-space: nowrap;
   color: var(--ink);
   font-weight: 500;
+}
+.pm-eq-sa {
+  margin-left: 0.3rem;
+  font-size: 0.58rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+  background: #ede9fe;
+  color: #6d28d9;
 }
 .pm-eq-grade {
   font-size: 0.58rem;
@@ -793,6 +858,219 @@
   font-size: 0.75rem;
   color: var(--muted);
   text-align: center;
+}
+
+/* --------------------------------------------------------- SA picker */
+
+.sa-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.sa-head-icon {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #0f172a;
+  padding: 2px;
+  flex-shrink: 0;
+}
+.sa-head-title {
+  display: block;
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+.sa-head-sub {
+  display: block;
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.sa-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+/* selected-SA preview strip (accent colour via --sa) */
+.sa-current {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.7rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--sa, #94a3b8) 12%, #fff);
+  border: 1px solid color-mix(in srgb, var(--sa, #94a3b8) 35%, #fff);
+}
+.sa-current-orb {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--sa, #94a3b8);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sa, #94a3b8) 25%, transparent);
+}
+.sa-current-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.sa-current-text b {
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+.sa-current-text small {
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.sa-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 46vh;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.sa-opt {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--sa, transparent);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s ease, border-color 0.1s ease;
+}
+.sa-opt:hover {
+  background: #f8fafc;
+}
+.sa-opt.is-active {
+  border-color: #a5b4fc;
+  border-left-color: var(--sa, #a5b4fc);
+  background: #eef2ff;
+}
+.sa-opt-orb {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--sa, #cbd5e1);
+}
+.sa-opt-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+}
+.sa-opt-name {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.sa-opt-effect {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.sa-tier {
+  font-weight: 600;
+  color: #94a3b8;
+}
+.sa-opt-check {
+  color: #4f46e5;
+  flex-shrink: 0;
+}
+
+/* --------------------------------------------------------- tattoo picker */
+
+.tat-head-glyph {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: #f3e8ff;
+  font-size: 1.05rem;
+  flex-shrink: 0;
+}
+.tat-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+.tat-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  max-height: 48vh;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+.tat-group-h {
+  font-size: 0.64rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin-bottom: 0.4rem;
+}
+.tat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.4rem;
+}
+.tat-opt {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s ease, border-color 0.1s ease;
+}
+.tat-opt:hover {
+  background: #f8fafc;
+}
+.tat-opt.is-active {
+  border-color: #c4b5fd;
+  background: #f5f3ff;
+}
+.tat-opt-img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.tat-opt-label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+.tat-plus {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #15803d;
+}
+.tat-minus {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #b91c1c;
+}
+.tat-opt-check {
+  color: #7c3aed;
+  flex-shrink: 0;
 }
 
 /* --------------------------------------------------------- responsive */

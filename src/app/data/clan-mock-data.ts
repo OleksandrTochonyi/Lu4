@@ -137,6 +137,14 @@ export type ItemCategory =
   | 'underwear'
   | 'hair';
 
+/** one Special Ability choice for a weapon (from data.json wiki.saEffects) */
+export interface SaEffect {
+  tier: string;
+  color: string | null;
+  name: string;
+  effect: string;
+}
+
 export interface CatalogItem {
   id: string;
   name: string;
@@ -146,6 +154,25 @@ export interface CatalogItem {
   grade: Grade;
   /** full icon URL, when known */
   icon?: string;
+  /** "with SA" glow icon (weapons only), when a `-sa` mirror exists */
+  iconSa?: string;
+  /** available Special Abilities (weapons only) */
+  saEffects?: SaEffect[];
+}
+
+/** SA orb colour label → hex */
+export function saColor(color: string | null | undefined): string {
+  switch ((color ?? '').toLowerCase()) {
+    case 'красный':
+      return '#dc2626';
+    case 'зеленый':
+    case 'зелёный':
+      return '#16a34a';
+    case 'синий':
+      return '#2563eb';
+    default:
+      return '#7c3aed';
+  }
 }
 
 type Raw = [name: string, subtype: string, grade: Grade];
@@ -218,6 +245,83 @@ export const EQUIP_SLOTS: EquipSlot[] = [
 
 export const SLOT_BY_ID = new Map(EQUIP_SLOTS.map((s) => [s.id, s]));
 
+/* ----------------------------------------------------------------- tattoos --- */
+
+/** the 6 dye stats; the image shown in a tattoo slot is the PLUS stat's picture */
+export type TattooStat = 'STR' | 'DEX' | 'CON' | 'INT' | 'WIT' | 'MEN';
+
+export interface Tattoo {
+  plus: TattooStat;
+  minus: TattooStat;
+}
+
+/** the 3 tattoo boxes in the top-left column of the paperdoll */
+export interface TattooSlot {
+  id: string;
+  x: number;
+  y: number;
+}
+
+export const TATTOO_SLOTS: TattooSlot[] = [
+  { id: 'tattoo1', x: 11.5, y: 11.5 },
+  { id: 'tattoo2', x: 11.5, y: 18 },
+  { id: 'tattoo3', x: 11.5, y: 24 },
+];
+
+/** the 12 valid dye combos, split into the physical / magical groups */
+export const TATTOO_GROUPS: { label: string; items: Tattoo[] }[] = [
+  {
+    label: 'Физические',
+    items: [
+      { plus: 'STR', minus: 'DEX' },
+      { plus: 'STR', minus: 'CON' },
+      { plus: 'CON', minus: 'STR' },
+      { plus: 'CON', minus: 'DEX' },
+      { plus: 'DEX', minus: 'STR' },
+      { plus: 'DEX', minus: 'CON' },
+    ],
+  },
+  {
+    label: 'Магические',
+    items: [
+      { plus: 'WIT', minus: 'MEN' },
+      { plus: 'INT', minus: 'MEN' },
+      { plus: 'WIT', minus: 'INT' },
+      { plus: 'INT', minus: 'WIT' },
+      { plus: 'MEN', minus: 'INT' },
+      { plus: 'MEN', minus: 'WIT' },
+    ],
+  },
+];
+
+/** stored in the equipment map under `tattoo1`/`tattoo2`/`tattoo3` as `"PLUS/MINUS"` */
+export function tattooCode(t: Tattoo): string {
+  return `${t.plus}/${t.minus}`;
+}
+
+export function parseTattoo(code: string | null | undefined): Tattoo | null {
+  const [plus, minus] = String(code ?? '').split('/');
+  const stats: TattooStat[] = ['STR', 'DEX', 'CON', 'INT', 'WIT', 'MEN'];
+  if (stats.includes(plus as TattooStat) && stats.includes(minus as TattooStat)) {
+    return { plus: plus as TattooStat, minus: minus as TattooStat };
+  }
+  return null;
+}
+
+export function readTattoo(
+  equipment: Record<string, string> | null | undefined,
+  slotId: string,
+): Tattoo | null {
+  return parseTattoo((equipment ?? {})[slotId]);
+}
+
+/** picture for a tattoo slot — always the PLUS stat's image */
+export function tattooImg(stat: TattooStat): string {
+  // files are `stat-str.png` … `stat-men.png` — "CON.png" would be a reserved
+  // device name on Windows and can't be committed
+  return `assets/stat-${stat.toLowerCase()}.png`;
+}
+
 export function slotAcceptsItem(slot: EquipSlot, item: CatalogItem): boolean {
   if (item.category !== slot.category) return false;
   if (slot.subtypes && !slot.subtypes.includes(item.subtype)) return false;
@@ -230,6 +334,16 @@ export const CHEST_FULLBODY_KEY = 'chestFullBody';
 /** pseudo equipment key suffix: `<slotId>__enc` holds the item's enchant level */
 export const ENCHANT_SUFFIX = '__enc';
 export const MAX_ENCHANT = 16;
+
+/** pseudo equipment key: the chosen Special Ability name for the weapon */
+export const WEAPON_SA_KEY = 'weaponSa';
+
+/** pseudo equipment keys: the 3 tattoo (dye) slots */
+export const TATTOO_KEYS = TATTOO_SLOTS.map((s) => s.id);
+
+export function readWeaponSa(equipment: Record<string, string> | null | undefined): string {
+  return (equipment ?? {})[WEAPON_SA_KEY] ?? '';
+}
 
 export function enchantKey(slotId: string): string {
   return slotId + ENCHANT_SUFFIX;
@@ -280,7 +394,13 @@ export function expandEquipment(
   const src = equipment ?? {};
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(src)) {
-    if (k === CHEST_FULLBODY_KEY || k.endsWith(ENCHANT_SUFFIX)) continue;
+    if (
+      k === CHEST_FULLBODY_KEY ||
+      k === WEAPON_SA_KEY ||
+      k.endsWith(ENCHANT_SUFFIX) ||
+      TATTOO_KEYS.includes(k)
+    )
+      continue;
     out[k] = v;
   }
   if (src[CHEST_FULLBODY_KEY] === '1' && out['chest']) out['legs'] = out['chest'];
