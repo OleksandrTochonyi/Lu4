@@ -137,19 +137,75 @@ export class PlayerModalComponent {
     () => this.equipment()[CHEST_FULLBODY_KEY] === '1' && !!this.itemById(this.equipment()['chest']),
   );
 
-  /** equipped items with their slot + enchant — weapon, then armor, then jewelry */
-  readonly equippedRows = computed(() => {
+  private buildRows(mirrorFullBody: boolean) {
     const eq = expandEquipment(this.equipment());
-    const catOrder: Record<string, number> = { weapon: 0, shield: 1, armor: 2, jewelry: 3 };
     return EQUIP_SLOTS.map((s) => {
+      // display list shows a full-body chest as a single line (skip its legs echo);
+      // the stat rows keep both so it still counts as 2 pieces
+      if (!mirrorFullBody && s.id === 'legs' && this.chestIsFullBody()) return null;
       const item = this.itemById(eq[s.id]);
       if (!item) return null;
       const encFrom = s.id === 'legs' && this.chestIsFullBody() ? 'chest' : s.id;
       return { slot: s, item, ench: readEnchant(this.equipment(), encFrom) };
-    })
-      .filter((r): r is { slot: EquipSlot; item: CatalogItem; ench: number } => !!r)
-      .sort((a, b) => (catOrder[a.item.category] ?? 9) - (catOrder[b.item.category] ?? 9));
+    }).filter((r): r is { slot: EquipSlot; item: CatalogItem; ench: number } => !!r);
+  }
+
+  /**
+   * Rows for the "Надето" list, in a fixed order:
+   * weapon → body (chest/legs) → helmet → gloves → boots → shield → jewelry.
+   * A full-body chest is a single line (its legs echo is dropped in buildRows).
+   */
+  private static readonly LIST_ORDER: Record<string, number> = {
+    weapon: 0,
+    chest: 1,
+    legs: 2,
+    helmet: 3,
+    gloves: 4,
+    boots: 5,
+    shield: 6,
+    necklace: 7,
+    medallion: 8,
+    ring1: 9,
+    ring2: 10,
+    ring3: 11,
+  };
+
+  readonly equippedRows = computed(() => {
+    const order = PlayerModalComponent.LIST_ORDER;
+    return this.buildRows(false).sort(
+      (a, b) => (order[a.slot.id] ?? 99) - (order[b.slot.id] ?? 99),
+    );
   });
+
+  /** which "Надето" groups are expanded (collapsed by default) */
+  readonly openEqGroups = signal<Set<string>>(new Set());
+  isEqGroupOpen(key: string): boolean {
+    return this.openEqGroups().has(key);
+  }
+  toggleEqGroup(key: string): void {
+    const next = new Set(this.openEqGroups());
+    next.has(key) ? next.delete(key) : next.add(key);
+    this.openEqGroups.set(next);
+  }
+
+  /** the "Надето" list split into Оружие / Броня / Бижутерия blocks */
+  readonly equippedGroups = computed(() => {
+    type Row = { slot: EquipSlot; item: CatalogItem; ench: number };
+    const groups: { key: string; label: string; rows: Row[] }[] = [
+      { key: 'weapon', label: 'Оружие', rows: [] },
+      { key: 'armor', label: 'Броня', rows: [] },
+      { key: 'jewelry', label: 'Бижутерия', rows: [] },
+    ];
+    for (const r of this.equippedRows()) {
+      const g =
+        r.item.category === 'weapon' ? groups[0] : r.item.category === 'jewelry' ? groups[2] : groups[1];
+      g.rows.push(r);
+    }
+    return groups.filter((g) => g.rows.length);
+  });
+
+  /** rows for the aggregates — full-body armor counts as 2 pieces */
+  private readonly statRows = computed(() => this.buildRows(true));
 
   /** enchant contribution to the gear score: +1 once an item reaches +3, then +1 per level beyond */
   private enchantBonus(level: number): number {
@@ -157,14 +213,14 @@ export class PlayerModalComponent {
   }
 
   readonly gearScore = computed(() =>
-    this.equippedRows().reduce(
+    this.statRows().reduce(
       (sum, r) => sum + GRADE_RANK[r.item.grade] + this.enchantBonus(r.ench),
       0,
     ),
   );
   readonly gradeBreakdown = computed(() => {
     const counts: Record<Grade, number> = { D: 0, C: 0, B: 0, A: 0, S: 0 };
-    for (const r of this.equippedRows()) counts[r.item.grade]++;
+    for (const r of this.statRows()) counts[r.item.grade]++;
     return counts;
   });
 

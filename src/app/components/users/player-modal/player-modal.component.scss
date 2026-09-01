@@ -363,18 +363,74 @@
   margin-top: 0.15rem;
   padding-top: 0.5rem;
   border-top: 1px dashed var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.pm-eq-group {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+.pm-eq-group-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.64rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  background: #f8fafc;
+  border: none;
+  border-bottom: 1px solid transparent;
+  cursor: pointer;
+  text-align: left;
+}
+.pm-eq-group-title:hover {
+  background: #f1f5f9;
+}
+.pm-eq-group-title.is-open {
+  border-bottom-color: var(--line);
+}
+.pm-eq-group-title .pi {
+  font-size: 0.6rem;
+  color: #94a3b8;
+}
+.pm-eq-group[data-g='weapon'] .pm-eq-group-title {
+  color: #b45309;
+}
+.pm-eq-group[data-g='armor'] .pm-eq-group-title {
+  color: #334155;
+}
+.pm-eq-group[data-g='jewelry'] .pm-eq-group-title {
+  color: #7c3aed;
+}
+.pm-eq-group-n {
+  margin-left: auto;
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 0.22rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 0.62rem;
 }
 
 .pm-equipped {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0.3rem;
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
   width: 100%;
-  max-height: 320px;
-  overflow-y: auto;
 }
 .pm-equipped li {
   display: flex;

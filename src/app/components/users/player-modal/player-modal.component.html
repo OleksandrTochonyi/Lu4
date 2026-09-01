@@ -79,17 +79,28 @@
         </div>
       </div>
 
-      <div class="pm-equipped-card" *ngIf="equippedRows().length">
-        <ul class="pm-equipped">
-          <li *ngFor="let r of equippedRows(); trackBy: trackByRow">
-            <img *ngIf="r.item.icon; else eqDot" class="pm-eq-icon" [src]="r.item.icon" (error)="imgError($event)"
-              alt="" />
-            <ng-template #eqDot><span class="dot" [ngClass]="gradeClass(r.item.grade)"></span></ng-template>
-            <span class="pm-eq-name">{{ r.item.name }}</span>
-            <span class="pm-eq-ench" *ngIf="r.ench > 0" [style.color]="enchantColor(r.ench)">+{{ r.ench }}</span>
-            <span class="pm-eq-grade" [ngClass]="gradeClass(r.item.grade)">{{ r.item.grade }}</span>
-          </li>
-        </ul>
+      <div class="pm-equipped-card" *ngIf="equippedGroups().length">
+        <div class="pm-eq-group" *ngFor="let grp of equippedGroups()" [attr.data-g]="grp.key">
+          <button
+            type="button"
+            class="pm-eq-group-title"
+            [class.is-open]="isEqGroupOpen(grp.key)"
+            (click)="toggleEqGroup(grp.key)"
+          >
+            <i class="pi" [ngClass]="isEqGroupOpen(grp.key) ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
+            {{ grp.label }}<span class="pm-eq-group-n">{{ grp.rows.length }}</span>
+          </button>
+          <ul class="pm-equipped" *ngIf="isEqGroupOpen(grp.key)">
+            <li *ngFor="let r of grp.rows; trackBy: trackByRow">
+              <img *ngIf="r.item.icon; else eqDot" class="pm-eq-icon" [src]="r.item.icon" (error)="imgError($event)"
+                alt="" />
+              <ng-template #eqDot><span class="dot" [ngClass]="gradeClass(r.item.grade)"></span></ng-template>
+              <span class="pm-eq-name">{{ r.item.name }}</span>
+              <span class="pm-eq-ench" *ngIf="r.ench > 0" [style.color]="enchantColor(r.ench)">+{{ r.ench }}</span>
+              <span class="pm-eq-grade" [ngClass]="gradeClass(r.item.grade)">{{ r.item.grade }}</span>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
   </aside>
