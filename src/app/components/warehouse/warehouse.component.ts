@@ -8,7 +8,6 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
-import { TableModule } from 'primeng/table';
 import { TooltipModule } from 'primeng/tooltip';
 import { ConfirmationService, MessageService } from 'primeng/api';
 
@@ -45,7 +44,6 @@ interface CatalogSuggestion {
     DialogModule,
     InputNumberModule,
     InputTextModule,
-    TableModule,
     TooltipModule,
     GradeBadgeComponent,
     CraftDetailComponent,
@@ -306,13 +304,25 @@ export class WarehouseComponent {
     return this.gradeCategories.has(cat as CraftCategory);
   }
 
+  onCraftSearch(v: string): void {
+    this.craftSearch.set(v);
+    this.page.set(0);
+  }
   toggleCat(c: CraftCategory): void {
     this.catFilter.set(this.catFilter() === c ? null : c);
+    this.page.set(0);
+  }
+  resetCraftFilters(): void {
+    this.catFilter.set(null);
+    this.gradeFilter.set(new Set());
+    this.craftSearch.set('');
+    this.page.set(0);
   }
   toggleGrade(g: CraftGrade): void {
     const next = new Set(this.gradeFilter());
     next.has(g) ? next.delete(g) : next.add(g);
     this.gradeFilter.set(next);
+    this.page.set(0);
   }
 
   readonly filteredCatalog = computed(() => {
@@ -332,6 +342,82 @@ export class WarehouseComponent {
       return true;
     });
   });
+
+  /* -------- sort + custom pagination (no PrimeNG table quirks) -------- */
+
+  readonly pageSizes = [15, 25, 50, 100];
+  readonly sortField = signal<'name' | 'category' | 'gradeRank'>('name');
+  readonly sortDir = signal<1 | -1>(1);
+  readonly pageSize = signal(15);
+  readonly page = signal(0);
+
+  sortBy(f: 'name' | 'category' | 'gradeRank'): void {
+    if (this.sortField() === f) this.sortDir.set((this.sortDir() * -1) as 1 | -1);
+    else {
+      this.sortField.set(f);
+      this.sortDir.set(1);
+    }
+    this.page.set(0);
+  }
+  sortIcon(f: 'name' | 'category' | 'gradeRank'): string {
+    if (this.sortField() !== f) return '';
+    return this.sortDir() === 1 ? 'pi-arrow-up' : 'pi-arrow-down';
+  }
+
+  readonly sortedCatalog = computed(() => {
+    const f = this.sortField();
+    const d = this.sortDir();
+    return [...this.filteredCatalog()].sort((a, b) => {
+      let av: string | number;
+      let bv: string | number;
+      if (f === 'category') {
+        av = this.catLabel(a.category);
+        bv = this.catLabel(b.category);
+      } else if (f === 'gradeRank') {
+        av = a.gradeRank;
+        bv = b.gradeRank;
+      } else {
+        av = a.name.toLowerCase();
+        bv = b.name.toLowerCase();
+      }
+      return (av < bv ? -1 : av > bv ? 1 : 0) * d;
+    });
+  });
+
+  readonly pageCount = computed(() =>
+    Math.max(1, Math.ceil(this.sortedCatalog().length / this.pageSize())),
+  );
+  readonly safePage = computed(() => Math.max(0, Math.min(this.page(), this.pageCount() - 1)));
+
+  readonly pagedCatalog = computed(() => {
+    const start = this.safePage() * this.pageSize();
+    return this.sortedCatalog().slice(start, start + this.pageSize());
+  });
+
+  readonly pageInfo = computed(() => {
+    const total = this.sortedCatalog().length;
+    if (!total) return { start: 0, end: 0, total: 0 };
+    const start = this.safePage() * this.pageSize();
+    return { start: start + 1, end: Math.min(total, start + this.pageSize()), total };
+  });
+
+  /** up to 5 page numbers centred on the current one */
+  readonly pageWindow = computed(() => {
+    const total = this.pageCount();
+    const cur = this.safePage();
+    const span = Math.min(5, total);
+    let start = Math.max(0, cur - Math.floor(span / 2));
+    start = Math.min(start, total - span);
+    return Array.from({ length: span }, (_, i) => start + i);
+  });
+
+  goPage(p: number): void {
+    this.page.set(Math.max(0, Math.min(p, this.pageCount() - 1)));
+  }
+  setPageSize(s: number): void {
+    this.pageSize.set(s || 15);
+    this.page.set(0);
+  }
 
   readonly detailEntry = signal<CraftEntry | null>(null);
   openDetail(e: CraftEntry): void {

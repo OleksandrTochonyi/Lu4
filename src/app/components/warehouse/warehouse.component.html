@@ -83,9 +83,21 @@
     </div>
 
     <ng-template #emptyStock>
-      <div class="wh-empty">
-        <i class="pi pi-inbox"></i>
-        <p>{{ stockSearch() ? 'Ничего не найдено' : 'Склад пуст — добавьте первую позицию' }}</p>
+      <div class="wh-empty wh-empty--panel">
+        <div class="wh-empty-ic"><i class="pi" [ngClass]="stockSearch() ? 'pi-search' : 'pi-box'"></i></div>
+        <p class="wh-empty-title">{{ stockSearch() ? 'Ничего не найдено' : 'Склад пуст' }}</p>
+        <p class="wh-empty-sub">
+          {{ stockSearch() ? 'Попробуйте другой запрос' : 'Добавьте первую позицию на склад' }}
+        </p>
+        <button
+          *ngIf="!stockSearch()"
+          pButton
+          type="button"
+          label="Добавить"
+          icon="pi pi-plus"
+          class="p-button-sm"
+          (click)="openAdd()"
+        ></button>
       </div>
     </ng-template>
   </section>
@@ -162,7 +174,7 @@
   </ng-template>
 
   <!-- =============================================== CRAFT =============== -->
-  <section *ngIf="view() === 'craft'" class="wh-body">
+  <section *ngIf="view() === 'craft'" class="wh-body wh-body--craft">
     <div class="wh-filters">
       <span class="wh-search">
         <i class="pi pi-search"></i>
@@ -170,7 +182,7 @@
           pInputText
           type="text"
           [ngModel]="craftSearch()"
-          (ngModelChange)="craftSearch.set($event)"
+          (ngModelChange)="onCraftSearch($event)"
           placeholder="Поиск предмета…"
         />
       </span>
@@ -202,46 +214,107 @@
       </div>
     </div>
 
-    <p-table
-      [value]="filteredCatalog()"
-      [paginator]="true"
-      [rows]="25"
-      [rowsPerPageOptions]="[25, 50, 100]"
-      [scrollable]="true"
-      scrollHeight="flex"
-      styleClass="wh-p-table p-datatable-sm"
-      [globalFilterFields]="['name']"
-    >
-      <ng-template pTemplate="header">
-        <tr>
-          <th pSortableColumn="name">Предмет <p-sortIcon field="name" /></th>
-          <th pSortableColumn="category" style="width: 8rem">Тип <p-sortIcon field="category" /></th>
-          <th pSortableColumn="gradeRank" style="width: 6rem">Грейд <p-sortIcon field="gradeRank" /></th>
-        </tr>
+    <div class="wh-ct-wrap">
+      <table class="wh-ct" *ngIf="pagedCatalog().length; else craftEmpty">
+        <thead>
+          <tr>
+            <th (click)="sortBy('name')">
+              Предмет <i class="pi" *ngIf="sortIcon('name')" [ngClass]="sortIcon('name')"></i>
+            </th>
+            <th class="ct-type" (click)="sortBy('category')">
+              Тип <i class="pi" *ngIf="sortIcon('category')" [ngClass]="sortIcon('category')"></i>
+            </th>
+            <th class="ct-grade" (click)="sortBy('gradeRank')">
+              Грейд <i class="pi" *ngIf="sortIcon('gradeRank')" [ngClass]="sortIcon('gradeRank')"></i>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            class="wh-row"
+            *ngFor="let e of pagedCatalog(); trackBy: trackEntry"
+            (click)="openDetail(e)"
+          >
+            <td>
+              <div class="wh-item">
+                <img *ngIf="e.icon" [src]="e.icon" [alt]="e.name" (error)="imgError($event)" />
+                <span>{{ e.name }}</span>
+              </div>
+            </td>
+            <td>
+              <span class="wh-cat" [ngClass]="'wh-cat--' + e.category">{{ catLabel(e.category) }}</span>
+            </td>
+            <td>
+              <app-grade-badge *ngIf="showGrade(e.category)" [grade]="e.grade" />
+              <span *ngIf="!showGrade(e.category)" class="wh-muted">—</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <ng-template #craftEmpty>
+        <div class="wh-empty">
+          <div class="wh-empty-ic"><i class="pi pi-inbox"></i></div>
+          <p class="wh-empty-title">Ничего не найдено</p>
+          <p class="wh-empty-sub">
+            {{ craftSearch() || catFilter() || gradeFilter().size
+              ? 'Под текущие фильтры нет предметов'
+              : 'Каталог пуст' }}
+          </p>
+          <button
+            *ngIf="craftSearch() || catFilter() || gradeFilter().size"
+            pButton
+            type="button"
+            label="Сбросить фильтры"
+            icon="pi pi-filter-slash"
+            class="p-button-sm p-button-text"
+            (click)="resetCraftFilters()"
+          ></button>
+        </div>
       </ng-template>
-      <ng-template pTemplate="body" let-e>
-        <tr class="wh-row" (click)="openDetail(e)">
-          <td>
-            <div class="wh-item">
-              <img *ngIf="e.icon" [src]="e.icon" [alt]="e.name" (error)="imgError($event)" />
-              <span>{{ e.name }}</span>
-            </div>
-          </td>
-          <td>
-            <span class="wh-cat" [ngClass]="'wh-cat--' + e.category">{{ catLabel(e.category) }}</span>
-          </td>
-          <td>
-            <app-grade-badge *ngIf="showGrade(e.category)" [grade]="e.grade" />
-            <span *ngIf="!showGrade(e.category)" class="wh-muted">—</span>
-          </td>
-        </tr>
-      </ng-template>
-      <ng-template pTemplate="emptymessage">
-        <tr>
-          <td colspan="3" class="wh-empty-cell">Ничего не найдено под фильтры</td>
-        </tr>
-      </ng-template>
-    </p-table>
+    </div>
+
+    <div class="wh-pager">
+      <span class="wh-pager-info">
+        {{ pageInfo().start }}–{{ pageInfo().end }} из {{ pageInfo().total }}
+      </span>
+      <div class="wh-pager-ctrls">
+        <button type="button" class="wh-pg-btn" [disabled]="safePage() === 0" (click)="goPage(0)">
+          <i class="pi pi-angle-double-left"></i>
+        </button>
+        <button type="button" class="wh-pg-btn" [disabled]="safePage() === 0" (click)="goPage(safePage() - 1)">
+          <i class="pi pi-angle-left"></i>
+        </button>
+        <button
+          type="button"
+          class="wh-pg-btn wh-pg-num"
+          *ngFor="let p of pageWindow()"
+          [class.active]="p === safePage()"
+          (click)="goPage(p)"
+        >
+          {{ p + 1 }}
+        </button>
+        <button
+          type="button"
+          class="wh-pg-btn"
+          [disabled]="safePage() >= pageCount() - 1"
+          (click)="goPage(safePage() + 1)"
+        >
+          <i class="pi pi-angle-right"></i>
+        </button>
+        <button
+          type="button"
+          class="wh-pg-btn"
+          [disabled]="safePage() >= pageCount() - 1"
+          (click)="goPage(pageCount() - 1)"
+        >
+          <i class="pi pi-angle-double-right"></i>
+        </button>
+      </div>
+      <select class="wh-pg-size" [ngModel]="pageSize()" (ngModelChange)="setPageSize($event)">
+        <option *ngFor="let s of pageSizes" [ngValue]="s">{{ s }} / стр</option>
+      </select>
+    </div>
   </section>
 </div>
 
