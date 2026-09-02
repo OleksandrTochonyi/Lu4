@@ -464,7 +464,8 @@
   width: 6rem;
 }
 .wh-ct tbody td {
-  padding: 0.45rem 0.9rem;
+  padding: 0.5rem 0.9rem;
+  height: 3rem;
   border-top: 1px solid var(--line);
   vertical-align: middle;
 }
@@ -480,8 +481,8 @@
   gap: 0.5rem;
 }
 .wh-item img {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   object-fit: contain;
   flex: none;
 }

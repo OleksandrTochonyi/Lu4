@@ -53,6 +53,20 @@
         <span class="c-act"></span>
       </div>
 
+      <!-- Рецепты -->
+      <ng-container *ngIf="stockRecipes().length">
+        <button type="button" class="wh-group-head" (click)="recipesOpen.set(!recipesOpen())">
+          <i class="pi" [ngClass]="recipesOpen() ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
+          <span class="wh-cat wh-cat--recipe">Рецепты</span>
+          <span class="wh-group-count">{{ stockRecipes().length }}</span>
+        </button>
+        <ng-container *ngIf="recipesOpen()">
+          <ng-container *ngFor="let item of stockRecipes(); trackBy: trackStock">
+            <ng-container *ngTemplateOutlet="stockRow; context: { $implicit: item }"></ng-container>
+          </ng-container>
+        </ng-container>
+      </ng-container>
+
       <!-- Части -->
       <ng-container *ngIf="stockParts().length">
         <button type="button" class="wh-group-head" (click)="partsOpen.set(!partsOpen())">
@@ -331,7 +345,7 @@
 >
   <div class="wh-add">
     <label class="wh-add-field">
-      <span>Ресурс или часть</span>
+      <span>Ресурс, часть или рецепт</span>
       <p-autoComplete
         [ngModel]="addPick() ?? addName()"
         (ngModelChange)="onAddNameInput($event)"
@@ -354,7 +368,7 @@
         </ng-template>
       </p-autoComplete>
       <small class="wh-hint">
-        Ресурсы и части («кучки») на оружие, броню и бижутерию.
+        Ресурсы, части («кучки») и рецепты (оружие/броня/бижа, грейд C+).
       </small>
     </label>
 

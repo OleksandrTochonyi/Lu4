@@ -71,13 +71,20 @@ export interface CraftEntry {
   craftable: boolean;
 }
 
-/** lower-cased, parenthetical-free key used to match names across data sets */
+/**
+ * Lower-cased, parenthetical-free key used to match names across data sets.
+ * A craft-chance token — "(70%)" / "(100%)" — is kept (as " 70%") because a
+ * 60/70% recipe is NOT interchangeable with the 100% one.
+ */
 export function normName(s: string | null | undefined): string {
-  return String(s ?? '')
+  const raw = String(s ?? '');
+  const pct = raw.match(/\(\s*(\d{2,3})\s*%\s*\)/);
+  const base = raw
     .replace(/\([^)]*\)/g, '')
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();
+  return pct ? `${base} ${pct[1]}%` : base;
 }
 
 function iconUrl(icon: string | null | undefined): string | undefined {
@@ -99,6 +106,12 @@ function normGrade(g: unknown): CraftGrade | null {
  */
 function sectionGrade(section: string): CraftGrade | null {
   const m = /(?:weapon|armor|jewelry)-(NG|D|C|B|A|S)$/i.exec(section);
+  return m ? (m[1].toUpperCase() as CraftGrade) : null;
+}
+
+/** grade of a gear recipe from its section — "weapon-recipes-A" → "A" */
+function recipeGrade(section: string): CraftGrade | null {
+  const m = /^(?:weapon|armor|jewelry)-recipes-(NG|D|C|B|A|S)$/i.exec(section);
   return m ? (m[1].toUpperCase() as CraftGrade) : null;
 }
 
@@ -171,12 +184,15 @@ export class CraftCatalogService {
         recipes = [toRecipe(o.materialRecipe, 'material')];
       }
 
-      const grade = normGrade(o.grade) ?? sectionGrade(String(o.section ?? ''));
+      const section = String(o.section ?? '');
+      const category = sectionCategory(section, o.kind);
+      let grade = normGrade(o.grade) ?? sectionGrade(section);
+      if (category === 'recipe') grade = recipeGrade(section) ?? grade;
       return {
         id: String(o.id),
         name: String(o.name ?? ''),
         kind: String(o.kind ?? ''),
-        category: sectionCategory(o.section ?? '', o.kind),
+        category,
         grade,
         gradeRank: grade ? CRAFT_GRADE_RANK[grade] : -1,
         section: String(o.section ?? ''),

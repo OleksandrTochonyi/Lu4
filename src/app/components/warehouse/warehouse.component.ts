@@ -118,13 +118,17 @@ export class WarehouseComponent {
     return this.stockSorted().filter((i) => i.name.toLowerCase().includes(q));
   });
 
-  /** stock split into "части" (top) + "ресурсы" (below), each collapsible */
+  /** stock split into "рецепты" / "части" / "ресурсы", each collapsible */
+  readonly stockRecipes = computed(() =>
+    this.filteredStock().filter((i) => i.category === 'recipe'),
+  );
   readonly stockParts = computed(() =>
     this.filteredStock().filter((i) => i.category === 'part'),
   );
   readonly stockResources = computed(() =>
-    this.filteredStock().filter((i) => i.category !== 'part'),
+    this.filteredStock().filter((i) => i.category !== 'part' && i.category !== 'recipe'),
   );
+  readonly recipesOpen = signal(true);
   readonly partsOpen = signal(true);
   readonly resOpen = signal(true);
 
@@ -204,8 +208,13 @@ export class WarehouseComponent {
     }
     const hits: CatalogSuggestion[] = [];
     for (const e of this.catalog()) {
-      // the warehouse holds raw resources + crafting parts ("кучки"), no gear
-      if (e.category !== 'resource' && e.category !== 'part') continue;
+      // the warehouse holds raw resources, crafting parts ("кучки") and
+      // gear recipes (weapon / armor / jewelry, grade C and up) — no gear itself
+      if (e.category === 'recipe') {
+        if (!/^(?:weapon|armor|jewelry)-recipes-(?:C|B|A|S)$/i.test(e.section)) continue;
+      } else if (e.category !== 'resource' && e.category !== 'part') {
+        continue;
+      }
       if (normName(e.name).includes(q)) {
         hits.push({
           id: e.id,
@@ -298,8 +307,8 @@ export class WarehouseComponent {
   readonly catFilter = signal<CraftCategory | null>(null);
   readonly gradeFilter = signal<Set<CraftGrade>>(new Set());
 
-  /** grade is only meaningful for gear */
-  readonly gradeCategories = new Set<CraftCategory>(['weapon', 'armor', 'jewelry']);
+  /** grade is only meaningful for gear + gear recipes */
+  readonly gradeCategories = new Set<CraftCategory>(['weapon', 'armor', 'jewelry', 'recipe']);
   showGrade(cat: string): boolean {
     return this.gradeCategories.has(cat as CraftCategory);
   }
