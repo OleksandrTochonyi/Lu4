@@ -334,17 +334,23 @@ export class WarehouseComponent {
     this.page.set(0);
   }
 
+  /** rows the catalogue view can ever show — craftable, allowed category + grade
+   *  (before the category / grade / search chips are applied) */
+  readonly craftBaseCatalog = computed(() =>
+    this.catalog().filter(
+      (e) =>
+        e.craftable &&
+        !this.hiddenCraftCategories.has(e.category) &&
+        !(e.grade && this.hiddenCraftGrades.has(e.grade)),
+    ),
+  );
+
   readonly filteredCatalog = computed(() => {
     const q = normName(this.craftSearch());
     const cat = this.catFilter();
     const grades = this.gradeFilter();
 
-    return this.catalog().filter((e) => {
-      // only ever show craftable rows (something with a recipe)
-      if (!e.craftable) return false;
-      // "Прочее" and NG / D / S graded rows are excluded from the catalogue
-      if (this.hiddenCraftCategories.has(e.category)) return false;
-      if (e.grade && this.hiddenCraftGrades.has(e.grade)) return false;
+    return this.craftBaseCatalog().filter((e) => {
       if (cat && e.category !== cat) return false;
       if (grades.size && (!e.grade || !grades.has(e.grade))) return false;
       if (q && !normName(e.name).includes(q)) return false;
