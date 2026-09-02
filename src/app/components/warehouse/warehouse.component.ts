@@ -120,6 +120,16 @@ export class WarehouseComponent {
     return this.stockSorted().filter((i) => i.name.toLowerCase().includes(q));
   });
 
+  /** stock split into "части" (top) + "ресурсы" (below), each collapsible */
+  readonly stockParts = computed(() =>
+    this.filteredStock().filter((i) => i.category === 'part'),
+  );
+  readonly stockResources = computed(() =>
+    this.filteredStock().filter((i) => i.category !== 'part'),
+  );
+  readonly partsOpen = signal(true);
+  readonly resOpen = signal(true);
+
   /** inline quantity edit */
   readonly editId = signal<string | null>(null);
   readonly editVal = signal(0);
@@ -196,16 +206,16 @@ export class WarehouseComponent {
     }
     const hits: CatalogSuggestion[] = [];
     for (const e of this.catalog()) {
-      // the warehouse holds raw resources only — no gear / parts / recipes
-      if (e.category !== 'resource') continue;
+      // the warehouse holds raw resources + crafting parts ("кучки"), no gear
+      if (e.category !== 'resource' && e.category !== 'part') continue;
       if (normName(e.name).includes(q)) {
         hits.push({
           id: e.id,
           name: e.name,
           icon: e.icon,
           grade: e.grade,
-          category: this.categoryLabel[e.category],
-          label: `${e.name} · ${this.categoryLabel[e.category]}${e.grade ? ' · ' + e.grade : ''}`,
+          category: e.category,
+          label: `${e.name} · ${this.categoryLabel[e.category]}`,
         });
         if (hits.length >= 25) break;
       }
@@ -256,7 +266,7 @@ export class WarehouseComponent {
         category: pick ? this.catalog().find((e) => e.id === pick.id)?.category ?? null : null,
         qty: Math.max(0, Math.round(Number(this.addQty()) || 0)),
       });
-      this.toast('success', 'Ресурс добавлен', name);
+      this.toast('success', 'Добавлено на склад', name);
       this.addOpen.set(false);
     } catch (e) {
       this.toast('error', 'Ошибка', this.msg(e));
@@ -267,7 +277,7 @@ export class WarehouseComponent {
 
   confirmDelete(item: StockItem): void {
     this.confirmationService.confirm({
-      header: 'Удалить ресурс',
+      header: 'Удалить позицию',
       message: `Удалить «${item.name}» со склада?`,
       icon: 'pi pi-exclamation-triangle',
       acceptLabel: 'Удалить',

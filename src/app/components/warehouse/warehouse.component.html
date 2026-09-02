@@ -4,7 +4,7 @@
   <div class="wh-head">
     <div class="wh-head-text">
       <h1>Склад</h1>
-      <p>Ресурсы клана и расчёт нехватки по крафту</p>
+      <p>Ресурсы, Сеня хотел? Пусть теперь ебется</p>
     </div>
     <div class="wh-seg">
       <button
@@ -43,91 +43,123 @@
       </span>
       <div class="wh-spacer"></div>
       <span class="wh-total">Всего единиц: <b>{{ stockTotal() }}</b></span>
-      <button pButton type="button" icon="pi pi-plus" label="Добавить ресурс" (click)="openAdd()"></button>
+      <button pButton type="button" icon="pi pi-plus" label="Добавить" (click)="openAdd()"></button>
     </div>
 
     <div class="wh-table" *ngIf="filteredStock().length; else emptyStock">
       <div class="wh-tr wh-tr--h">
-        <span class="c-name">Ресурс</span>
+        <span class="c-name">Позиция</span>
         <span class="c-qty">Количество</span>
         <span class="c-act"></span>
       </div>
 
-      <div class="wh-tr" *ngFor="let item of filteredStock(); trackBy: trackStock">
-        <span class="c-name">
-          <img *ngIf="item.icon" [src]="item.icon" [alt]="item.name" (error)="imgError($event)" />
-          <span class="c-name-txt">{{ item.name }}</span>
-          <app-grade-badge [grade]="item.grade" />
-        </span>
-
-        <span class="c-qty">
-          <ng-container *ngIf="editId() === item.id; else showQty">
-            <p-inputNumber
-              [ngModel]="editVal()"
-              (ngModelChange)="editVal.set($event || 0)"
-              [min]="0"
-              [showButtons]="true"
-              buttonLayout="horizontal"
-              inputStyleClass="wh-qty-input"
-              decrementButtonClass="p-button-secondary"
-              incrementButtonClass="p-button-secondary"
-            />
-            <button
-              pButton
-              type="button"
-              icon="pi pi-check"
-              class="p-button-sm p-button-success"
-              [disabled]="savingQty()"
-              (click)="saveEdit(item)"
-            ></button>
-            <button
-              pButton
-              type="button"
-              icon="pi pi-times"
-              class="p-button-sm p-button-text"
-              (click)="cancelEdit()"
-            ></button>
+      <!-- Части -->
+      <ng-container *ngIf="stockParts().length">
+        <button type="button" class="wh-group-head" (click)="partsOpen.set(!partsOpen())">
+          <i class="pi" [ngClass]="partsOpen() ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
+          <span class="wh-cat wh-cat--part">Части</span>
+          <span class="wh-group-count">{{ stockParts().length }}</span>
+        </button>
+        <ng-container *ngIf="partsOpen()">
+          <ng-container *ngFor="let item of stockParts(); trackBy: trackStock">
+            <ng-container *ngTemplateOutlet="stockRow; context: { $implicit: item }"></ng-container>
           </ng-container>
-          <ng-template #showQty>
-            <button pButton type="button" icon="pi pi-minus" class="p-button-sm p-button-text wh-bump" (click)="bump(item, -1)"></button>
-            <button class="wh-qty-val" type="button" (click)="startEdit(item)" pTooltip="Изменить количество">
-              {{ item.qty }}
-            </button>
-            <button pButton type="button" icon="pi pi-plus" class="p-button-sm p-button-text wh-bump" (click)="bump(item, 1)"></button>
-          </ng-template>
-        </span>
+        </ng-container>
+      </ng-container>
 
-        <span class="c-act">
-          <button
-            pButton
-            type="button"
-            icon="pi pi-history"
-            class="p-button-sm p-button-text"
-            [disabled]="!item.history.length"
-            [pTooltip]="lastChangeText(item)"
-            tooltipPosition="left"
-            [escape]="false"
-            (click)="openHistory(item)"
-          ></button>
-          <button
-            pButton
-            type="button"
-            icon="pi pi-trash"
-            class="p-button-sm p-button-text p-button-danger"
-            pTooltip="Удалить"
-            (click)="confirmDelete(item)"
-          ></button>
-        </span>
-      </div>
+      <!-- Ресурсы -->
+      <ng-container *ngIf="stockResources().length">
+        <button type="button" class="wh-group-head" (click)="resOpen.set(!resOpen())">
+          <i class="pi" [ngClass]="resOpen() ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
+          <span class="wh-cat wh-cat--resource">Ресурсы</span>
+          <span class="wh-group-count">{{ stockResources().length }}</span>
+        </button>
+        <ng-container *ngIf="resOpen()">
+          <ng-container *ngFor="let item of stockResources(); trackBy: trackStock">
+            <ng-container *ngTemplateOutlet="stockRow; context: { $implicit: item }"></ng-container>
+          </ng-container>
+        </ng-container>
+      </ng-container>
     </div>
 
     <ng-template #emptyStock>
       <div class="wh-empty">
         <i class="pi pi-inbox"></i>
-        <p>{{ stockSearch() ? 'Ничего не найдено' : 'Склад пуст — добавьте первый ресурс' }}</p>
+        <p>{{ stockSearch() ? 'Ничего не найдено' : 'Склад пуст — добавьте первую позицию' }}</p>
       </div>
     </ng-template>
   </section>
+
+  <!-- one stock row -->
+  <ng-template #stockRow let-item>
+    <div class="wh-tr">
+      <span class="c-name">
+        <img *ngIf="item.icon" [src]="item.icon" [alt]="item.name" (error)="imgError($event)" />
+        <span class="c-name-txt">{{ item.name }}</span>
+        <app-grade-badge *ngIf="showGrade(item.category)" [grade]="item.grade" />
+      </span>
+
+      <span class="c-qty">
+        <ng-container *ngIf="editId() === item.id; else showQty">
+          <p-inputNumber
+            [ngModel]="editVal()"
+            (ngModelChange)="editVal.set($event || 0)"
+            [min]="0"
+            [showButtons]="true"
+            buttonLayout="horizontal"
+            inputStyleClass="wh-qty-input"
+            decrementButtonClass="p-button-secondary"
+            incrementButtonClass="p-button-secondary"
+          />
+          <button
+            pButton
+            type="button"
+            icon="pi pi-check"
+            class="p-button-sm p-button-success"
+            [disabled]="savingQty()"
+            (click)="saveEdit(item)"
+          ></button>
+          <button
+            pButton
+            type="button"
+            icon="pi pi-times"
+            class="p-button-sm p-button-text"
+            (click)="cancelEdit()"
+          ></button>
+        </ng-container>
+        <ng-template #showQty>
+          <button pButton type="button" icon="pi pi-minus" class="p-button-sm p-button-text wh-bump" (click)="bump(item, -1)"></button>
+          <button class="wh-qty-val" type="button" (click)="startEdit(item)" pTooltip="Изменить количество">
+            {{ item.qty }}
+          </button>
+          <button pButton type="button" icon="pi pi-plus" class="p-button-sm p-button-text wh-bump" (click)="bump(item, 1)"></button>
+        </ng-template>
+      </span>
+
+      <span class="c-act">
+        <button
+          pButton
+          type="button"
+          icon="pi pi-history"
+          class="p-button-sm p-button-text"
+          [disabled]="!item.history.length"
+          [pTooltip]="lastChangeText(item)"
+          tooltipPosition="left"
+          [escape]="false"
+          (click)="openHistory(item)"
+        ></button>
+        <button
+          pButton
+          type="button"
+          icon="pi pi-trash"
+          class="p-button-sm p-button-text p-button-danger"
+          pTooltip="Удалить"
+          tooltipPosition="left"
+          (click)="confirmDelete(item)"
+        ></button>
+      </span>
+    </div>
+  </ng-template>
 
   <!-- =============================================== CRAFT =============== -->
   <section *ngIf="view() === 'craft'" class="wh-body">
@@ -148,6 +180,7 @@
           *ngFor="let c of categories"
           type="button"
           class="wh-chip"
+          [ngClass]="'wh-chip--' + c"
           [class.active]="catFilter() === c"
           (click)="toggleCat(c)"
         >
@@ -160,6 +193,7 @@
           *ngFor="let g of craftGrades"
           type="button"
           class="wh-chip wh-chip--grade"
+          [ngClass]="'wh-chip--grade-' + g"
           [class.active]="gradeFilter().has(g)"
           (click)="toggleGrade(g)"
         >
@@ -193,7 +227,9 @@
               <span>{{ e.name }}</span>
             </div>
           </td>
-          <td>{{ catLabel(e.category) }}</td>
+          <td>
+            <span class="wh-cat" [ngClass]="'wh-cat--' + e.category">{{ catLabel(e.category) }}</span>
+          </td>
           <td>
             <app-grade-badge *ngIf="showGrade(e.category)" [grade]="e.grade" />
             <span *ngIf="!showGrade(e.category)" class="wh-muted">—</span>
@@ -222,7 +258,7 @@
 >
   <div class="wh-add">
     <label class="wh-add-field">
-      <span>Ресурс</span>
+      <span>Ресурс или часть</span>
       <p-autoComplete
         [ngModel]="addPick() ?? addName()"
         (ngModelChange)="onAddNameInput($event)"
@@ -239,12 +275,13 @@
         <ng-template let-s pTemplate="item">
           <div class="wh-sugg">
             <img *ngIf="s.icon" [src]="s.icon" [alt]="s.name" (error)="imgError($event)" />
-            <span>{{ s.label }}</span>
+            <span class="wh-cat" [ngClass]="'wh-cat--' + s.category">{{ catLabel(s.category) }}</span>
+            <span>{{ s.name }}<ng-container *ngIf="showGrade(s.category) && s.grade"> · {{ s.grade }}</ng-container></span>
           </div>
         </ng-template>
       </p-autoComplete>
       <small class="wh-hint">
-        Список доступных ресурсов.
+        Ресурсы и части («кучки») на оружие, броню и бижутерию.
       </small>
     </label>
 
