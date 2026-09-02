@@ -338,11 +338,40 @@ export const MAX_ENCHANT = 16;
 /** pseudo equipment key: the chosen Special Ability name for the weapon */
 export const WEAPON_SA_KEY = 'weaponSa';
 
+/** pseudo equipment key: the weapon is two-handed → the shield slot is blocked */
+export const WEAPON_2H_KEY = 'weapon2H';
+/** pseudo equipment key: the weapon is a dual (парные) → shield blocked + a 2nd weapon */
+export const WEAPON_DUAL_KEY = 'weaponDual';
+/** pseudo equipment key: the 2nd weapon item id of a dual */
+export const WEAPON_2_KEY = 'weapon2';
+/** pseudo equipment key: the hand-picked grade of the resulting dual weapon */
+export const WEAPON_DUAL_GRADE_KEY = 'weaponDualGrade';
+
 /** pseudo equipment keys: the 3 tattoo (dye) slots */
 export const TATTOO_KEYS = TATTOO_SLOTS.map((s) => s.id);
 
 export function readWeaponSa(equipment: Record<string, string> | null | undefined): string {
   return (equipment ?? {})[WEAPON_SA_KEY] ?? '';
+}
+
+export function readWeaponTwoH(equipment: Record<string, string> | null | undefined): boolean {
+  return (equipment ?? {})[WEAPON_2H_KEY] === '1' && !!(equipment ?? {})['weapon'];
+}
+export function readWeaponDual(equipment: Record<string, string> | null | undefined): boolean {
+  return (equipment ?? {})[WEAPON_DUAL_KEY] === '1' && !!(equipment ?? {})['weapon'];
+}
+export function readWeapon2(equipment: Record<string, string> | null | undefined): string {
+  return (equipment ?? {})[WEAPON_2_KEY] ?? '';
+}
+export function readWeaponDualGrade(
+  equipment: Record<string, string> | null | undefined,
+): Grade | null {
+  const g = String((equipment ?? {})[WEAPON_DUAL_GRADE_KEY] ?? '').toUpperCase();
+  return isGrade(g) ? (g as Grade) : null;
+}
+/** the shield slot is unusable while the weapon is two-handed or a dual */
+export function isShieldBlocked(equipment: Record<string, string> | null | undefined): boolean {
+  return readWeaponTwoH(equipment) || readWeaponDual(equipment);
 }
 
 export function enchantKey(slotId: string): string {
@@ -397,6 +426,10 @@ export function expandEquipment(
     if (
       k === CHEST_FULLBODY_KEY ||
       k === WEAPON_SA_KEY ||
+      k === WEAPON_2H_KEY ||
+      k === WEAPON_DUAL_KEY ||
+      k === WEAPON_2_KEY ||
+      k === WEAPON_DUAL_GRADE_KEY ||
       k.endsWith(ENCHANT_SUFFIX) ||
       TATTOO_KEYS.includes(k)
     )

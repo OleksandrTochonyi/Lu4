@@ -260,6 +260,10 @@
   font-size: 1.15rem;
   color: #c7d2fe;
 }
+.slot-plus--lock {
+  color: #fca5a5;
+  font-size: 1rem;
+}
 .slot:hover .slot-plus {
   color: #fff;
 }
@@ -519,6 +523,22 @@
   background: #ede9fe;
   color: #6d28d9;
 }
+.pm-eq-tag {
+  margin-left: 0.3rem;
+  font-size: 0.55rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.05rem 0.28rem;
+  border-radius: 4px;
+  background: #e0e7ff;
+  color: #4338ca;
+}
+.pm-eq-second {
+  margin-left: 0.3rem;
+  font-size: 0.66rem;
+  color: var(--muted);
+}
 .pm-eq-grade {
   font-size: 0.58rem;
   font-weight: 800;
@@ -632,6 +652,41 @@
 }
 .picker-fb-apply {
   margin-left: auto;
+}
+
+.picker-weapon {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.picker-dual {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.55rem 0.6rem;
+  border-radius: 9px;
+  background: #f8fafc;
+  border: 1px solid var(--line);
+}
+.picker-dual-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #475569;
+}
+.picker-dual-field--grade {
+  flex: 0 0 6.5rem;
+}
+:host ::ng-deep .picker-dd {
+  width: 100%;
+}
+:host ::ng-deep .picker-dd .p-dropdown-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .picker-tools {

@@ -47,22 +47,45 @@ import {
   Tattoo,
   TattooSlot,
   WEAPON_SA_KEY,
+  WEAPON_2H_KEY,
+  WEAPON_DUAL_KEY,
+  WEAPON_2_KEY,
+  WEAPON_DUAL_GRADE_KEY,
   enchantColor,
   enchantKey,
   expandEquipment,
   isGrade,
+  isShieldBlocked,
   parseTattoo,
   professionsForRace,
   raceName,
   readEnchant,
   readTattoo,
   readWeaponSa,
+  readWeaponTwoH,
+  readWeaponDual,
+  readWeapon2,
+  readWeaponDualGrade,
   saColor,
   slotAcceptsItem,
   tattooCode,
   tattooImg,
 } from '../../../data/clan-mock-data';
 
+
+/** one row of the paperdoll aggregates / "Надето" list */
+interface GearRow {
+  slot: EquipSlot;
+  item: CatalogItem;
+  ench: number;
+  sa: string;
+  /** effective grade for scoring/display (a dual weapon uses its hand-picked grade) */
+  grade: Grade;
+  twoH: boolean;
+  dual: boolean;
+  /** the 2nd weapon of a dual (for the "Надето" list) */
+  second: CatalogItem | null;
+}
 
 @Component({
   selector: 'app-player-modal',
@@ -149,24 +172,40 @@ export class PlayerModalComponent {
     () => this.equipment()[CHEST_FULLBODY_KEY] === '1' && !!this.itemById(this.equipment()['chest']),
   );
 
-  private buildRows(mirrorFullBody: boolean) {
+  /* -------- weapon: two-handed / dual -------- */
+
+  readonly weaponIsTwoH = computed(() => readWeaponTwoH(this.equipment()));
+  readonly weaponIsDual = computed(() => readWeaponDual(this.equipment()));
+  readonly weapon2Item = computed(() => this.itemById(readWeapon2(this.equipment())));
+  readonly weaponDualGrade = computed<Grade | null>(() => readWeaponDualGrade(this.equipment()));
+  /** the shield slot is unusable while the weapon is two-handed or a dual */
+  readonly shieldBlocked = computed(() => isShieldBlocked(this.equipment()));
+
+  private buildRows(mirrorFullBody: boolean): GearRow[] {
     const eq = expandEquipment(this.equipment());
-    return EQUIP_SLOTS.map((s) => {
+    const dual = this.weaponIsDual();
+    const dualGrade = this.weaponDualGrade();
+    const twoH = this.weaponIsTwoH();
+    return EQUIP_SLOTS.map((s): GearRow | null => {
       // display list shows a full-body chest as a single line (skip its legs echo);
       // the stat rows keep both so it still counts as 2 pieces
       if (!mirrorFullBody && s.id === 'legs' && this.chestIsFullBody()) return null;
       const item = this.itemById(eq[s.id]);
       if (!item) return null;
       const encFrom = s.id === 'legs' && this.chestIsFullBody() ? 'chest' : s.id;
+      const isWeapon = s.id === 'weapon';
       return {
         slot: s,
         item,
         ench: readEnchant(this.equipment(), encFrom),
-        sa: s.id === 'weapon' ? this.weaponSa() : '',
+        sa: isWeapon ? this.weaponSa() : '',
+        // a dual's effective grade is the hand-picked one
+        grade: (isWeapon && dual && dualGrade ? dualGrade : item.grade) as Grade,
+        twoH: isWeapon && twoH,
+        dual: isWeapon && dual,
+        second: isWeapon && dual ? this.weapon2Item() : null,
       };
-    }).filter(
-      (r): r is { slot: EquipSlot; item: CatalogItem; ench: number; sa: string } => !!r,
-    );
+    }).filter((r): r is GearRow => !!r);
   }
 
   /**
@@ -209,8 +248,7 @@ export class PlayerModalComponent {
 
   /** the "Надето" list split into Оружие / Броня / Бижутерия blocks */
   readonly equippedGroups = computed(() => {
-    type Row = { slot: EquipSlot; item: CatalogItem; ench: number; sa: string };
-    const groups: { key: string; label: string; rows: Row[] }[] = [
+    const groups: { key: string; label: string; rows: GearRow[] }[] = [
       { key: 'weapon', label: 'Оружие', rows: [] },
       { key: 'armor', label: 'Броня', rows: [] },
       { key: 'jewelry', label: 'Бижутерия', rows: [] },
@@ -233,13 +271,13 @@ export class PlayerModalComponent {
 
   readonly gearScore = computed(() =>
     this.statRows().reduce(
-      (sum, r) => sum + GRADE_RANK[r.item.grade] + this.enchantBonus(r.ench),
+      (sum, r) => sum + GRADE_RANK[r.grade] + this.enchantBonus(r.ench),
       0,
     ),
   );
   readonly gradeBreakdown = computed(() => {
     const counts: Record<Grade, number> = { D: 0, C: 0, B: 0, A: 0, S: 0 };
-    for (const r of this.statRows()) counts[r.item.grade]++;
+    for (const r of this.statRows()) counts[r.grade]++;
     return counts;
   });
 
@@ -251,6 +289,32 @@ export class PlayerModalComponent {
   readonly pickerFullBody = signal(false);
   readonly pickerShowAll = signal(false);
   readonly savingPicker = signal(false);
+
+  /* weapon extras (only meaningful while the weapon slot picker is open) */
+  readonly pickerTwoH = signal(false);
+  readonly pickerDual = signal(false);
+  readonly pickerWeapon2 = signal<string>('');
+  readonly pickerDualGrade = signal<Grade>('D');
+
+  readonly gradeOptions = GRADES.map((g) => ({ label: g, value: g }));
+  readonly weaponOptions = computed(() =>
+    this.allItems()
+      .filter((it) => it.category === 'weapon')
+      .map((it) => ({ label: `${it.name} · ${it.grade}`, value: it.id })),
+  );
+
+  setPickerTwoH(v: boolean): void {
+    this.pickerTwoH.set(v);
+    if (v) this.pickerDual.set(false);
+  }
+  setPickerDual(v: boolean): void {
+    this.pickerDual.set(v);
+    if (v) {
+      this.pickerTwoH.set(false);
+      const g = this.itemById(this.pendingItemId())?.grade;
+      if (g && !this.weaponDualGrade()) this.pickerDualGrade.set(g);
+    }
+  }
 
   /** pending pick: undefined = untouched · null = will unequip · string = item id */
   readonly pickerSel = signal<string | null | undefined>(undefined);
@@ -267,11 +331,26 @@ export class PlayerModalComponent {
     const slot = this.pickerSlot();
     if (!slot) return false;
     if (this.pickerSel() !== undefined) return true;
+    if (slot.id === 'weapon') {
+      if (this.pickerTwoH() !== this.weaponIsTwoH()) return true;
+      if (this.pickerDual() !== this.weaponIsDual()) return true;
+      if (this.pickerDual()) {
+        if (this.pickerWeapon2() !== readWeapon2(this.equipment())) return true;
+        if (this.pickerDualGrade() !== (this.weaponDualGrade() ?? '')) return true;
+      }
+    }
     return (
       !!slot.chest &&
       !!this.equipment()['chest'] &&
       this.pickerFullBody() !== this.chestIsFullBody()
     );
+  });
+
+  /** Save is blocked while a dual has no 2nd weapon picked */
+  readonly pickerValid = computed(() => {
+    const slot = this.pickerSlot();
+    if (!slot || slot.id !== 'weapon' || !this.pickerDual()) return true;
+    return !!this.pendingItemId() && !!this.pickerWeapon2();
   });
 
   readonly pickerItems = computed<CatalogItem[]>(() => {
@@ -407,15 +486,34 @@ export class PlayerModalComponent {
 
   slotItem(slot: EquipSlot): CatalogItem | null {
     if (this.isLegsLocked(slot)) return this.itemById(this.equipment()['chest']);
+    // a dual shows its 2nd weapon in the shield slot
+    if (slot.id === 'shield' && this.weaponIsDual()) return this.weapon2Item();
     return this.itemById(this.equipment()[slot.id]);
+  }
+
+  /** grade shown on a slot — the weapon + its mirrored 2nd weapon use the dual grade */
+  slotGrade(slot: EquipSlot, item: CatalogItem): Grade | string {
+    if (
+      (slot.id === 'weapon' || slot.id === 'shield') &&
+      this.weaponIsDual() &&
+      this.weaponDualGrade()
+    ) {
+      return this.weaponDualGrade() as Grade;
+    }
+    return item.grade;
   }
 
   isLegsLocked(slot: EquipSlot): boolean {
     return !!slot.legs && this.chestIsFullBody();
   }
 
+  /** shield slot blocked by a two-handed / dual weapon */
+  isShieldLocked(slot: EquipSlot): boolean {
+    return slot.id === 'shield' && this.shieldBlocked();
+  }
+
   slotStateClass(slot: EquipSlot): string {
-    if (this.isLegsLocked(slot)) return 'slot--locked';
+    if (this.isLegsLocked(slot) || this.isShieldLocked(slot)) return 'slot--locked';
     return this.slotItem(slot) ? 'slot--filled' : 'slot--empty';
   }
 
@@ -448,7 +546,13 @@ export class PlayerModalComponent {
   );
 
   openEnch(slot: EquipSlot): void {
-    if (!this.canEditGear() || this.isLegsLocked(slot) || !this.slotItem(slot)) return;
+    if (
+      !this.canEditGear() ||
+      this.isLegsLocked(slot) ||
+      this.isShieldLocked(slot) ||
+      !this.slotItem(slot)
+    )
+      return;
     this.encSlot.set(slot);
     this.encValue.set(this.slotEnchant(slot));
   }
@@ -610,12 +714,28 @@ export class PlayerModalComponent {
 
   openPicker(slot: EquipSlot): void {
     if (!this.canEditGear() || !this.userId() || this.isLegsLocked(slot)) return;
+    if (slot.id === 'shield' && this.shieldBlocked()) return;
     this.pickerSlot.set(slot);
     this.pickerSearch.set('');
     this.pickerGrades.set(new Set());
     this.pickerShowAll.set(false);
     this.pickerSel.set(undefined);
     this.pickerFullBody.set(slot.chest ? this.chestIsFullBody() : false);
+
+    if (slot.id === 'weapon') {
+      this.pickerTwoH.set(this.weaponIsTwoH());
+      this.pickerDual.set(this.weaponIsDual());
+      this.pickerWeapon2.set(readWeapon2(this.equipment()));
+      this.pickerDualGrade.set(
+        this.weaponDualGrade() ??
+          this.itemById(this.equipment()['weapon'])?.grade ??
+          'D',
+      );
+    } else {
+      this.pickerTwoH.set(false);
+      this.pickerDual.set(false);
+      this.pickerWeapon2.set('');
+    }
   }
 
   closePicker(): void {
@@ -668,6 +788,35 @@ export class PlayerModalComponent {
         if (slot.id === 'weapon') delete next[WEAPON_SA_KEY];
       }
       next[slot.id] = sel;
+    }
+
+    // two-handed / dual weapon → write the pseudo keys, and block the shield
+    if (slot.id === 'weapon') {
+      if (!next['weapon']) {
+        delete next[WEAPON_2H_KEY];
+        delete next[WEAPON_DUAL_KEY];
+        delete next[WEAPON_2_KEY];
+        delete next[WEAPON_DUAL_GRADE_KEY];
+      } else {
+        if (this.pickerTwoH()) next[WEAPON_2H_KEY] = '1';
+        else delete next[WEAPON_2H_KEY];
+
+        if (this.pickerDual()) {
+          next[WEAPON_DUAL_KEY] = '1';
+          if (this.pickerWeapon2()) next[WEAPON_2_KEY] = this.pickerWeapon2();
+          else delete next[WEAPON_2_KEY];
+          next[WEAPON_DUAL_GRADE_KEY] = this.pickerDualGrade();
+        } else {
+          delete next[WEAPON_DUAL_KEY];
+          delete next[WEAPON_2_KEY];
+          delete next[WEAPON_DUAL_GRADE_KEY];
+        }
+
+        if (this.pickerTwoH() || this.pickerDual()) {
+          delete next['shield'];
+          delete next[enchantKey('shield')];
+        }
+      }
     }
 
     if (slot.chest && next['chest']) {

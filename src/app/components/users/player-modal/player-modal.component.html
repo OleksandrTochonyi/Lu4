@@ -95,13 +95,16 @@
               <img *ngIf="r.item.icon; else eqDot" class="pm-eq-icon"
                 [src]="r.sa && r.item.iconSa ? r.item.iconSa : r.item.icon" (error)="imgError($event)"
                 alt="" />
-              <ng-template #eqDot><span class="dot" [ngClass]="gradeClass(r.item.grade)"></span></ng-template>
+              <ng-template #eqDot><span class="dot" [ngClass]="gradeClass(r.grade)"></span></ng-template>
               <span class="pm-eq-name">
                 {{ r.item.name }}
+                <span class="pm-eq-tag" *ngIf="r.twoH">2H</span>
+                <span class="pm-eq-tag" *ngIf="r.dual">дуал</span>
                 <span class="pm-eq-sa" *ngIf="r.sa">СА: {{ r.sa }}</span>
+                <span class="pm-eq-second" *ngIf="r.second">+ {{ r.second.name }}</span>
               </span>
               <span class="pm-eq-ench" *ngIf="r.ench > 0" [style.color]="enchantColor(r.ench)">+{{ r.ench }}</span>
-              <span class="pm-eq-grade" [ngClass]="gradeClass(r.item.grade)">{{ r.item.grade }}</span>
+              <span class="pm-eq-grade" [ngClass]="gradeClass(r.grade)">{{ r.grade }}</span>
             </li>
           </ul>
         </div>
@@ -120,19 +123,22 @@
         <img [src]="inventoryImg" alt="Инвентарь" class="paperdoll-img" />
 
         <button *ngFor="let slot of slots; trackBy: trackBySlot" type="button" class="slot"
-          [ngClass]="slotStateClass(slot)" [class.slot--noact]="!canEditGear() || isLegsLocked(slot)"
+          [ngClass]="slotStateClass(slot)"
+          [class.slot--noact]="!canEditGear() || isLegsLocked(slot) || isShieldLocked(slot)"
           [style.left.%]="slot.x" [style.top.%]="slot.y" [pTooltip]="slotItem(slot)?.name || slot.label"
           tooltipPosition="top" [attr.title]="null" (click)="openPicker(slot)">
           <ng-container *ngIf="slotItem(slot) as it; else emptySlot">
-            <span class="slot-chip" [ngClass]="gradeClass(it.grade)">
+            <span class="slot-chip" [ngClass]="gradeClass(slotGrade(slot, it))">
               <img *ngIf="it.icon" class="slot-icon" [src]="slotIconUrl(slot, it)"
                 (error)="imgError($event)" alt="" />
               <span class="slot-name" *ngIf="!it.icon">{{ it.name }}</span>
-              <span class="slot-grade">{{ it.grade }}</span>
+              <span class="slot-grade">{{ slotGrade(slot, it) }}</span>
             </span>
-            <i class="pi pi-lock slot-mark" *ngIf="isLegsLocked(slot)"></i>
+            <i class="pi pi-lock slot-mark" *ngIf="isLegsLocked(slot) || isShieldLocked(slot)"></i>
             <span class="slot-mark slot-mark--fb" *ngIf="slot.chest && chestIsFullBody()">FB</span>
-            <span class="slot-ench" [class.slot-ench--set]="slotEnchant(slot) > 0"
+            <span class="slot-mark slot-mark--fb" *ngIf="slot.id === 'weapon' && weaponIsTwoH()">2H</span>
+            <span class="slot-mark slot-mark--fb" *ngIf="slot.id === 'weapon' && weaponIsDual()">2×</span>
+            <span class="slot-ench" *ngIf="!isShieldLocked(slot)" [class.slot-ench--set]="slotEnchant(slot) > 0"
               [class.slot-ench--max]="slotEnchant(slot) === maxEnchant"
               [style.background]="slotEnchant(slot) > 0 ? enchantColor(slotEnchant(slot)) : null" role="button"
               [attr.tabindex]="canEditGear() && !isLegsLocked(slot) ? 0 : null" [pTooltip]="
@@ -150,8 +156,12 @@
               (keydown.enter)="$event.stopPropagation(); openSa()">СА</span>
           </ng-container>
           <ng-template #emptySlot>
-            <i class="pi pi-plus slot-plus" *ngIf="canEditGear(); else emptyGlyph"></i>
-            <ng-template #emptyGlyph><span class="slot-glyph">{{ slot.glyph }}</span></ng-template>
+            <i class="pi pi-ban slot-plus slot-plus--lock" *ngIf="isShieldLocked(slot); else emptyPick"
+              [pTooltip]="'Щит недоступен: оружие двуручное / парное'" tooltipPosition="top"></i>
+            <ng-template #emptyPick>
+              <i class="pi pi-plus slot-plus" *ngIf="canEditGear(); else emptyGlyph"></i>
+              <ng-template #emptyGlyph><span class="slot-glyph">{{ slot.glyph }}</span></ng-template>
+            </ng-template>
           </ng-template>
         </button>
 
@@ -176,8 +186,9 @@
 
       <p class="pm-hint">
         <i class="pi pi-info-circle"></i>
-        Нажмите на ячейку, чтобы выбрать предмет. Для нагрудника есть галочка
-        «цельная броня» - тогда он займёт и поножи.
+        Нажмите на ячейку, чтобы выбрать предмет. У нагрудника есть «цельная броня»
+        (займёт и поножи), у оружия — «двуручное» / «дуалы» (щит блокируется, для
+        дуалов выбираются второе оружие и грейд).
       </p>
     </ng-container>
 
@@ -209,6 +220,34 @@
       <p-checkbox [ngModel]="pickerFullBody()" (ngModelChange)="pickerFullBody.set($event)" [binary]="true"
         inputId="fb"></p-checkbox>
       <label for="fb">Цельная броня (занимает нагрудник + поножи)</label>
+    </div>
+
+    <div class="picker-weapon" *ngIf="slot.id === 'weapon'">
+      <div class="picker-fb">
+        <p-checkbox [ngModel]="pickerTwoH()" (ngModelChange)="setPickerTwoH($event)" [binary]="true"
+          inputId="w2h"></p-checkbox>
+        <label for="w2h">Двуручное — щит недоступен</label>
+      </div>
+      <div class="picker-fb">
+        <p-checkbox [ngModel]="pickerDual()" (ngModelChange)="setPickerDual($event)" [binary]="true"
+          inputId="wdual"></p-checkbox>
+        <label for="wdual">Дуалы (парное оружие)</label>
+      </div>
+
+      <div class="picker-dual" *ngIf="pickerDual()">
+        <div class="picker-dual-field">
+          <label>Второе оружие</label>
+          <p-dropdown [options]="weaponOptions()" optionLabel="label" optionValue="value"
+            [ngModel]="pickerWeapon2()" (ngModelChange)="pickerWeapon2.set($event)" [filter]="true"
+            filterBy="label" placeholder="Выбрать" appendTo="body" styleClass="picker-dd"></p-dropdown>
+        </div>
+        <div class="picker-dual-field picker-dual-field--grade">
+          <label>Грейд дуалов</label>
+          <p-dropdown [options]="gradeOptions" optionLabel="label" optionValue="value"
+            [ngModel]="pickerDualGrade()" (ngModelChange)="pickerDualGrade.set($event)" appendTo="body"
+            styleClass="picker-dd"></p-dropdown>
+        </div>
+      </div>
     </div>
 
     <div class="picker-tools">
@@ -254,8 +293,8 @@
     <button *ngIf="pendingItemId()" pButton type="button" icon="pi pi-times" label="Снять"
       class="p-button-sm p-button-text p-button-danger picker-foot-left" (click)="markUnequip()"></button>
     <button pButton type="button" label="Отмена" class="p-button-sm p-button-text" (click)="closePicker()"></button>
-    <button pButton type="button" label="Сохранить" class="p-button-sm" [disabled]="!pickerDirty() || savingPicker()"
-      (click)="savePicker()"></button>
+    <button pButton type="button" label="Сохранить" class="p-button-sm"
+      [disabled]="!pickerDirty() || !pickerValid() || savingPicker()" (click)="savePicker()"></button>
   </ng-template>
 </p-dialog>
 
