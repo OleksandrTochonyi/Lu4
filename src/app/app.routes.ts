@@ -3,7 +3,7 @@ import { Routes } from '@angular/router';
 import { LoginComponent } from './components/login/login.component';
 import { UsersComponent } from './components/users/users.component';
 import { WarehouseComponent } from './components/warehouse/warehouse.component';
-import { RbSessionListComponent } from './components/rb-session-list/rb-session-list.component';
+import { RaidsComponent } from './components/raids/raids.component';
 import { StatisticsComponent } from './components/statistics/statistics.component';
 import { RaidBossListComponent } from './components/raid-boss-list/raid-boss-list.component';
 import { RbMapComponent } from './components/rb-map/rb-map.component';
@@ -22,7 +22,7 @@ export const routes: Routes = [
 	{ path: 'users', component: UsersComponent, canActivate: [authGuard] },
 	{ path: 'const-party', component: UsersComponent, canActivate: [authGuard] },
 	{ path: 'warehouse', component: WarehouseComponent, canActivate: [authGuard, warehouseGuard] },
-	{ path: 'raids', component: RbSessionListComponent, canActivate: [authGuard, adminGuard] },
+	{ path: 'raids', component: RaidsComponent, canActivate: [authGuard, warehouseGuard] },
 	{ path: 'rb-list', component: RaidBossListComponent, canActivate: [authGuard, adminGuard] },
 	{ path: 'rb-map', component: RbMapComponent, canActivate: [authGuard] },
 	{ path: 'bookmarks', component: BookmarksComponent, canActivate: [authGuard] },

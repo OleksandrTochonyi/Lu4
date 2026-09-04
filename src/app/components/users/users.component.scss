@@ -145,6 +145,18 @@
   gap: 0.35rem;
   flex-shrink: 0;
 }
+.pack-tab-power {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #b45309;
+  font-size: 0.7rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
 
 .rail-empty {
   padding: 0.8rem;
@@ -270,6 +282,12 @@
 .chip-pl {
   background: #dcfce7;
   color: #15803d;
+}
+.chip-power {
+  background: #fef3c7;
+  color: #b45309;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
 .chip-warn {
   background: #fef3c7;
@@ -571,6 +589,24 @@ $ml-cols: minmax(190px, 2.2fr) minmax(150px, 1.6fr) 52px minmax(110px, 1.1fr)
   display: flex;
   flex-direction: column;
   gap: 0.28rem;
+}
+.ml-power {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #b45309;
+  font-size: 0.74rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+}
+.ml-power-ic {
+  font-size: 0.82rem;
+  line-height: 1;
 }
 .ml-gearbar {
   display: flex;

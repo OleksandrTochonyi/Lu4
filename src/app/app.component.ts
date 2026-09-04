@@ -102,7 +102,7 @@ export class AppComponent {
       label: 'Raids',
       icon: 'pi pi-book',
       routerLink: '/raids',
-      adminOnly: true,
+      warehouseOnly: true,
     },
     // {
     //   label: 'RB List',

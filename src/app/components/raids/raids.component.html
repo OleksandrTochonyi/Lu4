@@ -1,0 +1,625 @@
+<p-confirmDialog />
+
+<div class="rd-page">
+  <div class="rd-head">
+    <div class="rd-head-text">
+      <h1>Рейд-боссы</h1>
+      <p>Убийства, дроп на складе, продажи и выплаты</p>
+    </div>
+    <button pButton type="button" icon="pi pi-cog" label="Выплаты" class="p-button-sm p-button-outlined"
+      (click)="openConfig()"></button>
+  </div>
+
+  <div class="rd-seg">
+    <button type="button" class="rd-seg-btn" [class.active]="view() === 'kills'" (click)="view.set('kills')">
+      <i class="pi pi-flag-fill"></i> Убийства
+      <span class="rd-seg-count">{{ kills().length }}</span>
+    </button>
+    <button type="button" class="rd-seg-btn" [class.active]="view() === 'drop'" (click)="view.set('drop')">
+      <i class="pi pi-box"></i> Дроп на складе
+      <span class="rd-seg-count">{{ dropGroups().length }}</span>
+    </button>
+    <button type="button" class="rd-seg-btn" [class.active]="view() === 'sales'" (click)="view.set('sales')">
+      <i class="pi pi-wallet"></i> Продажи
+      <span class="rd-seg-count" *ngIf="totalUnpaid() > 0" [pTooltip]="'Не выдано: ' + fmtMoney(totalUnpaid())"
+        tooltipPosition="top">{{ fmtMoney(totalUnpaid()) }}</span>
+    </button>
+    <button type="button" class="rd-seg-btn" [class.active]="view() === 'stats'" (click)="view.set('stats')">
+      <i class="pi pi-chart-bar"></i> Статистика
+    </button>
+  </div>
+
+  <div class="rd-content">
+  <!-- ============================================================= KILLS === -->
+  <section *ngIf="view() === 'kills'" class="rd-body">
+    <div class="rd-toolbar">
+      <span class="rd-search">
+        <i class="pi pi-search"></i>
+        <input pInputText type="text" [ngModel]="killSearch()" (ngModelChange)="killSearch.set($event)"
+          placeholder="Поиск: босс, игрок, дроп, дата…" />
+      </span>
+      <div class="rd-chips">
+        <button type="button" class="rd-toggle-chip" [class.active]="killStatusFilter() === 'all'"
+          (click)="killStatusFilter.set('all')">Все</button>
+        <button type="button" class="rd-toggle-chip" [class.active]="killStatusFilter() === 'open'"
+          (click)="killStatusFilter.set('open')">Есть дроп</button>
+        <button type="button" class="rd-toggle-chip rd-toggle-chip--done" [class.active]="killStatusFilter() === 'closed'"
+          (click)="killStatusFilter.set('closed')">Распродано</button>
+      </div>
+      <span class="rd-spacer"></span>
+      <button pButton type="button" icon="pi pi-plus" label="Отметить убийство" (click)="openKillDialog()"></button>
+    </div>
+
+    <div class="rd-kills" *ngIf="filteredKills().length; else emptyKills">
+      <div class="rd-kill" *ngFor="let k of filteredKills(); trackBy: trackByKill"
+        [class.is-open]="isKillExpanded(k.id)" [class.is-soldout]="isKillFullySold(k)">
+        <div class="rd-kill-head" role="button" tabindex="0" (click)="toggleKillExpanded(k.id)"
+          (keydown.enter)="toggleKillExpanded(k.id)">
+          <i class="pi rd-kill-chevron" [ngClass]="isKillExpanded(k.id) ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
+          <span class="rd-kill-badge" [class.is-soldout]="isKillFullySold(k)">
+            <i class="pi" [ngClass]="isKillFullySold(k) ? 'pi-check' : 'pi-flag-fill'"></i>
+          </span>
+          <span class="rd-kill-title">
+            <b>{{ k.bossName }}</b>
+            <span class="rd-kill-lvl" *ngIf="k.bossLevel">ур. {{ k.bossLevel }}</span>
+          </span>
+          <span class="rd-kill-soldout-tag" *ngIf="isKillFullySold(k)" pTooltip="Весь дроп с этого убийства продан"
+            tooltipPosition="top">
+            <i class="pi pi-check-circle"></i> Распродано
+          </span>
+          <span class="rd-kill-date">{{ fmtDate(k.killedAt) }}</span>
+          <button pButton type="button" icon="pi pi-trash" class="p-button-sm p-button-text p-button-danger"
+            pTooltip="Удалить" tooltipPosition="left"
+            (click)="$event.stopPropagation(); confirmDeleteKill(k)"></button>
+        </div>
+
+        <div class="rd-kill-body" *ngIf="isKillExpanded(k.id)">
+          <ng-container *ngIf="participantsByPack(k).length; else noParticipants">
+            <div class="rd-kill-pack" *ngFor="let grp of participantsByPack(k)">
+              <div class="rd-kill-pack-h">
+                <span class="rd-chip rd-chip--pack">{{ grp.groupName }}</span>
+                <span class="rd-kill-pcount">{{ grp.people.length }} чел.</span>
+              </div>
+              <div class="rd-kill-names">
+                <span class="rd-name-pill" *ngFor="let p of grp.people" [class.is-merc]="isMercRosterMember(p.userId)"
+                  [pTooltip]="isMercRosterMember(p.userId) ? 'Наёмник' : ''" tooltipPosition="top">
+                  {{ p.name }}
+                </span>
+              </div>
+            </div>
+          </ng-container>
+          <ng-template #noParticipants>
+            <div class="rd-muted">Участники не отмечены</div>
+          </ng-template>
+
+          <div class="rd-kill-drops-wrap" *ngIf="k.drops.length">
+            <div class="rd-kill-section-h">Дроп</div>
+            <div class="rd-kill-drops">
+              <span class="rd-drop-chip" *ngFor="let d of k.drops"
+                [class.is-soldout]="dropRemaining(k, d) === 0"
+                [class.is-partial]="dropSoldQty(k, d) > 0 && dropRemaining(k, d) > 0">
+                <img *ngIf="d.icon" [src]="d.icon" (error)="imgError($event)" alt="" />
+                <span class="rd-drop-chip-name">{{ d.name }} × {{ d.qty }}</span>
+                <span class="rd-drop-chip-remain" *ngIf="dropSoldQty(k, d) > 0"
+                  [pTooltip]="'Продано ' + dropSoldQty(k, d) + ' из ' + d.qty" tooltipPosition="top">
+                  <i class="pi" [ngClass]="dropRemaining(k, d) === 0 ? 'pi-check-circle' : 'pi-arrow-right'"></i>
+                  {{ dropRemaining(k, d) === 0 ? 'продано' : ('остаток ' + dropRemaining(k, d)) }}
+                </span>
+              </span>
+            </div>
+          </div>
+
+          <div class="rd-kill-note" *ngIf="k.note"><i class="pi pi-comment"></i> {{ k.note }}</div>
+        </div>
+      </div>
+    </div>
+
+    <ng-template #emptyKills>
+      <div class="rd-empty">
+        <div class="rd-empty-ic">
+          <i class="pi" [ngClass]="killSearch() || killStatusFilter() !== 'all' ? 'pi-search' : 'pi-flag'"></i>
+        </div>
+        <p class="rd-empty-title">
+          {{ killSearch() || killStatusFilter() !== 'all' ? 'Ничего не найдено' : 'Убийств ещё нет' }}
+        </p>
+        <p class="rd-empty-sub">
+          {{ killSearch() || killStatusFilter() !== 'all'
+            ? 'Попробуйте другой запрос или фильтр'
+            : 'Отметьте первое, когда завалите босса' }}
+        </p>
+        <button *ngIf="!killSearch() && killStatusFilter() === 'all'" pButton type="button"
+          label="Отметить убийство" icon="pi pi-plus" class="p-button-sm" (click)="openKillDialog()"></button>
+      </div>
+    </ng-template>
+  </section>
+
+  <!-- ================================================================ DROP === -->
+  <section *ngIf="view() === 'drop'" class="rd-body">
+    <div class="rd-toolbar">
+      <span class="rd-search">
+        <i class="pi pi-search"></i>
+        <input pInputText type="text" [ngModel]="dropSearch()" (ngModelChange)="dropSearch.set($event)"
+          placeholder="Поиск дропа…" />
+      </span>
+    </div>
+
+    <div class="rd-drop-groups" *ngIf="filteredDropGroups().length; else emptyDrop">
+      <div class="rd-drop-group" *ngFor="let g of filteredDropGroups(); trackBy: trackByGroupItem">
+        <button type="button" class="rd-group-head" (click)="toggleDropGroup(g.key)">
+          <i class="pi" [ngClass]="isDropGroupOpen(g.key) ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
+          <img *ngIf="g.icon" [src]="g.icon" (error)="imgError($event)" alt="" class="rd-group-icon" />
+          <span class="rd-group-name">{{ g.name }}</span>
+          <app-grade-badge [grade]="g.grade" />
+          <span class="rd-group-total">{{ g.total }} шт</span>
+        </button>
+
+        <div class="rd-drop-lines" *ngIf="isDropGroupOpen(g.key)">
+          <div class="rd-drop-line" *ngFor="let l of g.lines; trackBy: trackByLine">
+            <span class="rd-line-boss">{{ l.kill.bossName }}</span>
+            <span class="rd-line-date">{{ fmtDate(l.kill.killedAt) }}</span>
+            <span class="rd-line-qty">{{ l.remaining }} шт</span>
+            <button pButton type="button" label="Продать" icon="pi pi-money-bill" class="p-button-sm"
+              (click)="openSell(l)"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <ng-template #emptyDrop>
+      <div class="rd-empty">
+        <div class="rd-empty-ic"><i class="pi pi-box"></i></div>
+        <p class="rd-empty-title">{{ dropSearch() ? 'Ничего не найдено' : 'Дропа на складе нет' }}</p>
+        <p class="rd-empty-sub">
+          {{ dropSearch() ? 'Попробуйте другой запрос' : 'Появится после отметки убийства с дропом' }}
+        </p>
+      </div>
+    </ng-template>
+  </section>
+
+  <!-- =============================================================== SALES === -->
+  <section *ngIf="view() === 'sales'" class="rd-body">
+    <div class="rd-toolbar">
+      <span class="rd-search">
+        <i class="pi pi-search"></i>
+        <input pInputText type="text" [ngModel]="salesSearch()" (ngModelChange)="salesSearch.set($event)"
+          placeholder="Поиск: предмет, босс, продавец, дата…" />
+      </span>
+    </div>
+
+    <div class="rd-outstanding" *ngIf="openSales().length">
+      <div class="rd-out-h">
+        <i class="pi pi-exclamation-triangle" *ngIf="totalUnpaid() > 0"></i>
+        В процессе: {{ openSales().length }} {{ openSales().length === 1 ? 'продажа' : 'продаж' }},
+        к выдаче <b>{{ fmtMoney(totalUnpaid()) }}</b>
+      </div>
+      <div class="rd-out-list">
+        <span class="rd-out-chip" [class.is-zero]="outstanding().bank.unpaid === 0">
+          Банк: {{ fmtMoney(outstanding().bank.unpaid) }} / {{ fmtMoney(outstanding().bank.total) }}
+        </span>
+        <span class="rd-out-chip" *ngFor="let l of outstanding().leaders" [class.is-zero]="l.unpaid === 0">
+          {{ l.name }} (лидер): {{ fmtMoney(l.unpaid) }} / {{ fmtMoney(l.total) }}
+        </span>
+        <span class="rd-out-chip" *ngFor="let m of outstanding().mercs" [class.is-zero]="m.unpaid === 0">
+          {{ m.name }}: {{ fmtMoney(m.unpaid) }} / {{ fmtMoney(m.total) }}
+        </span>
+      </div>
+      <button pButton type="button" label="Всем выдано" icon="pi pi-check-double" class="p-button-sm"
+        [disabled]="settlingAll() || totalUnpaid() === 0" (click)="confirmSettleAll()"></button>
+    </div>
+
+    <ng-container *ngIf="sales().length; else emptySales">
+      <div class="rd-empty rd-sales-nomatch"
+        *ngIf="salesSearch() && !filteredOpenSales().length && !filteredClosedSales().length">
+        <div class="rd-empty-ic"><i class="pi pi-search"></i></div>
+        <p class="rd-empty-title">Ничего не найдено</p>
+        <p class="rd-empty-sub">Попробуйте другой запрос</p>
+      </div>
+
+      <div class="rd-sales-h">
+        В процессе
+        <span class="rd-sales-h-n">{{ filteredOpenSales().length }}</span>
+      </div>
+      <div class="rd-sales" *ngIf="filteredOpenSales().length; else noneOpen">
+        <ng-container *ngFor="let s of filteredOpenSales(); trackBy: trackBySale">
+          <ng-container *ngTemplateOutlet="saleRow; context: { $implicit: s }"></ng-container>
+        </ng-container>
+      </div>
+      <ng-template #noneOpen>
+        <div class="rd-muted rd-sales-empty" *ngIf="!salesSearch()">Все продажи выданы</div>
+      </ng-template>
+
+      <ng-container *ngIf="filteredClosedSales().length">
+        <div class="rd-sales-h rd-sales-h--closed">
+          Завершённые
+          <span class="rd-sales-h-n">{{ filteredClosedSales().length }}</span>
+        </div>
+        <div class="rd-sales rd-sales--closed">
+          <ng-container *ngFor="let s of filteredClosedSales(); trackBy: trackBySale">
+            <ng-container *ngTemplateOutlet="saleRow; context: { $implicit: s }"></ng-container>
+          </ng-container>
+        </div>
+      </ng-container>
+    </ng-container>
+
+    <ng-template #emptySales>
+      <div class="rd-empty">
+        <div class="rd-empty-ic"><i class="pi pi-wallet"></i></div>
+        <p class="rd-empty-title">Продаж ещё нет</p>
+        <p class="rd-empty-sub">Продайте что-нибудь во вкладке «Дроп на складе»</p>
+      </div>
+    </ng-template>
+  </section>
+
+  <!-- ============================================================= STATS === -->
+  <section *ngIf="view() === 'stats'" class="rd-body">
+    <div class="rd-stat-tiles">
+      <div class="rd-stat-tile">
+        <span class="rd-stat-label">Убито РБ</span>
+        <span class="rd-stat-value">{{ statsSummary().totalKills }}</span>
+      </div>
+      <div class="rd-stat-tile">
+        <span class="rd-stat-label">Продаж</span>
+        <span class="rd-stat-value">{{ statsSummary().totalSales }}</span>
+      </div>
+      <div class="rd-stat-tile rd-stat-tile--good">
+        <span class="rd-stat-label">Заработали</span>
+        <span class="rd-stat-value">{{ fmtMoney(statsSummary().totalPaid) }}</span>
+      </div>
+      <div class="rd-stat-tile">
+        <span class="rd-stat-label">Банк получил</span>
+        <span class="rd-stat-value">{{ fmtMoney(statsSummary().bankTotal) }}</span>
+      </div>
+    </div>
+
+    <ng-container *ngIf="sales().length; else emptyStats">
+      <div class="rd-sales-h">По людям</div>
+      <div class="rd-stat-table rd-stat-table--people">
+        <div class="rd-stat-row rd-stat-row--h">
+          <span>Имя</span><span>Роль</span><span class="rd-stat-num">Выдано</span>
+          <span class="rd-stat-num">Ожидает</span><span class="rd-stat-num">Выплат</span>
+          <span class="rd-stat-num">Последняя</span>
+        </div>
+        <div class="rd-stat-row" *ngFor="let p of personStats()">
+          <span class="rd-stat-name">{{ p.name }}</span>
+          <span><span class="rd-role-tag" [ngClass]="'rd-role-tag--' + p.role">{{ roleLabel(p.role) }}</span></span>
+          <span class="rd-stat-num rd-stat-num--good">{{ fmtMoney(p.paidTotal) }}</span>
+          <span class="rd-stat-num" [class.rd-stat-num--warn]="p.pendingTotal > 0">{{ fmtMoney(p.pendingTotal) }}</span>
+          <span class="rd-stat-num">{{ p.count }}</span>
+          <span class="rd-stat-num">{{ p.lastPaidAt ? fmtDate(p.lastPaidAt) : '—' }}</span>
+        </div>
+      </div>
+
+      <div class="rd-sales-h">Топ дропа по выручке</div>
+      <div class="rd-stat-table rd-stat-table--items">
+        <div class="rd-stat-row rd-stat-row--h">
+          <span>Предмет</span><span class="rd-stat-num">Продано, шт</span>
+          <span class="rd-stat-num">Выручка</span>
+        </div>
+        <div class="rd-stat-row" *ngFor="let it of topItems()">
+          <span class="rd-stat-name">
+            <img *ngIf="it.icon" [src]="it.icon" (error)="imgError($event)" alt="" class="rd-stat-icon" />
+            {{ it.name }}
+            <app-grade-badge [grade]="it.grade" />
+          </span>
+          <span class="rd-stat-num">{{ it.qty }}</span>
+          <span class="rd-stat-num rd-stat-num--good">{{ fmtMoney(it.revenue) }}</span>
+        </div>
+      </div>
+
+      <div class="rd-sales-h">По боссам</div>
+      <div class="rd-stat-table rd-stat-table--bosses">
+        <div class="rd-stat-row rd-stat-row--h">
+          <span>Босс</span><span class="rd-stat-num">Убийств</span>
+          <span class="rd-stat-num">Выручка</span>
+        </div>
+        <div class="rd-stat-row" *ngFor="let b of bossStats()">
+          <span class="rd-stat-name">{{ b.name }}</span>
+          <span class="rd-stat-num">{{ b.kills }}</span>
+          <span class="rd-stat-num rd-stat-num--good">{{ fmtMoney(b.revenue) }}</span>
+        </div>
+      </div>
+
+      <div class="rd-sales-h">Последние выплаты</div>
+      <div class="rd-stat-table rd-stat-table--payouts" *ngIf="recentPayouts().length; else noPayouts">
+        <div class="rd-stat-row rd-stat-row--h">
+          <span>Кому</span><span>Роль</span><span class="rd-stat-num">Сумма</span>
+          <span>За что</span><span class="rd-stat-num">Когда</span>
+        </div>
+        <div class="rd-stat-row" *ngFor="let e of recentPayouts()">
+          <span class="rd-stat-name">{{ e.recipientName }}</span>
+          <span><span class="rd-role-tag" [ngClass]="'rd-role-tag--' + e.role">{{ roleLabel(e.role) }}</span></span>
+          <span class="rd-stat-num rd-stat-num--good">{{ fmtMoney(e.amount) }}</span>
+          <span class="rd-stat-item">{{ e.itemName }} <span class="rd-muted">· {{ e.bossName }}</span></span>
+          <span class="rd-stat-num">{{ fmtDate(e.paidAt!) }}</span>
+        </div>
+      </div>
+      <div class="rd-pager" *ngIf="recentPageCount() > 1">
+        <span class="rd-pager-info">
+          {{ recentRangeStart() }}–{{ recentRangeEnd() }}
+          из {{ allRecentPayouts().length }}
+        </span>
+        <div class="rd-pager-ctrls">
+          <button type="button" class="rd-pg-btn" [disabled]="recentSafePage() === 0"
+            (click)="goRecentPage(0)"><i class="pi pi-angle-double-left"></i></button>
+          <button type="button" class="rd-pg-btn" [disabled]="recentSafePage() === 0"
+            (click)="goRecentPage(recentSafePage() - 1)"><i class="pi pi-angle-left"></i></button>
+          <button type="button" class="rd-pg-btn rd-pg-num" *ngFor="let p of recentPageWindow()"
+            [class.active]="p === recentSafePage()" (click)="goRecentPage(p)">{{ p + 1 }}</button>
+          <button type="button" class="rd-pg-btn" [disabled]="recentSafePage() >= recentPageCount() - 1"
+            (click)="goRecentPage(recentSafePage() + 1)"><i class="pi pi-angle-right"></i></button>
+          <button type="button" class="rd-pg-btn" [disabled]="recentSafePage() >= recentPageCount() - 1"
+            (click)="goRecentPage(recentPageCount() - 1)"><i class="pi pi-angle-double-right"></i></button>
+        </div>
+      </div>
+      <ng-template #noPayouts>
+        <div class="rd-muted rd-sales-empty">Выплат пока не было</div>
+      </ng-template>
+    </ng-container>
+
+    <ng-template #emptyStats>
+      <div class="rd-empty">
+        <div class="rd-empty-ic"><i class="pi pi-chart-bar"></i></div>
+        <p class="rd-empty-title">Статистики пока нет</p>
+        <p class="rd-empty-sub">Появится после первых продаж</p>
+      </div>
+    </ng-template>
+  </section>
+  </div>
+</div>
+
+<!-- one sale card, reused for "в процессе" and "завершённые" -->
+<ng-template #saleRow let-s>
+  <div class="rd-sale" [class.is-settled]="isSaleSettled(s)">
+    <button type="button" class="rd-sale-head" (click)="toggleSaleExpanded(s.id)">
+      <i class="pi" [ngClass]="isSaleExpanded(s.id) ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
+      <img *ngIf="s.icon" [src]="s.icon" (error)="imgError($event)" alt="" class="rd-sale-icon" />
+      <span class="rd-sale-name">{{ s.itemName }} × {{ s.qty }}</span>
+      <app-grade-badge [grade]="s.grade" />
+      <i class="pi pi-check-circle rd-sale-done" *ngIf="isSaleSettled(s)" pTooltip="Всё выдано"></i>
+      <span class="rd-sale-boss">{{ s.bossName }}</span>
+      <span class="rd-sale-price">{{ fmtMoney(s.price) }}</span>
+      <span class="rd-sale-date">{{ fmtDate(s.soldAt) }}</span>
+    </button>
+
+    <div class="rd-sale-body" *ngIf="isSaleExpanded(s.id)">
+      <div class="rd-sale-meta">Продал: {{ s.soldBy }}</div>
+
+      <div class="rd-lock-banner" *ngIf="s.locked">
+        <i class="pi pi-lock"></i>
+        Зафиксировано — выплаты закрыты
+        <button pButton type="button" label="Редактировать" icon="pi pi-pencil"
+          class="p-button-sm p-button-text" (click)="confirmUnlockSale(s)"></button>
+      </div>
+
+      <div class="rd-lock-banner rd-lock-banner--editing" *ngIf="!s.locked && isSaleSettled(s)">
+        <i class="pi pi-lock-open"></i>
+        Редактирование включено
+        <button pButton type="button" label="Отмена" icon="pi pi-times"
+          class="p-button-sm p-button-text" (click)="lockSale(s)"></button>
+      </div>
+
+      <div class="rd-payout" [class.is-locked]="s.locked">
+        <div class="rd-payout-row">
+          <span class="rd-payout-who">Банк ({{ s.payout.bankPercent }}%)</span>
+          <span class="rd-payout-amt">{{ fmtMoney(s.payout.bank.amount) }}</span>
+          <button pButton type="button" class="p-button-sm" [disabled]="s.locked"
+            [class.p-button-success]="s.payout.bank.paid" [class.p-button-outlined]="!s.payout.bank.paid"
+            [label]="s.payout.bank.paid ? 'Выдано' : 'Отметить выдачу'" icon="pi pi-check"
+            (click)="togglePaid(s, { kind: 'bank' }, !s.payout.bank.paid)"></button>
+        </div>
+        <div class="rd-payout-row">
+          <span class="rd-payout-who">{{ s.payout.leaderName || 'Лидер' }} (остаток)</span>
+          <span class="rd-payout-amt">{{ fmtMoney(s.payout.leader.amount) }}</span>
+          <button pButton type="button" class="p-button-sm" [disabled]="s.locked"
+            [class.p-button-success]="s.payout.leader.paid" [class.p-button-outlined]="!s.payout.leader.paid"
+            [label]="s.payout.leader.paid ? 'Выдано' : 'Отметить выдачу'" icon="pi pi-check"
+            (click)="togglePaid(s, { kind: 'leader' }, !s.payout.leader.paid)"></button>
+        </div>
+        <div class="rd-payout-row" *ngFor="let m of mercEntries(s)">
+          <span class="rd-payout-who">{{ m.value.name }} ({{ s.payout.mercenaryPercent }}%)</span>
+          <span class="rd-payout-amt">{{ fmtMoney(m.value.amount) }}</span>
+          <button pButton type="button" class="p-button-sm" [disabled]="s.locked"
+            [class.p-button-success]="m.value.paid" [class.p-button-outlined]="!m.value.paid"
+            [label]="m.value.paid ? 'Выдано' : 'Отметить выдачу'" icon="pi pi-check"
+            (click)="togglePaid(s, { kind: 'merc', userId: m.key }, !m.value.paid)"></button>
+        </div>
+        <div class="rd-payout-row" *ngIf="!mercEntries(s).length">
+          <span class="rd-muted">Наёмников на этом убийстве не было</span>
+        </div>
+      </div>
+
+      <button pButton type="button" label="Удалить продажу" icon="pi pi-trash" [disabled]="s.locked"
+        class="p-button-sm p-button-text p-button-danger" (click)="confirmDeleteSale(s)"></button>
+    </div>
+  </div>
+</ng-template>
+
+<!-- ==================================================== MARK KILL DIALOG === -->
+<p-dialog [visible]="killDialogOpen()" (visibleChange)="$event || closeKillDialog()" [modal]="true"
+  [draggable]="false" [dismissableMask]="true" [style]="{ width: 'min(720px, 96vw)' }" header="Отметить убийство">
+  <div class="rd-form">
+    <div class="rd-form-row">
+      <label class="rd-field rd-field--grow">
+        <span>Рейд-босс (по уровню)</span>
+        <p-dropdown [options]="bossOptions()" optionLabel="label" optionValue="value" [filter]="true"
+          filterBy="label" [ngModel]="killBossId()" (ngModelChange)="onKillBossChange($event)"
+          placeholder="Выбрать" appendTo="body"></p-dropdown>
+      </label>
+      <label class="rd-field">
+        <span>Дата и время</span>
+        <input type="datetime-local" class="rd-datetime" [ngModel]="killDate()"
+          (ngModelChange)="killDate.set($event)" />
+      </label>
+    </div>
+
+    <div class="rd-field">
+      <span>Паки, которые были</span>
+      <div class="rd-chips">
+        <button type="button" class="rd-toggle-chip" *ngFor="let g of groups(); trackBy: trackByGroup"
+          [class.active]="isKillPackOn(g.id)" (click)="toggleKillPack(g.id)">{{ g.displayName }}</button>
+      </div>
+    </div>
+
+    <div class="rd-field" *ngIf="killSelectedGroups().length">
+      <span>Участники (выбрано {{ killParticipantCount() }})</span>
+      <div class="rd-participants">
+        <div class="rd-part-group" *ngFor="let g of killSelectedGroups(); trackBy: trackByGroup">
+          <div class="rd-part-group-h">
+            {{ g.displayName }}
+            <span class="rd-part-group-n">{{ groupParticipantCount(g) }}/{{ g.users.length }}</span>
+            <span class="rd-spacer"></span>
+            <button type="button" class="rd-mini-link" (click)="selectAllInGroup(g)">все</button>
+            <button type="button" class="rd-mini-link" (click)="clearGroupParticipants(g)">никого</button>
+          </div>
+          <div class="rd-part-grid">
+            <button type="button" class="rd-part-pill" *ngFor="let u of g.users; trackBy: trackByUser"
+              [class.active]="isKillParticipantOn(g.id, u.id)" (click)="toggleKillParticipant(g.id, u.id)">
+              <i class="pi" [ngClass]="isKillParticipantOn(g.id, u.id) ? 'pi-check-circle' : 'pi-circle'"></i>
+              {{ u.name }}
+              <span class="rd-part-twink" *ngIf="u.isTwink">твинк</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rd-field">
+      <span>Дроп — из таблицы дропа выбранного босса</span>
+
+      <div class="rd-loot-list" *ngIf="killLootRows().length; else lootEmpty">
+        <div class="rd-loot-row" *ngFor="let r of killLootRows(); trackBy: trackByLootRow"
+          [class.active]="r.checked">
+          <button type="button" class="rd-loot-check" (click)="toggleLootRow(r.key)">
+            <i class="pi" [ngClass]="r.checked ? 'pi-check-square' : 'pi-stop'"></i>
+          </button>
+          <img *ngIf="r.loot.imgUrl" [src]="r.loot.imgUrl" (error)="imgError($event)" alt="" class="rd-loot-icon" />
+          <span class="rd-loot-name">{{ r.loot.displayName }}</span>
+          <app-grade-badge [grade]="r.loot.grade" />
+          <span class="rd-loot-chance" *ngIf="r.loot.chance">{{ r.loot.chance }}%</span>
+          <p-inputNumber *ngIf="r.checked" [ngModel]="r.qty" (ngModelChange)="setLootRowQty(r.key, $event)"
+            [min]="1" [showButtons]="true" inputStyleClass="rd-loot-qty"></p-inputNumber>
+        </div>
+      </div>
+      <ng-template #lootEmpty>
+        <div class="rd-muted rd-loot-empty">
+          {{ killBossId() ? 'Для этого босса в базе нет таблицы дропа' : 'Сначала выберите рейд-босса' }}
+        </div>
+      </ng-template>
+    </div>
+
+    <label class="rd-field">
+      <span>Заметка (необязательно)</span>
+      <input pInputText type="text" [ngModel]="killNote()" (ngModelChange)="killNote.set($event)" />
+    </label>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button pButton type="button" label="Отмена" class="p-button-sm p-button-text" (click)="closeKillDialog()"></button>
+    <button pButton type="button" label="Сохранить" class="p-button-sm" [disabled]="savingKill()"
+      (click)="submitKill()"></button>
+  </ng-template>
+</p-dialog>
+
+<!-- =========================================================== SELL DIALOG === -->
+<p-dialog [visible]="!!sellLine()" (visibleChange)="$event || closeSell()" [modal]="true" [draggable]="false"
+  [dismissableMask]="true" [style]="{ width: 'min(480px, 96vw)' }">
+  <ng-template pTemplate="header">
+    <span class="rd-sell-title" *ngIf="sellLine() as l">
+      <img *ngIf="l.drop.icon" [src]="l.drop.icon" (error)="imgError($event)" alt="" />
+      Продать «{{ l.drop.name }}»
+    </span>
+  </ng-template>
+
+  <div class="rd-form" *ngIf="sellLine() as l">
+    <div class="rd-sell-src">С убийства «{{ l.kill.bossName }}» от {{ fmtDate(l.kill.killedAt) }}</div>
+
+    <div class="rd-form-row">
+      <label class="rd-field">
+        <span>Количество (доступно {{ l.remaining }})</span>
+        <p-inputNumber [ngModel]="sellQty()" (ngModelChange)="sellQty.set($event || 1)" [min]="1"
+          [max]="l.remaining" [showButtons]="true"></p-inputNumber>
+      </label>
+      <label class="rd-field rd-field--grow">
+        <span>Цена (всего)</span>
+        <p-inputNumber [ngModel]="sellPrice()" (ngModelChange)="sellPrice.set($event || 0)" [min]="0"
+          [showButtons]="true"></p-inputNumber>
+      </label>
+    </div>
+
+    <div class="rd-payout-preview" *ngIf="sellPayoutPreview() as p">
+      <div class="rd-payout-row">
+        <span class="rd-payout-who">Банк ({{ p.bankPercent }}%)</span>
+        <span class="rd-payout-amt">{{ fmtMoney(p.bank.amount) }}</span>
+      </div>
+      <div class="rd-payout-row">
+        <span class="rd-payout-who">{{ p.leaderName }} (остаток)</span>
+        <span class="rd-payout-amt">{{ fmtMoney(p.leader.amount) }}</span>
+      </div>
+      <div class="rd-payout-row" *ngFor="let m of mercPreviewList()">
+        <span class="rd-payout-who">{{ m.name }} ({{ p.mercenaryPercent }}%)</span>
+        <span class="rd-payout-amt">{{ fmtMoney(m.amount) }}</span>
+      </div>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button pButton type="button" label="Отмена" class="p-button-sm p-button-text" (click)="closeSell()"></button>
+    <button pButton type="button" label="Продать" class="p-button-sm" [disabled]="savingSale()"
+      (click)="submitSell()"></button>
+  </ng-template>
+</p-dialog>
+
+<!-- ========================================================= CONFIG DIALOG === -->
+<p-dialog [visible]="configOpen()" (visibleChange)="$event || closeConfig()" [modal]="true" [draggable]="false"
+  [dismissableMask]="true" [style]="{ width: 'min(620px, 96vw)' }" header="Настройки выплат">
+  <div class="rd-form">
+    <p class="rd-hint">
+      Лидер получает остаток. Банк — фиксированный % от каждой продажи. Наёмником может стать
+      только игрок из списка ниже — и то лишь если он был именно на том убийстве, с которого продан
+      дроп; остальные участники убийства ничего не получают.
+    </p>
+
+    <label class="rd-field">
+      <span>Лидер (получает остаток)</span>
+      <p-dropdown [options]="leaderOptions()" optionLabel="label" optionValue="value" [filter]="true"
+        filterBy="label" [ngModel]="cfgLeaderKey()" (ngModelChange)="cfgLeaderKey.set($event)"
+        placeholder="Выбрать игрока" appendTo="body"></p-dropdown>
+    </label>
+
+    <div class="rd-form-row">
+      <label class="rd-field">
+        <span>Банк, %</span>
+        <p-inputNumber [ngModel]="cfgBankPercent()" (ngModelChange)="cfgBankPercent.set($event || 0)" [min]="0"
+          [max]="100" [showButtons]="true" suffix="%"></p-inputNumber>
+      </label>
+      <label class="rd-field">
+        <span>Наёмник, %</span>
+        <p-inputNumber [ngModel]="cfgMercPercent()" (ngModelChange)="cfgMercPercent.set($event || 0)" [min]="0"
+          [max]="100" [showButtons]="true" suffix="%"></p-inputNumber>
+      </label>
+    </div>
+
+    <div class="rd-field">
+      <span>Список наёмников (выбрано {{ cfgMercCount() }})</span>
+      <div class="rd-participants">
+        <div class="rd-part-group" *ngFor="let g of allGroupsForRoster(); trackBy: trackByGroup">
+          <div class="rd-part-group-h">{{ g.displayName }}</div>
+          <div class="rd-part-grid">
+            <button type="button" class="rd-part-pill" *ngFor="let u of g.users; trackBy: trackByUser"
+              [class.active]="isCfgMerc(g.id, u.id)" (click)="toggleCfgMerc(g.id, u.id)">
+              <i class="pi" [ngClass]="isCfgMerc(g.id, u.id) ? 'pi-check-circle' : 'pi-circle'"></i>
+              {{ u.name }}
+              <span class="rd-part-twink" *ngIf="u.isTwink">твинк</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button pButton type="button" label="Отмена" class="p-button-sm p-button-text" (click)="closeConfig()"></button>
+    <button pButton type="button" label="Сохранить" class="p-button-sm" [disabled]="savingConfig()"
+      (click)="saveConfig()"></button>
+  </ng-template>
+</p-dialog>

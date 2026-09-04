@@ -32,6 +32,9 @@
           [class.pack-tab--active]="selectedGroupId() === group.id" (click)="selectGroup(group)">
           <span class="pack-tab-name">{{ group.displayName }}</span>
           <span class="pack-tab-tags">
+            <span class="pack-tab-power"
+              [pTooltip]="'GS пака: ' + packPower(group) + ' куриных ножек (сумма 9 сильнейших основ)'"
+              tooltipPosition="top">🍗 {{ packPower(group) }}</span>
             <p-tag *ngIf="isPlHere(group)" value="Вы ПЛ" severity="success" styleClass="tag-xs"></p-tag>
             <p-badge [value]="group.users.length" severity="secondary"></p-badge>
           </span>
@@ -98,6 +101,10 @@
           </span>
 
           <span class="ml-c-gear">
+            <span class="ml-power" (click)="$event.stopPropagation()"
+              [pTooltip]="'GS ' + gearScore(user) + ' куриных ножек'" tooltipPosition="top">
+              <span class="ml-power-ic">🍗</span> {{ gearScore(user) }}
+            </span>
             <span class="ml-gearbar">
               <span *ngFor="let b of gradeBars(user)" class="ml-gearseg" [ngClass]="'grade-' + b.grade.toLowerCase()"
                 [style.width.%]="b.pct"
@@ -150,6 +157,11 @@
                 <span class="chip-sub" *ngIf="twinkMembers(group).length"
                   >+{{ twinkMembers(group).length }} тв.</span
                 >
+              </span>
+              <span class="chip chip-power"
+                [pTooltip]="'Сумма GS 9 сильнейших основ пака = ' + packPower(group) + ' куриных ножек'"
+                tooltipPosition="top">
+                🍗 {{ packPower(group) }}
               </span>
               <span class="chip chip-pl" *ngIf="leaderOf(group) as pl">
                 <i class="pi pi-star-fill"></i> ПЛ: {{ pl.name }}

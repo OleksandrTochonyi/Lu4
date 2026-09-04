@@ -67,8 +67,8 @@
       <div class="pm-gear-head">
         <span>Снаряжение</span>
         <span class="pm-score"
-          title="Сумма грейдов надетых предметов (D=1 … S=5) + бонус за заточку: +1 с +3, дальше +1 за каждую заточку">
-          <i class="pi pi-bolt"></i> {{ gearScore() }}
+          [pTooltip]="'GS ' + gearScore() + ' куриных ножек'" tooltipPosition="left">
+          <span class="pm-score-ic">🍗</span> {{ gearScore() }}
         </span>
       </div>
 

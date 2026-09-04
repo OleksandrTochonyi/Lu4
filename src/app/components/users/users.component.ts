@@ -22,6 +22,7 @@ import { GradeBadgeComponent } from '../shared/grade-badge/grade-badge.component
 import { PlayerModalComponent } from './player-modal/player-modal.component';
 import {
   CatalogItem,
+  CHEST_FULLBODY_KEY,
   EQUIP_SLOTS,
   Grade,
   GRADES,
@@ -29,6 +30,9 @@ import {
   expandEquipment,
   levelGrade,
   raceName,
+  readEnchant,
+  readWeaponDual,
+  readWeaponDualGrade,
   roleColor,
 } from '../../data/clan-mock-data';
 
@@ -208,8 +212,42 @@ export class UsersComponent {
     return this.userItems(user).length;
   }
 
+  private enchantBonus(level: number): number {
+    return level >= 3 ? level - 2 : 0;
+  }
+
+  /** per-slot effective grade (dual grade for a dual weapon) + enchant level */
+  private userRows(user: ConstPartyUser): { grade: Grade; ench: number }[] {
+    const raw = user.equipment ?? {};
+    const eq = expandEquipment(raw);
+    const dual = readWeaponDual(raw);
+    const dualGrade = readWeaponDualGrade(raw);
+    const fb = raw[CHEST_FULLBODY_KEY] === '1';
+    return EQUIP_SLOTS.map((s) => {
+      const item = this.itemById(eq[s.id]);
+      if (!item) return null;
+      const grade = (s.id === 'weapon' && dual && dualGrade ? dualGrade : item.grade) as Grade;
+      const encFrom = s.id === 'legs' && fb ? 'chest' : s.id;
+      return { grade, ench: readEnchant(raw, encFrom) };
+    }).filter((r): r is { grade: Grade; ench: number } => !!r);
+  }
+
+  /** «GS» — Σ grade rank (D1…S5) + enchant bonus, in куриных ножках 🍗 */
   gearScore(user: ConstPartyUser): number {
-    return this.userItems(user).reduce((sum, it) => sum + GRADE_RANK[it.grade], 0);
+    return this.userRows(user).reduce(
+      (sum, r) => sum + GRADE_RANK[r.grade] + this.enchantBonus(r.ench),
+      0,
+    );
+  }
+
+  /** pack strength = Σ мощность of the 9 strongest mains (twinks excluded) */
+  packPower(group: ConstPartyGroup): number {
+    return (group.users ?? [])
+      .filter((u) => !u.isTwink)
+      .map((u) => this.gearScore(u))
+      .sort((a, b) => b - a)
+      .slice(0, 9)
+      .reduce((sum, v) => sum + v, 0);
   }
 
   /** the grade that makes up MORE than 50% of the equipped items, else null */

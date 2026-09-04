@@ -16,6 +16,8 @@ export class AuthService {
   private auth = inject(Auth);
 
   private readonly storageKey = 'lu4_auth';
+  /** stored credentials expire a week after they were saved */
+  private readonly ttlMs = 7 * 24 * 60 * 60 * 1000;
 
   readonly user$: Observable<User | null> = authState(this.auth);
 
@@ -29,13 +31,17 @@ export class AuthService {
   }
 
   storeCredentials(email: string, password: string): void {
-    localStorage.setItem(this.storageKey, JSON.stringify({ email, password }));
+    localStorage.setItem(this.storageKey, JSON.stringify({ email, password, storedAt: Date.now() }));
   }
 
   clearStoredCredentials(): void {
     localStorage.removeItem(this.storageKey);
   }
 
+  /**
+   * Stored credentials are good for one week from when they were saved — past
+   * that, they're wiped (here, on read) and the user has to log in again.
+   */
   getStoredCredentials(): { email: string; password: string } | null {
     try {
       const raw = localStorage.getItem(this.storageKey);
@@ -45,6 +51,13 @@ export class AuthService {
       const password =
         typeof parsed?.password === 'string' ? parsed.password : null;
       if (!email || !password) return null;
+
+      const storedAt = Number(parsed?.storedAt);
+      if (!Number.isFinite(storedAt) || Date.now() - storedAt > this.ttlMs) {
+        this.clearStoredCredentials();
+        return null;
+      }
+
       return { email, password };
     } catch {
       return null;
