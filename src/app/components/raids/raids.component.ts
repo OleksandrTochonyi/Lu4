@@ -469,7 +469,11 @@ export class RaidsComponent {
   readonly dropGroups = computed<DropGroup[]>(() => {
     const byName = new Map<string, DropGroup>();
     for (const line of this.dropLines()) {
-      const gKey = line.drop.catalogId ?? normName(line.drop.name);
+      // Group strictly by the drop's own (verbatim) name, never by catalogId: catalogId
+      // comes from a normName()-based fuzzy match against the catalog, and normName()
+      // strips "(D-Grade)"/"(C-Grade)" as parenthetical noise — so different grades of the
+      // same scroll can resolve to the identical catalogId and would otherwise merge.
+      const gKey = line.drop.name.trim().toLowerCase();
       const g = byName.get(gKey) ?? {
         key: gKey,
         name: line.drop.name,
@@ -934,7 +938,7 @@ export class RaidsComponent {
       { name: string; icon: string | null; grade: string | null; qty: number; revenue: number; count: number }
     >();
     for (const s of this.sales()) {
-      const key = s.catalogId ?? normName(s.itemName);
+      const key = s.itemName.trim().toLowerCase();
       const cur = map.get(key) ?? { name: s.itemName, icon: s.icon, grade: s.grade, qty: 0, revenue: 0, count: 0 };
       cur.qty += s.qty;
       cur.revenue += s.price;
