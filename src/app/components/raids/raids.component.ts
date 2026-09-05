@@ -1070,12 +1070,20 @@ export class RaidsComponent {
     }
     return m;
   });
-  reservedForItem(key: string): number {
-    return this.reservedByDrafts().get(key) ?? 0;
+  /** qty of `key` held by drafts — pass `exceptId` to ignore the listing being edited,
+   *  so its own reservation doesn't count against raising its own quantity */
+  reservedForItem(key: string, exceptId?: string | null): number {
+    if (!exceptId) return this.reservedByDrafts().get(key) ?? 0;
+    let sum = 0;
+    for (const l of this.listings()) {
+      if (l.status !== 'draft' || l.id === exceptId) continue;
+      for (const ln of l.lines) if (ln.key === key) sum += ln.listedQty;
+    }
+    return sum;
   }
-  /** physical stock minus what other drafts already hold — what's free for a NEW listing */
-  private availableToList(key: string, total: number): number {
-    return Math.max(0, total - this.reservedForItem(key));
+  /** physical stock minus what OTHER drafts already hold — what's free for this listing */
+  private availableToList(key: string, total: number, exceptId?: string | null): number {
+    return Math.max(0, total - this.reservedForItem(key, exceptId));
   }
 
   readonly expandedListingIds = signal<Set<string>>(new Set());
@@ -1095,26 +1103,7 @@ export class RaidsComponent {
     return round2(l.lines.reduce((s, ln) => s + ln.listedQty * ln.unitPrice, 0));
   }
   listingSoldValue(l: RaidListing): number {
-    return round2(l.lines.reduce((s, ln) => s + this.soldQtyOf(l, ln) * ln.unitPrice, 0));
-  }
-
-  /** local, unsaved "продано" edits keyed by `${listingId}:${lineKey}` — committed to
-   *  the doc only when a "Сохранить как шаблон" / "Продать и попилить" button is pressed */
-  readonly soldQtyDraft = signal<Record<string, number>>({});
-  private soldKey(l: RaidListing, ln: RaidListingLine): string {
-    return `${l.id}:${ln.key}`;
-  }
-  soldQtyOf(l: RaidListing, ln: RaidListingLine): number {
-    const k = this.soldKey(l, ln);
-    const d = this.soldQtyDraft();
-    return k in d ? d[k] : ln.soldQty;
-  }
-  setSoldQty(l: RaidListing, ln: RaidListingLine, v: number): void {
-    const val = Math.max(0, Math.min(ln.listedQty, Math.round(Number(v) || 0)));
-    this.soldQtyDraft.update((d) => ({ ...d, [this.soldKey(l, ln)]: val }));
-  }
-  private committedLines(l: RaidListing): RaidListingLine[] {
-    return l.lines.map((ln) => ({ ...ln, soldQty: Math.max(0, Math.round(this.soldQtyOf(l, ln))) }));
+    return round2(l.lines.reduce((s, ln) => s + ln.soldQty * ln.unitPrice, 0));
   }
 
   /* -------- new-listing dialog -------- */
@@ -1139,7 +1128,11 @@ export class RaidsComponent {
     return `Список ${p(d.getDate())}.${p(d.getMonth() + 1)}`;
   }
 
+  /** set while editing an existing draft instead of creating a new list */
+  readonly editingListingId = signal<string | null>(null);
+
   openListingDialog(): void {
+    this.editingListingId.set(null);
     this.listingName.set(this.defaultListingName());
     this.listingRows.set(
       this.dropGroups()
@@ -1160,8 +1153,54 @@ export class RaidsComponent {
     );
     this.listingDialogOpen.set(true);
   }
+
+  /** re-open the same dialog on an existing draft — sold not everything overnight,
+   *  need to trim quantities / drop items / bump prices / add more */
+  openEditListing(l: RaidListing): void {
+    if (l.status !== 'draft') return;
+    this.editingListingId.set(l.id);
+    this.listingName.set(l.name);
+    const existing = new Map(l.lines.map((ln) => [ln.key, ln]));
+    const groups = this.dropGroups();
+    const groupByKey = new Map(groups.map((g) => [g.key, g]));
+    const rows: ListingRow[] = [];
+    // the list's own current lines first (checked), then whatever else is free to add
+    for (const ln of l.lines) {
+      const free = this.availableToList(ln.key, groupByKey.get(ln.key)?.total ?? 0, l.id);
+      rows.push({
+        key: ln.key,
+        name: ln.name,
+        icon: ln.icon,
+        grade: ln.grade,
+        catalogId: ln.catalogId,
+        available: Math.max(ln.listedQty, free),
+        checked: true,
+        listedQty: ln.listedQty,
+        unitPrice: ln.unitPrice,
+      });
+    }
+    for (const g of groups) {
+      if (existing.has(g.key)) continue;
+      const free = this.availableToList(g.key, g.total, l.id);
+      if (free <= 0) continue;
+      rows.push({
+        key: g.key,
+        name: g.name,
+        icon: g.icon,
+        grade: g.grade,
+        catalogId: g.lines[0]?.drop.catalogId ?? null,
+        available: free,
+        checked: false,
+        listedQty: 1,
+        unitPrice: 0,
+      });
+    }
+    this.listingRows.set(rows);
+    this.listingDialogOpen.set(true);
+  }
   closeListingDialog(): void {
     this.listingDialogOpen.set(false);
+    this.editingListingId.set(null);
   }
   toggleListingRow(key: string): void {
     this.listingRows.update((rows) =>
@@ -1189,10 +1228,11 @@ export class RaidsComponent {
       return;
     }
     // re-check against current free stock — another draft may have claimed some
-    // while this dialog was open
+    // while this dialog was open (ignoring THIS list's own reservation when editing)
+    const editId = this.editingListingId();
     const totalByKey = new Map(this.dropGroups().map((g) => [g.key, g.total]));
     const overListed = rows.filter(
-      (r) => Math.round(r.listedQty) > this.availableToList(r.key, totalByKey.get(r.key) ?? r.available),
+      (r) => Math.round(r.listedQty) > this.availableToList(r.key, totalByKey.get(r.key) ?? r.available, editId),
     );
     if (overListed.length) {
       this.toast(
@@ -1202,8 +1242,12 @@ export class RaidsComponent {
       );
       return;
     }
+    const origByKey = new Map(
+      (editId ? this.listings().find((l) => l.id === editId)?.lines ?? [] : []).map((ln) => [ln.key, ln]),
+    );
     const lines: RaidListingLine[] = rows.map((r) => {
       const listedQty = Math.max(1, Math.round(r.listedQty));
+      const orig = origByKey.get(r.key);
       return {
         key: r.key,
         name: r.name,
@@ -1212,16 +1256,21 @@ export class RaidsComponent {
         catalogId: r.catalogId,
         listedQty,
         unitPrice: Math.max(0, Number(r.unitPrice) || 0),
-        soldQty: listedQty, // assume it all sold; adjust in the morning
+        // keep whatever "продано" was already noted for a line we're editing (clamped);
+        // a fresh line starts at 0 sold — everything's still on the market
+        soldQty: orig ? Math.min(orig.soldQty, listedQty) : 0,
       };
     });
+    const name = this.listingName().trim() || this.defaultListingName();
     this.savingListing.set(true);
     try {
-      await this.raidLoot.addListing(
-        { name: this.listingName().trim() || this.defaultListingName(), status: 'draft', lines },
-        this.myEmail(),
-      );
-      this.toast('success', 'Список создан', '');
+      if (editId) {
+        await this.raidLoot.updateListing(editId, { name, lines });
+        this.toast('success', 'Список обновлён', name);
+      } else {
+        await this.raidLoot.addListing({ name, status: 'draft', lines }, this.myEmail());
+        this.toast('success', 'Список создан', '');
+      }
       this.closeListingDialog();
     } catch (e) {
       this.toast('error', 'Ошибка', this.msg(e));
@@ -1240,7 +1289,7 @@ export class RaidsComponent {
     this.settlingListingId.set(l.id);
     try {
       await this.raidLoot.updateListing(l.id, {
-        lines: this.committedLines(l),
+        lines: l.lines.map((ln) => ({ ...ln, soldQty: 0 })),
         status: 'closed',
         settledAt: Date.now(),
         settledBy: this.myEmail(),
@@ -1260,23 +1309,38 @@ export class RaidsComponent {
       .sort((a, b) => a.kill.killedAt - b.kill.killedAt);
   }
 
-  confirmSellAndSplit(l: RaidListing): void {
-    const n = l.lines.filter((ln) => this.soldQtyOf(l, ln) > 0).length;
-    if (!n) {
-      this.toast('warn', 'Нечего продавать', 'Укажите проданное количество');
+  /* -------- "продать и попилить" dialog (how much of each line actually sold) -------- */
+
+  readonly sellSplitListing = signal<RaidListing | null>(null);
+  /** per line key — how many of that item actually sold, to be split across RBs */
+  readonly sellSplitQty = signal<Record<string, number>>({});
+
+  openSellSplit(l: RaidListing): void {
+    if (!this.config()?.leaderUserId) {
+      this.toast('warn', 'Сначала настройте выплаты', 'Укажите лидера, % банка и % наёмников');
+      this.openConfig();
       return;
     }
-    this.confirmationService.confirm({
-      header: 'Продать и попилить',
-      message:
-        `Создать продажи по ${n} ${n === 1 ? 'позиции' : 'позициям'} этого списка и переместить их ` +
-        `в «В процессе»? Доли посчитаются по каждому РБ, с которого дроп.`,
-      icon: 'pi pi-money-bill',
-      acceptLabel: 'Продать',
-      rejectLabel: 'Отмена',
-      accept: () => this.sellAndSplit(l),
-    });
+    // default: assume everything sold — you dial down whatever's still on the market
+    this.sellSplitQty.set(Object.fromEntries(l.lines.map((ln) => [ln.key, ln.listedQty])));
+    this.sellSplitListing.set(l);
   }
+  closeSellSplit(): void {
+    this.sellSplitListing.set(null);
+  }
+  sellSplitQtyOf(ln: RaidListingLine): number {
+    const v = this.sellSplitQty()[ln.key];
+    return v == null ? ln.listedQty : v;
+  }
+  setSellSplitQty(ln: RaidListingLine, v: number): void {
+    const val = Math.max(0, Math.min(ln.listedQty, Math.round(Number(v) || 0)));
+    this.sellSplitQty.update((d) => ({ ...d, [ln.key]: val }));
+  }
+  readonly sellSplitTotal = computed(() => {
+    const l = this.sellSplitListing();
+    if (!l) return 0;
+    return round2(l.lines.reduce((s, ln) => s + this.sellSplitQtyOf(ln) * ln.unitPrice, 0));
+  });
 
   private async sellAndSplit(l: RaidListing): Promise<void> {
     if (this.settlingListingId()) return;
@@ -1289,11 +1353,14 @@ export class RaidsComponent {
 
     // build the whole plan against a consistent stock snapshot, and BLOCK the entire
     // operation if any line can't be fully covered by what's actually on the shelf now
-    const plan: { line: RaidListingLine; chunks: { dl: DropLine; take: number }[] }[] = [];
+    const plan: { line: RaidListingLine; sold: number; chunks: { dl: DropLine; take: number }[] }[] = [];
     const shortfalls: string[] = [];
     for (const ln of l.lines) {
-      const want = Math.max(0, Math.round(this.soldQtyOf(l, ln)));
-      if (want <= 0) continue;
+      const want = Math.max(0, Math.round(this.sellSplitQtyOf(ln)));
+      if (want <= 0) {
+        plan.push({ line: ln, sold: 0, chunks: [] });
+        continue;
+      }
       let need = want;
       const chunks: { dl: DropLine; take: number }[] = [];
       for (const dl of this.stockLinesForItem(ln.key)) {
@@ -1305,7 +1372,7 @@ export class RaidsComponent {
         }
       }
       if (need > 0) shortfalls.push(`${ln.name}: не хватает ${need}`);
-      plan.push({ line: ln, chunks });
+      plan.push({ line: ln, sold: want, chunks });
     }
 
     if (shortfalls.length) {
@@ -1314,7 +1381,7 @@ export class RaidsComponent {
     }
     const chunkCount = plan.reduce((s, p) => s + p.chunks.length, 0);
     if (!chunkCount) {
-      this.toast('warn', 'Нечего продавать', 'Укажите проданное количество');
+      this.toast('warn', 'Нечего продавать', 'Укажите, сколько продано');
       return;
     }
 
@@ -1345,17 +1412,23 @@ export class RaidsComponent {
       }
       await Promise.all(jobs);
       await this.raidLoot.updateListing(l.id, {
-        lines: this.committedLines(l),
+        lines: plan.map((p) => ({ ...p.line, soldQty: p.sold })),
         status: 'sold',
         settledAt: Date.now(),
         settledBy: this.myEmail(),
       });
+      this.closeSellSplit();
       this.toast('success', 'Продано и попилено', `создано продаж: ${chunkCount}`);
     } catch (e) {
       this.toast('error', 'Ошибка', this.msg(e));
     } finally {
       this.settlingListingId.set(null);
     }
+  }
+
+  submitSellSplit(): void {
+    const l = this.sellSplitListing();
+    if (l) void this.sellAndSplit(l);
   }
 
   confirmDeleteListing(l: RaidListing): void {
@@ -1858,15 +1931,16 @@ export class RaidsComponent {
       title: 'Вкладка «На продаже»',
       paragraphs: [
         'Здесь собираешь список того, что вечером выставил на рынок: кнопка «Новый список», отмечаешь предметы со склада, ставишь количество и цену за штуку.',
-        'Утром разворачиваешь черновик и в поле «продано» ставишь, сколько реально ушло по каждой позиции. Дальше — две кнопки:',
+        'Карточка списка просто показывает, что сейчас «в продаже». Утром — две кнопки:',
       ],
       bullets: [
         { icon: 'pi-inbox', text: '«Закрыть не отмечая» — просто в историю: продажи не создаются, склад не трогаем' },
         {
           icon: 'pi-money-bill',
           text:
-            '«Продать и попилить» — реально продать проданное количество: распишет по каждому РБ (сначала старые ' +
-            'убийства), посчитает доли и закинет всё в «В процессе» на вкладке «Продажи»',
+            '«Продать и попилить» — откроет окно, где по каждой позиции вписываешь, сколько реально продано; ' +
+            'остальное вернётся на склад. Распишет по каждому РБ (сначала старые убийства), посчитает доли и ' +
+            'закинет всё в «В процессе» на вкладке «Продажи»',
         },
       ],
       onEnter: () => this.view.set('listings'),

@@ -351,6 +351,9 @@
           <span class="rd-listing-meta">{{ l.lines.length }} поз.</span>
           <span class="rd-listing-meta">на {{ fmtMoney(listingListedValue(l)) }}</span>
           <span class="rd-listing-date">{{ fmtDate(l.createdAt) }}</span>
+          <button *ngIf="l.status === 'draft'" pButton type="button" icon="pi pi-pencil"
+            class="p-button-sm p-button-text" pTooltip="Состав и цены" tooltipPosition="left"
+            (click)="$event.stopPropagation(); openEditListing(l)"></button>
           <button pButton type="button" icon="pi pi-trash" class="p-button-sm p-button-text p-button-danger"
             pTooltip="Удалить" tooltipPosition="left"
             (click)="$event.stopPropagation(); confirmDeleteListing(l)"></button>
@@ -361,18 +364,14 @@
             <img *ngIf="ln.icon" [src]="ln.icon" (error)="imgError($event)" alt="" class="rd-listing-icon" />
             <span class="rd-listing-line-name">{{ ln.name }}</span>
             <app-grade-badge [grade]="ln.grade" />
-            <span class="rd-listing-line-plan">
-              выставлено {{ ln.listedQty }} × {{ fmtMoney(ln.unitPrice) }}
-            </span>
             <span class="rd-spacer"></span>
             <ng-container *ngIf="l.status === 'draft'; else soldReadonly">
-              <span class="rd-listing-sold-label">продано</span>
-              <p-inputNumber [ngModel]="soldQtyOf(l, ln)" (ngModelChange)="setSoldQty(l, ln, $event)"
-                [min]="0" [max]="ln.listedQty" [showButtons]="true" buttonLayout="horizontal"
-                decrementButtonClass="p-button-secondary" incrementButtonClass="p-button-secondary"
-                inputStyleClass="rd-listing-qty-input"></p-inputNumber>
+              <span class="rd-listing-line-plan">
+                в продаже <b>{{ ln.listedQty }}</b> × {{ fmtMoney(ln.unitPrice) }}
+              </span>
             </ng-container>
             <ng-template #soldReadonly>
+              <span class="rd-listing-line-plan">выставлено {{ ln.listedQty }} × {{ fmtMoney(ln.unitPrice) }}</span>
               <span class="rd-listing-line-plan rd-listing-line-plan--sold">
                 продано {{ ln.soldQty }} = {{ fmtMoney(ln.soldQty * ln.unitPrice) }}
               </span>
@@ -380,7 +379,7 @@
           </div>
 
           <div class="rd-listing-actions" *ngIf="l.status === 'draft'; else listingSettledNote">
-            <span class="rd-listing-sum">Продано на <b>{{ fmtMoney(listingSoldValue(l)) }}</b></span>
+            <span class="rd-listing-sum">В продаже на <b>{{ fmtMoney(listingListedValue(l)) }}</b></span>
             <span class="rd-spacer"></span>
             <button pButton type="button" label="Закрыть не отмечая" icon="pi pi-inbox"
               class="p-button-sm p-button-outlined p-button-secondary" [disabled]="settlingListingId() === l.id"
@@ -388,7 +387,7 @@
               (click)="closeListingUnmarked(l)"></button>
             <button pButton type="button" label="Продать и попилить" icon="pi pi-money-bill"
               class="p-button-sm" [disabled]="settlingListingId() === l.id"
-              (click)="confirmSellAndSplit(l)"></button>
+              (click)="openSellSplit(l)"></button>
           </div>
           <ng-template #listingSettledNote>
             <div class="rd-listing-settled">
@@ -805,7 +804,7 @@
 <!-- ====================================================== NEW LISTING DIALOG === -->
 <p-dialog [visible]="listingDialogOpen()" (visibleChange)="$event || closeListingDialog()" [modal]="true"
   [draggable]="false" [dismissableMask]="true" [style]="{ width: 'min(720px, 96vw)' }"
-  header="Новый список на продажу">
+  [header]="editingListingId() ? 'Редактировать список' : 'Новый список на продажу'">
   <div class="rd-form">
     <label class="rd-field">
       <span>Название</span>
@@ -826,7 +825,7 @@
           <app-grade-badge [grade]="r.grade" />
           <span class="rd-loot-chance">
             свободно {{ r.available }}
-            <span class="rd-listing-reserved" *ngIf="reservedForItem(r.key) as reserved">({{ reserved }} уже выставлено)</span>
+            <span class="rd-listing-reserved" *ngIf="reservedForItem(r.key, editingListingId()) as reserved">({{ reserved }} в других списках)</span>
           </span>
           <ng-container *ngIf="r.checked">
             <span class="rd-listing-field">
@@ -856,7 +855,40 @@
 
   <ng-template pTemplate="footer">
     <button pButton type="button" label="Отмена" class="p-button-sm p-button-text" (click)="closeListingDialog()"></button>
-    <button pButton type="button" label="Создать список" class="p-button-sm" [disabled]="savingListing()"
-      (click)="submitListing()"></button>
+    <button pButton type="button" [label]="editingListingId() ? 'Сохранить' : 'Создать список'"
+      class="p-button-sm" [disabled]="savingListing()" (click)="submitListing()"></button>
+  </ng-template>
+</p-dialog>
+
+<!-- ==================================================== SELL & SPLIT DIALOG === -->
+<p-dialog [visible]="!!sellSplitListing()" (visibleChange)="$event || closeSellSplit()" [modal]="true"
+  [draggable]="false" [dismissableMask]="true" [style]="{ width: 'min(680px, 96vw)' }" header="Продать и попилить">
+  <div class="rd-form" *ngIf="sellSplitListing() as sl">
+    <p class="rd-hint">
+      Укажи, сколько по каждой позиции реально продано. Остальное останется на складе.
+      Продажи распишутся по каждому РБ (сначала старые убийства) и уйдут в «В процессе».
+    </p>
+    <div class="rd-loot-list rd-loot-list--listing">
+      <div class="rd-loot-row" *ngFor="let ln of sl.lines; trackBy: trackByListingLine">
+        <img *ngIf="ln.icon" [src]="ln.icon" (error)="imgError($event)" alt="" class="rd-loot-icon" />
+        <span class="rd-loot-name">{{ ln.name }}</span>
+        <app-grade-badge [grade]="ln.grade" />
+        <span class="rd-loot-chance">в продаже {{ ln.listedQty }} × {{ fmtMoney(ln.unitPrice) }}</span>
+        <span class="rd-listing-field">
+          <label>продано</label>
+          <p-inputNumber [ngModel]="sellSplitQtyOf(ln)" (ngModelChange)="setSellSplitQty(ln, $event)"
+            [min]="0" [max]="ln.listedQty" [showButtons]="true" buttonLayout="horizontal"
+            decrementButtonClass="p-button-secondary" incrementButtonClass="p-button-secondary"
+            inputStyleClass="rd-listing-qty-input"></p-inputNumber>
+        </span>
+      </div>
+    </div>
+    <div class="rd-listing-sum">Итого продаж на <b>{{ fmtMoney(sellSplitTotal()) }}</b></div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button pButton type="button" label="Отмена" class="p-button-sm p-button-text" (click)="closeSellSplit()"></button>
+    <button pButton type="button" label="Продать и попилить" icon="pi pi-money-bill" class="p-button-sm"
+      [disabled]="settlingListingId()" (click)="submitSellSplit()"></button>
   </ng-template>
 </p-dialog>
