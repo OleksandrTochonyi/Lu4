@@ -654,8 +654,12 @@ export class RaidsComponent {
 
   readonly sellLine = signal<DropLine | null>(null);
   readonly sellQty = signal(1);
-  readonly sellPrice = signal(0);
+  /** price of ONE unit — the total sale price (what actually gets saved/split) is
+   *  `sellUnitPrice * sellQty`, recomputed automatically whenever either changes */
+  readonly sellUnitPrice = signal(0);
   readonly savingSale = signal(false);
+
+  readonly sellTotalPrice = computed(() => round2(this.sellUnitPrice() * this.sellQty()));
 
   openSell(line: DropLine): void {
     if (!this.config()?.leaderUserId) {
@@ -665,7 +669,7 @@ export class RaidsComponent {
     }
     this.sellLine.set(line);
     this.sellQty.set(1);
-    this.sellPrice.set(0);
+    this.sellUnitPrice.set(0);
   }
   closeSell(): void {
     this.sellLine.set(null);
@@ -675,7 +679,7 @@ export class RaidsComponent {
     const line = this.sellLine();
     const cfg = this.config();
     if (!line || !cfg) return null;
-    return this.computePayout(this.sellPrice(), line.kill, cfg);
+    return this.computePayout(this.sellTotalPrice(), line.kill, cfg);
   });
 
   private computePayout(price: number, kill: RaidKill, cfg: PayoutConfig): SalePayout {
@@ -722,7 +726,7 @@ export class RaidsComponent {
     const cfg = this.config();
     if (!line || !cfg) return;
     const qty = Math.max(1, Math.min(line.remaining, Math.round(this.sellQty() || 1)));
-    const price = Math.max(0, Number(this.sellPrice()) || 0);
+    const price = Math.max(0, this.sellTotalPrice());
     if (price <= 0) {
       this.toast('warn', 'Укажите цену продажи', '');
       return;
@@ -1381,7 +1385,7 @@ export class RaidsComponent {
       paragraphs: ['Кнопка «Продать» на конкретной строке дропа открывает диалог продажи:'],
       bullets: [
         { text: 'Количество — не больше, чем реально осталось от этого убийства' },
-        { text: 'Цена — общая сумма продажи' },
+        { text: 'Цена — за одну штуку; итоговая сумма считается сама (цена × количество)' },
         { text: 'Ниже сразу показывается предпросмотр — сколько получит банк, лидер и каждый наёмник при такой цене' },
       ],
     },

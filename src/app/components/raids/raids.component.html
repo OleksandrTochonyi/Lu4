@@ -577,11 +577,13 @@
           [max]="l.remaining" [showButtons]="true"></p-inputNumber>
       </label>
       <label class="rd-field rd-field--grow">
-        <span>Цена (всего)</span>
-        <p-inputNumber [ngModel]="sellPrice()" (ngModelChange)="sellPrice.set($event || 0)" [min]="0"
+        <span>Цена за 1 шт</span>
+        <p-inputNumber [ngModel]="sellUnitPrice()" (ngModelChange)="sellUnitPrice.set($event || 0)" [min]="0"
           [showButtons]="true"></p-inputNumber>
       </label>
     </div>
+
+    <div class="rd-sell-total">Итого: <b>{{ fmtMoney(sellTotalPrice()) }}</b></div>
 
     <div class="rd-payout-preview" *ngIf="sellPayoutPreview() as p">
       <div class="rd-payout-row">
