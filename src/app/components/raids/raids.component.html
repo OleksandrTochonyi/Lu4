@@ -26,6 +26,10 @@
       <span class="rd-seg-count" *ngIf="totalUnpaid() > 0" [pTooltip]="'Не выдано: ' + fmtMoney(totalUnpaid())"
         tooltipPosition="top">{{ fmtMoney(totalUnpaid()) }}</span>
     </button>
+    <button type="button" class="rd-seg-btn" [class.active]="view() === 'listings'" (click)="view.set('listings')">
+      <i class="pi pi-tags"></i> На продаже
+      <span class="rd-seg-count" *ngIf="draftListingCount()">{{ draftListingCount() }}</span>
+    </button>
     <button type="button" class="rd-seg-btn" [class.active]="view() === 'stats'" (click)="view.set('stats')">
       <i class="pi pi-chart-bar"></i> Статистика
     </button>
@@ -172,6 +176,10 @@
             <img *ngIf="g.icon" [src]="g.icon" (error)="imgError($event)" alt="" class="rd-group-icon" />
             <span class="rd-group-name">{{ g.name }}</span>
             <app-grade-badge [grade]="g.grade" />
+            <span class="rd-group-listed" *ngIf="reservedForItem(g.key) as reserved"
+              pTooltip="Выставлено на продажу в черновике — второй раз выставить нельзя" tooltipPosition="top">
+              <i class="pi pi-tags"></i> {{ reserved }} выставлено
+            </span>
             <span class="rd-group-total">{{ g.total }} шт</span>
           </button>
 
@@ -295,6 +303,108 @@
         <div class="rd-empty-ic"><i class="pi pi-wallet"></i></div>
         <p class="rd-empty-title">Продаж ещё нет</p>
         <p class="rd-empty-sub">Продайте что-нибудь во вкладке «Дроп на складе»</p>
+      </div>
+    </ng-template>
+  </section>
+
+  <!-- ========================================================== LISTINGS === -->
+  <section *ngIf="view() === 'listings'" class="rd-body">
+    <div class="rd-toolbar">
+      <span class="rd-listings-hint">Собери список того, что выставил на продажу — вечером ставишь, утром отмечаешь сколько ушло</span>
+      <span class="rd-spacer"></span>
+      <button pButton type="button" icon="pi pi-plus" label="Новый список" (click)="openListingDialog()"></button>
+    </div>
+
+    <div class="rd-listings" *ngIf="listings().length; else emptyListings">
+      <ng-container *ngIf="draftListings().length">
+        <div class="rd-sales-h">
+          В процессе
+          <span class="rd-sales-h-n">{{ draftListings().length }}</span>
+        </div>
+        <div class="rd-listings-group">
+          <ng-container *ngFor="let l of draftListings(); trackBy: trackByListing">
+            <ng-container *ngTemplateOutlet="listingCard; context: { $implicit: l }"></ng-container>
+          </ng-container>
+        </div>
+      </ng-container>
+
+      <ng-container *ngIf="doneListings().length">
+        <div class="rd-sales-h rd-sales-h--closed">
+          Закрытые
+          <span class="rd-sales-h-n">{{ doneListings().length }}</span>
+        </div>
+        <div class="rd-listings-group rd-listings-group--done">
+          <ng-container *ngFor="let l of doneListings(); trackBy: trackByListing">
+            <ng-container *ngTemplateOutlet="listingCard; context: { $implicit: l }"></ng-container>
+          </ng-container>
+        </div>
+      </ng-container>
+    </div>
+
+    <ng-template #listingCard let-l>
+      <div class="rd-listing" [class.is-open]="isListingExpanded(l.id)">
+        <div class="rd-listing-head" role="button" tabindex="0" (click)="toggleListingExpanded(l.id)"
+          (keydown.enter)="toggleListingExpanded(l.id)">
+          <i class="pi" [ngClass]="isListingExpanded(l.id) ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
+          <span class="rd-listing-name">{{ l.name }}</span>
+          <span class="rd-listing-status" [ngClass]="'rd-listing-status--' + l.status">{{ listingStatusLabel(l) }}</span>
+          <span class="rd-listing-meta">{{ l.lines.length }} поз.</span>
+          <span class="rd-listing-meta">на {{ fmtMoney(listingListedValue(l)) }}</span>
+          <span class="rd-listing-date">{{ fmtDate(l.createdAt) }}</span>
+          <button pButton type="button" icon="pi pi-trash" class="p-button-sm p-button-text p-button-danger"
+            pTooltip="Удалить" tooltipPosition="left"
+            (click)="$event.stopPropagation(); confirmDeleteListing(l)"></button>
+        </div>
+
+        <div class="rd-listing-body" *ngIf="isListingExpanded(l.id)">
+          <div class="rd-listing-line" *ngFor="let ln of l.lines; trackBy: trackByListingLine">
+            <img *ngIf="ln.icon" [src]="ln.icon" (error)="imgError($event)" alt="" class="rd-listing-icon" />
+            <span class="rd-listing-line-name">{{ ln.name }}</span>
+            <app-grade-badge [grade]="ln.grade" />
+            <span class="rd-listing-line-plan">
+              выставлено {{ ln.listedQty }} × {{ fmtMoney(ln.unitPrice) }}
+            </span>
+            <span class="rd-spacer"></span>
+            <ng-container *ngIf="l.status === 'draft'; else soldReadonly">
+              <span class="rd-listing-sold-label">продано</span>
+              <p-inputNumber [ngModel]="soldQtyOf(l, ln)" (ngModelChange)="setSoldQty(l, ln, $event)"
+                [min]="0" [max]="ln.listedQty" [showButtons]="true" buttonLayout="horizontal"
+                decrementButtonClass="p-button-secondary" incrementButtonClass="p-button-secondary"
+                inputStyleClass="rd-listing-qty-input"></p-inputNumber>
+            </ng-container>
+            <ng-template #soldReadonly>
+              <span class="rd-listing-line-plan rd-listing-line-plan--sold">
+                продано {{ ln.soldQty }} = {{ fmtMoney(ln.soldQty * ln.unitPrice) }}
+              </span>
+            </ng-template>
+          </div>
+
+          <div class="rd-listing-actions" *ngIf="l.status === 'draft'; else listingSettledNote">
+            <span class="rd-listing-sum">Продано на <b>{{ fmtMoney(listingSoldValue(l)) }}</b></span>
+            <span class="rd-spacer"></span>
+            <button pButton type="button" label="Закрыть не отмечая" icon="pi pi-inbox"
+              class="p-button-sm p-button-outlined p-button-secondary" [disabled]="settlingListingId() === l.id"
+              pTooltip="Просто в историю: продажи не создаются, склад не трогаем" tooltipPosition="top"
+              (click)="closeListingUnmarked(l)"></button>
+            <button pButton type="button" label="Продать и попилить" icon="pi pi-money-bill"
+              class="p-button-sm" [disabled]="settlingListingId() === l.id"
+              (click)="confirmSellAndSplit(l)"></button>
+          </div>
+          <ng-template #listingSettledNote>
+            <div class="rd-listing-settled">
+              {{ l.status === 'closed' ? 'Закрыт без продажи' : 'Продано и попилено' }}
+              · {{ fmtDate(l.settledAt || l.createdAt) }}
+            </div>
+          </ng-template>
+        </div>
+      </div>
+    </ng-template>
+
+    <ng-template #emptyListings>
+      <div class="rd-empty">
+        <div class="rd-empty-ic"><i class="pi pi-tags"></i></div>
+        <p class="rd-empty-title">Списков ещё нет</p>
+        <p class="rd-empty-sub">Нажмите «Новый список» и отметьте, что выставили на продажу</p>
       </div>
     </ng-template>
   </section>
@@ -689,5 +799,64 @@
     <button pButton type="button" label="Отмена" class="p-button-sm p-button-text" (click)="closeConfig()"></button>
     <button pButton type="button" label="Сохранить" class="p-button-sm" [disabled]="savingConfig()"
       (click)="saveConfig()"></button>
+  </ng-template>
+</p-dialog>
+
+<!-- ====================================================== NEW LISTING DIALOG === -->
+<p-dialog [visible]="listingDialogOpen()" (visibleChange)="$event || closeListingDialog()" [modal]="true"
+  [draggable]="false" [dismissableMask]="true" [style]="{ width: 'min(720px, 96vw)' }"
+  header="Новый список на продажу">
+  <div class="rd-form">
+    <label class="rd-field">
+      <span>Название</span>
+      <input pInputText type="text" [ngModel]="listingName()" (ngModelChange)="listingName.set($event)"
+        placeholder="Например: Ночь 5 сентября" />
+    </label>
+
+    <div class="rd-field">
+      <span>Что выставляем — отметьте предметы со склада, укажите сколько и почём за штуку</span>
+      <div class="rd-loot-list rd-loot-list--listing" *ngIf="listingRows().length; else noStock">
+        <div class="rd-loot-row" *ngFor="let r of listingRows(); trackBy: trackByListingRow"
+          [class.active]="r.checked">
+          <button type="button" class="rd-loot-check" (click)="toggleListingRow(r.key)">
+            <i class="pi" [ngClass]="r.checked ? 'pi-check-square' : 'pi-stop'"></i>
+          </button>
+          <img *ngIf="r.icon" [src]="r.icon" (error)="imgError($event)" alt="" class="rd-loot-icon" />
+          <span class="rd-loot-name">{{ r.name }}</span>
+          <app-grade-badge [grade]="r.grade" />
+          <span class="rd-loot-chance">
+            свободно {{ r.available }}
+            <span class="rd-listing-reserved" *ngIf="reservedForItem(r.key) as reserved">({{ reserved }} уже выставлено)</span>
+          </span>
+          <ng-container *ngIf="r.checked">
+            <span class="rd-listing-field">
+              <label>шт</label>
+              <p-inputNumber [ngModel]="r.listedQty" (ngModelChange)="setListingRowQty(r.key, $event)"
+                [min]="1" [max]="r.available" [showButtons]="true" buttonLayout="horizontal"
+                decrementButtonClass="p-button-secondary" incrementButtonClass="p-button-secondary"
+                inputStyleClass="rd-listing-qty-input"></p-inputNumber>
+            </span>
+            <span class="rd-listing-field">
+              <label>цена/шт</label>
+              <p-inputNumber [ngModel]="r.unitPrice" (ngModelChange)="setListingRowPrice(r.key, $event)"
+                [min]="0" [useGrouping]="true" inputStyleClass="rd-listing-price-input"></p-inputNumber>
+            </span>
+          </ng-container>
+        </div>
+      </div>
+      <ng-template #noStock>
+        <div class="rd-muted rd-loot-empty">На складе сейчас пусто — сначала отметьте убийства с дропом</div>
+      </ng-template>
+    </div>
+
+    <div class="rd-listing-sum" *ngIf="listingCheckedCount()">
+      Выбрано {{ listingCheckedCount() }} · на сумму <b>{{ fmtMoney(listingTotalPreview()) }}</b>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button pButton type="button" label="Отмена" class="p-button-sm p-button-text" (click)="closeListingDialog()"></button>
+    <button pButton type="button" label="Создать список" class="p-button-sm" [disabled]="savingListing()"
+      (click)="submitListing()"></button>
   </ng-template>
 </p-dialog>

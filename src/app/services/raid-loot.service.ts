@@ -106,6 +106,35 @@ export interface RaidSale {
 
 export type NewRaidSale = Omit<RaidSale, 'id' | 'soldAt' | 'soldBy' | 'locked'>;
 
+/** one item on a "На продаже" listing — an aggregate (across kills) of stock put up
+ *  for sale: how much was listed, at what per-unit price, and how much actually sold */
+export interface RaidListingLine {
+  /** lowercased item name — the "Дроп на складе" group identity */
+  key: string;
+  name: string;
+  icon: string | null;
+  grade: string | null;
+  catalogId: string | null;
+  listedQty: number;
+  unitPrice: number;
+  soldQty: number;
+}
+
+export interface RaidListing {
+  id: string;
+  name: string;
+  /** draft = still open; closed = archived without acting (no sales, stock untouched);
+   *  sold = "продать и попилить" ran (real sales created) */
+  status: 'draft' | 'closed' | 'sold';
+  lines: RaidListingLine[];
+  createdAt: number;
+  createdBy: string;
+  settledAt: number | null;
+  settledBy: string;
+}
+
+export type NewRaidListing = Pick<RaidListing, 'name' | 'status' | 'lines'>;
+
 export interface ConfigMercenary {
   groupId: string;
   userId: string;
@@ -230,6 +259,34 @@ function normalizeSale(raw: any): RaidSale {
   };
 }
 
+function normalizeListingLine(raw: any): RaidListingLine {
+  return {
+    key: String(raw?.key ?? ''),
+    name: String(raw?.name ?? ''),
+    icon: raw?.icon ? String(raw.icon) : null,
+    grade: raw?.grade ? String(raw.grade) : null,
+    catalogId: raw?.catalogId ? String(raw.catalogId) : null,
+    listedQty: toInt(raw?.listedQty),
+    unitPrice: toNum(raw?.unitPrice),
+    soldQty: Math.max(0, Math.round(Number(raw?.soldQty) || 0)),
+  };
+}
+
+function normalizeListing(raw: any): RaidListing {
+  const status = raw?.status;
+  return {
+    id: String(raw?.id ?? ''),
+    name: String(raw?.name ?? ''),
+    // 'template' is the old name for what's now 'closed'
+    status: status === 'sold' ? 'sold' : status === 'closed' || status === 'template' ? 'closed' : 'draft',
+    lines: Array.isArray(raw?.lines) ? raw.lines.map(normalizeListingLine) : [],
+    createdAt: toNum(raw?.createdAt) || Date.now(),
+    createdBy: String(raw?.createdBy ?? ''),
+    settledAt: raw?.settledAt != null ? toNum(raw.settledAt) : null,
+    settledBy: String(raw?.settledBy ?? ''),
+  };
+}
+
 function targetPath(target: PayoutTarget): string {
   if (target.kind === 'merc') return `payout.mercenaries.${target.userId}`;
   return target.kind === 'bank' ? 'payout.bank' : 'payout.leader';
@@ -240,6 +297,7 @@ export class RaidLootService {
   private firestore = inject(Firestore);
   private killsCol = collection(this.firestore, 'raid-kills');
   private salesCol = collection(this.firestore, 'raid-sales');
+  private listingsCol = collection(this.firestore, 'raid-listings');
 
   readonly kills$: Observable<RaidKill[]> = (
     collectionData(this.killsCol, { idField: 'id' }) as Observable<any[]>
@@ -248,6 +306,10 @@ export class RaidLootService {
   readonly sales$: Observable<RaidSale[]> = (
     collectionData(this.salesCol, { idField: 'id' }) as Observable<any[]>
   ).pipe(map((list) => (list ?? []).map(normalizeSale).sort((a, b) => b.soldAt - a.soldAt)));
+
+  readonly listings$: Observable<RaidListing[]> = (
+    collectionData(this.listingsCol, { idField: 'id' }) as Observable<any[]>
+  ).pipe(map((list) => (list ?? []).map(normalizeListing).sort((a, b) => b.createdAt - a.createdAt)));
 
   readonly config$: Observable<PayoutConfig | null> = (
     docData(doc(this.firestore, `raid-payout-config/${CONFIG_DOC_ID}`)) as Observable<any>
@@ -308,6 +370,27 @@ export class RaidLootService {
 
   async removeSale(id: string): Promise<void> {
     await deleteDoc(doc(this.firestore, `raid-sales/${id}`));
+  }
+
+  async addListing(data: NewRaidListing, actorEmail: string): Promise<string> {
+    if (!data.lines?.length) throw new Error('Список пуст');
+    const ref = doc(this.listingsCol);
+    await setDoc(ref, {
+      ...data,
+      createdBy: actorEmail || 'неизвестно',
+      createdAt: Date.now(),
+      settledAt: null,
+      settledBy: '',
+    });
+    return ref.id;
+  }
+
+  async updateListing(id: string, data: Partial<Omit<RaidListing, 'id'>>): Promise<void> {
+    await updateDoc(doc(this.firestore, `raid-listings/${id}`), { ...data });
+  }
+
+  async removeListing(id: string): Promise<void> {
+    await deleteDoc(doc(this.firestore, `raid-listings/${id}`));
   }
 
   /** mark one payout share (bank / leader / one mercenary) of a sale as paid or not */

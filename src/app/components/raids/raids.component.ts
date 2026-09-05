@@ -33,6 +33,8 @@ import {
   PayoutTarget,
   RaidDrop,
   RaidKill,
+  RaidListing,
+  RaidListingLine,
   RaidLootService,
   RaidParticipant,
   RaidSale,
@@ -83,6 +85,19 @@ interface DropCategoryBlock {
   category: RaidItemCategory;
   label: string;
   groups: DropGroup[];
+}
+
+/** one row of the "new listing" dialog — a stock item that can be put up for sale */
+interface ListingRow {
+  key: string;
+  name: string;
+  icon: string | null;
+  grade: string | null;
+  catalogId: string | null;
+  available: number;
+  checked: boolean;
+  listedQty: number;
+  unitPrice: number;
 }
 
 interface PlayerRef {
@@ -162,12 +177,13 @@ export class RaidsComponent {
   private confirmationService = inject(ConfirmationService);
   private destroyRef = inject(DestroyRef);
 
-  readonly view = signal<'kills' | 'drop' | 'sales' | 'stats'>('kills');
+  readonly view = signal<'kills' | 'drop' | 'sales' | 'listings' | 'stats'>('kills');
 
   /* ------------------------------------------------------------------ data */
 
   readonly kills = toSignal(this.raidLoot.kills$, { initialValue: [] as RaidKill[] });
   readonly sales = toSignal(this.raidLoot.sales$, { initialValue: [] as RaidSale[] });
+  readonly listings = toSignal(this.raidLoot.listings$, { initialValue: [] as RaidListing[] });
   readonly config = toSignal(this.raidLoot.config$, { initialValue: null as PayoutConfig | null });
   readonly groups = toSignal(this.constPartyService.getGroups(), { initialValue: [] as ConstPartyGroup[] });
   /** boss catalogue from assets/data/db.json — each entry carries its own drop table */
@@ -204,6 +220,9 @@ export class RaidsComponent {
   trackByLootRow = (_: number, r: LootRow) => r.key;
   trackByGroupItem = (_: number, g: DropGroup) => g.key;
   trackByLine = (_: number, l: DropLine) => l.key;
+  trackByListing = (_: number, l: RaidListing) => l.id;
+  trackByListingRow = (_: number, r: ListingRow) => r.key;
+  trackByListingLine = (_: number, l: RaidListingLine) => l.key;
 
   imgError(e: Event): void {
     const el = e.target as HTMLImageElement | null;
@@ -1032,6 +1051,334 @@ export class RaidsComponent {
     }
   }
 
+  /* ============================================================= LISTINGS === */
+
+  /** open lists you're still working on vs. everything already closed/sold */
+  readonly draftListings = computed(() => this.listings().filter((l) => l.status === 'draft'));
+  readonly doneListings = computed(() => this.listings().filter((l) => l.status !== 'draft'));
+  /** only drafts are "actionable" — the tab badge counts just those */
+  readonly draftListingCount = computed(() => this.draftListings().length);
+
+  /** qty by item key currently held by open (draft) listings — a soft reservation so the
+   *  same stock can't be put up for sale twice. Released when the draft is sold, saved
+   *  as a template, or deleted. */
+  readonly reservedByDrafts = computed(() => {
+    const m = new Map<string, number>();
+    for (const l of this.listings()) {
+      if (l.status !== 'draft') continue;
+      for (const ln of l.lines) m.set(ln.key, (m.get(ln.key) ?? 0) + ln.listedQty);
+    }
+    return m;
+  });
+  reservedForItem(key: string): number {
+    return this.reservedByDrafts().get(key) ?? 0;
+  }
+  /** physical stock minus what other drafts already hold — what's free for a NEW listing */
+  private availableToList(key: string, total: number): number {
+    return Math.max(0, total - this.reservedForItem(key));
+  }
+
+  readonly expandedListingIds = signal<Set<string>>(new Set());
+  toggleListingExpanded(id: string): void {
+    const next = new Set(this.expandedListingIds());
+    next.has(id) ? next.delete(id) : next.add(id);
+    this.expandedListingIds.set(next);
+  }
+  isListingExpanded(id: string): boolean {
+    return this.expandedListingIds().has(id);
+  }
+
+  listingStatusLabel(l: RaidListing): string {
+    return l.status === 'closed' ? 'Закрыт' : l.status === 'sold' ? 'Продано' : 'Черновик';
+  }
+  listingListedValue(l: RaidListing): number {
+    return round2(l.lines.reduce((s, ln) => s + ln.listedQty * ln.unitPrice, 0));
+  }
+  listingSoldValue(l: RaidListing): number {
+    return round2(l.lines.reduce((s, ln) => s + this.soldQtyOf(l, ln) * ln.unitPrice, 0));
+  }
+
+  /** local, unsaved "продано" edits keyed by `${listingId}:${lineKey}` — committed to
+   *  the doc only when a "Сохранить как шаблон" / "Продать и попилить" button is pressed */
+  readonly soldQtyDraft = signal<Record<string, number>>({});
+  private soldKey(l: RaidListing, ln: RaidListingLine): string {
+    return `${l.id}:${ln.key}`;
+  }
+  soldQtyOf(l: RaidListing, ln: RaidListingLine): number {
+    const k = this.soldKey(l, ln);
+    const d = this.soldQtyDraft();
+    return k in d ? d[k] : ln.soldQty;
+  }
+  setSoldQty(l: RaidListing, ln: RaidListingLine, v: number): void {
+    const val = Math.max(0, Math.min(ln.listedQty, Math.round(Number(v) || 0)));
+    this.soldQtyDraft.update((d) => ({ ...d, [this.soldKey(l, ln)]: val }));
+  }
+  private committedLines(l: RaidListing): RaidListingLine[] {
+    return l.lines.map((ln) => ({ ...ln, soldQty: Math.max(0, Math.round(this.soldQtyOf(l, ln))) }));
+  }
+
+  /* -------- new-listing dialog -------- */
+
+  readonly listingDialogOpen = signal(false);
+  readonly savingListing = signal(false);
+  readonly listingName = signal('');
+  readonly listingRows = signal<ListingRow[]>([]);
+
+  readonly listingCheckedCount = computed(() => this.listingRows().filter((r) => r.checked).length);
+  readonly listingTotalPreview = computed(() =>
+    round2(
+      this.listingRows()
+        .filter((r) => r.checked)
+        .reduce((s, r) => s + r.listedQty * r.unitPrice, 0),
+    ),
+  );
+
+  private defaultListingName(): string {
+    const d = new Date();
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `Список ${p(d.getDate())}.${p(d.getMonth() + 1)}`;
+  }
+
+  openListingDialog(): void {
+    this.listingName.set(this.defaultListingName());
+    this.listingRows.set(
+      this.dropGroups()
+        .map((g) => ({ g, available: this.availableToList(g.key, g.total) }))
+        // hide anything already fully spoken-for by another draft listing
+        .filter(({ available }) => available > 0)
+        .map(({ g, available }) => ({
+          key: g.key,
+          name: g.name,
+          icon: g.icon,
+          grade: g.grade,
+          catalogId: g.lines[0]?.drop.catalogId ?? null,
+          available,
+          checked: false,
+          listedQty: 1,
+          unitPrice: 0,
+        })),
+    );
+    this.listingDialogOpen.set(true);
+  }
+  closeListingDialog(): void {
+    this.listingDialogOpen.set(false);
+  }
+  toggleListingRow(key: string): void {
+    this.listingRows.update((rows) =>
+      rows.map((r) => (r.key === key ? { ...r, checked: !r.checked } : r)),
+    );
+  }
+  setListingRowQty(key: string, v: number): void {
+    this.listingRows.update((rows) =>
+      rows.map((r) =>
+        r.key === key ? { ...r, listedQty: Math.max(1, Math.min(r.available, Math.round(v || 1))) } : r,
+      ),
+    );
+  }
+  setListingRowPrice(key: string, v: number): void {
+    this.listingRows.update((rows) =>
+      rows.map((r) => (r.key === key ? { ...r, unitPrice: Math.max(0, Number(v) || 0) } : r)),
+    );
+  }
+
+  async submitListing(): Promise<void> {
+    if (this.savingListing()) return;
+    const rows = this.listingRows().filter((r) => r.checked && r.listedQty > 0);
+    if (!rows.length) {
+      this.toast('warn', 'Выберите хотя бы один предмет', '');
+      return;
+    }
+    // re-check against current free stock — another draft may have claimed some
+    // while this dialog was open
+    const totalByKey = new Map(this.dropGroups().map((g) => [g.key, g.total]));
+    const overListed = rows.filter(
+      (r) => Math.round(r.listedQty) > this.availableToList(r.key, totalByKey.get(r.key) ?? r.available),
+    );
+    if (overListed.length) {
+      this.toast(
+        'error',
+        'Часть уже выставлена в другом списке',
+        overListed.map((r) => r.name).join(' · '),
+      );
+      return;
+    }
+    const lines: RaidListingLine[] = rows.map((r) => {
+      const listedQty = Math.max(1, Math.round(r.listedQty));
+      return {
+        key: r.key,
+        name: r.name,
+        icon: r.icon,
+        grade: r.grade,
+        catalogId: r.catalogId,
+        listedQty,
+        unitPrice: Math.max(0, Number(r.unitPrice) || 0),
+        soldQty: listedQty, // assume it all sold; adjust in the morning
+      };
+    });
+    this.savingListing.set(true);
+    try {
+      await this.raidLoot.addListing(
+        { name: this.listingName().trim() || this.defaultListingName(), status: 'draft', lines },
+        this.myEmail(),
+      );
+      this.toast('success', 'Список создан', '');
+      this.closeListingDialog();
+    } catch (e) {
+      this.toast('error', 'Ошибка', this.msg(e));
+    } finally {
+      this.savingListing.set(false);
+    }
+  }
+
+  /* -------- listing actions -------- */
+
+  readonly settlingListingId = signal<string | null>(null);
+
+  /** archive the list as-is without acting on it — no sales created, stock untouched */
+  async closeListingUnmarked(l: RaidListing): Promise<void> {
+    if (this.settlingListingId()) return;
+    this.settlingListingId.set(l.id);
+    try {
+      await this.raidLoot.updateListing(l.id, {
+        lines: this.committedLines(l),
+        status: 'closed',
+        settledAt: Date.now(),
+        settledBy: this.myEmail(),
+      });
+      this.toast('success', 'Список закрыт', l.name);
+    } catch (e) {
+      this.toast('error', 'Ошибка', this.msg(e));
+    } finally {
+      this.settlingListingId.set(null);
+    }
+  }
+
+  /** stock lines for one item, FIFO — oldest kill first (that stock has sat longest) */
+  private stockLinesForItem(key: string): DropLine[] {
+    return this.dropLines()
+      .filter((dl) => dl.drop.name.trim().toLowerCase() === key)
+      .sort((a, b) => a.kill.killedAt - b.kill.killedAt);
+  }
+
+  confirmSellAndSplit(l: RaidListing): void {
+    const n = l.lines.filter((ln) => this.soldQtyOf(l, ln) > 0).length;
+    if (!n) {
+      this.toast('warn', 'Нечего продавать', 'Укажите проданное количество');
+      return;
+    }
+    this.confirmationService.confirm({
+      header: 'Продать и попилить',
+      message:
+        `Создать продажи по ${n} ${n === 1 ? 'позиции' : 'позициям'} этого списка и переместить их ` +
+        `в «В процессе»? Доли посчитаются по каждому РБ, с которого дроп.`,
+      icon: 'pi pi-money-bill',
+      acceptLabel: 'Продать',
+      rejectLabel: 'Отмена',
+      accept: () => this.sellAndSplit(l),
+    });
+  }
+
+  private async sellAndSplit(l: RaidListing): Promise<void> {
+    if (this.settlingListingId()) return;
+    const cfg = this.config();
+    if (!cfg?.leaderUserId) {
+      this.toast('warn', 'Сначала настройте выплаты', 'Укажите лидера, % банка и % наёмников');
+      this.openConfig();
+      return;
+    }
+
+    // build the whole plan against a consistent stock snapshot, and BLOCK the entire
+    // operation if any line can't be fully covered by what's actually on the shelf now
+    const plan: { line: RaidListingLine; chunks: { dl: DropLine; take: number }[] }[] = [];
+    const shortfalls: string[] = [];
+    for (const ln of l.lines) {
+      const want = Math.max(0, Math.round(this.soldQtyOf(l, ln)));
+      if (want <= 0) continue;
+      let need = want;
+      const chunks: { dl: DropLine; take: number }[] = [];
+      for (const dl of this.stockLinesForItem(ln.key)) {
+        if (need <= 0) break;
+        const take = Math.min(need, dl.remaining);
+        if (take > 0) {
+          chunks.push({ dl, take });
+          need -= take;
+        }
+      }
+      if (need > 0) shortfalls.push(`${ln.name}: не хватает ${need}`);
+      plan.push({ line: ln, chunks });
+    }
+
+    if (shortfalls.length) {
+      this.toast('error', 'Не хватает дропа на складе', shortfalls.join(' · '));
+      return;
+    }
+    const chunkCount = plan.reduce((s, p) => s + p.chunks.length, 0);
+    if (!chunkCount) {
+      this.toast('warn', 'Нечего продавать', 'Укажите проданное количество');
+      return;
+    }
+
+    this.settlingListingId.set(l.id);
+    try {
+      const jobs: Promise<unknown>[] = [];
+      for (const { line, chunks } of plan) {
+        for (const { dl, take } of chunks) {
+          const price = round2(line.unitPrice * take);
+          jobs.push(
+            this.raidLoot.addSale(
+              {
+                killId: dl.kill.id,
+                dropId: dl.drop.id,
+                bossName: dl.kill.bossName,
+                itemName: dl.drop.name,
+                icon: dl.drop.icon,
+                catalogId: dl.drop.catalogId,
+                grade: dl.drop.grade,
+                qty: take,
+                price,
+                payout: this.computePayout(price, dl.kill, cfg),
+              },
+              this.myEmail(),
+            ),
+          );
+        }
+      }
+      await Promise.all(jobs);
+      await this.raidLoot.updateListing(l.id, {
+        lines: this.committedLines(l),
+        status: 'sold',
+        settledAt: Date.now(),
+        settledBy: this.myEmail(),
+      });
+      this.toast('success', 'Продано и попилено', `создано продаж: ${chunkCount}`);
+    } catch (e) {
+      this.toast('error', 'Ошибка', this.msg(e));
+    } finally {
+      this.settlingListingId.set(null);
+    }
+  }
+
+  confirmDeleteListing(l: RaidListing): void {
+    this.confirmationService.confirm({
+      header: 'Удалить список',
+      message:
+        `Удалить «${l.name}»?` +
+        (l.status === 'sold' ? ' Уже созданные с него продажи останутся.' : ''),
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Удалить',
+      rejectLabel: 'Отмена',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: async () => {
+        try {
+          await this.raidLoot.removeListing(l.id);
+          this.toast('success', 'Удалено', l.name);
+        } catch (e) {
+          this.toast('error', 'Ошибка', this.msg(e));
+        }
+      },
+    });
+  }
+
   /* ================================================================ STATS === */
 
   /** one payout share, flattened out of every sale — the raw material for every stat below */
@@ -1337,12 +1684,13 @@ export class RaidsComponent {
       },
     },
     {
-      title: 'Четыре вкладки',
-      paragraphs: ['Вверху страницы четыре вкладки — переключаются кликом:'],
+      title: 'Пять вкладок',
+      paragraphs: ['Вверху страницы пять вкладок — переключаются кликом:'],
       bullets: [
         { icon: 'pi-flag-fill', text: 'Убийства — журнал того, кого убили и что упало' },
         { icon: 'pi-box', text: 'Дроп на складе — весь непроданный дроп, сгруппированный по предметам' },
         { icon: 'pi-wallet', text: 'Продажи — что продали, кому сколько причитается, что уже выдано' },
+        { icon: 'pi-tags', text: 'На продаже — списки того, что выставил на рынок за ночь' },
         { icon: 'pi-chart-bar', text: 'Статистика — сводки по людям, предметам, боссам и последним выплатам' },
       ],
       target: '.rd-seg',
@@ -1505,6 +1853,24 @@ export class RaidsComponent {
         this.ensureFirstSaleExpanded();
       },
       target: '.rd-payout',
+    },
+    {
+      title: 'Вкладка «На продаже»',
+      paragraphs: [
+        'Здесь собираешь список того, что вечером выставил на рынок: кнопка «Новый список», отмечаешь предметы со склада, ставишь количество и цену за штуку.',
+        'Утром разворачиваешь черновик и в поле «продано» ставишь, сколько реально ушло по каждой позиции. Дальше — две кнопки:',
+      ],
+      bullets: [
+        { icon: 'pi-inbox', text: '«Закрыть не отмечая» — просто в историю: продажи не создаются, склад не трогаем' },
+        {
+          icon: 'pi-money-bill',
+          text:
+            '«Продать и попилить» — реально продать проданное количество: распишет по каждому РБ (сначала старые ' +
+            'убийства), посчитает доли и закинет всё в «В процессе» на вкладке «Продажи»',
+        },
+      ],
+      onEnter: () => this.view.set('listings'),
+      target: '.rd-toolbar',
     },
     {
       title: 'Вкладка «Статистика» — карточки',
