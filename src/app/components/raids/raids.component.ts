@@ -15,7 +15,14 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 import { AuthService } from '../../services/auth.service';
 import { ConstPartyGroup, ConstPartyService, ConstPartyUser } from '../../services/const-party.service';
 import { JsonRb, JsonRbLoot, RbJsonDataService } from '../../services/rb-json-data.service';
-import { CraftCatalogService, CraftEntry, buildNameIndex, normName } from '../../services/craft-catalog.service';
+import {
+  CRAFT_CATEGORY_LABEL,
+  CraftCatalogService,
+  CraftCategory,
+  CraftEntry,
+  buildNameIndex,
+  normName,
+} from '../../services/craft-catalog.service';
 import {
   MercShare,
   NewRaidKill,
@@ -51,8 +58,15 @@ interface DropGroup {
   name: string;
   icon: string | null;
   grade: string | null;
+  category: CraftCategory;
   total: number;
   lines: DropLine[];
+}
+
+interface DropCategoryBlock {
+  category: CraftCategory;
+  label: string;
+  groups: DropGroup[];
 }
 
 interface PlayerRef {
@@ -229,6 +243,8 @@ export class RaidsComponent {
 
   readonly killDialogOpen = signal(false);
   readonly savingKill = signal(false);
+  /** set while editing an existing kill instead of logging a new one */
+  readonly editingKillId = signal<string | null>(null);
   readonly killBossId = signal<string | null>(null);
   readonly killDate = signal<string>('');
   readonly killNote = signal('');
@@ -238,15 +254,19 @@ export class RaidsComponent {
   /** the selected boss's own drop table, checkable + quantity */
   readonly killLootRows = signal<LootRow[]>([]);
 
-  private nowLocalInput(): string {
-    const d = new Date();
+  private localInputFromDate(d: Date): string {
     d.setSeconds(0, 0);
     const off = d.getTimezoneOffset();
     const local = new Date(d.getTime() - off * 60000);
     return local.toISOString().slice(0, 16);
   }
+  private nowLocalInput(): string {
+    return this.localInputFromDate(new Date());
+  }
 
   openKillDialog(): void {
+    this.editingKillId.set(null);
+    this.editingOriginalDrops = [];
     this.killBossId.set(null);
     this.killDate.set(this.nowLocalInput());
     this.killNote.set('');
@@ -255,8 +275,32 @@ export class RaidsComponent {
     this.killLootRows.set([]);
     this.killDialogOpen.set(true);
   }
+  /** original drops of the kill being edited, so unchanged items keep their id (sales
+   *  reference `dropId` — regenerating it would orphan any already-sold quantity tracking) */
+  private editingOriginalDrops: RaidDrop[] = [];
+
+  /** open the same dialog pre-filled from an existing kill, to fix a mistake */
+  openEditKill(kill: RaidKill): void {
+    this.editingKillId.set(kill.id);
+    this.editingOriginalDrops = kill.drops;
+    this.killDate.set(this.localInputFromDate(new Date(kill.killedAt)));
+    this.killNote.set(kill.note ?? '');
+    this.killPackIds.set(new Set(kill.packIds));
+    this.killParticipants.set(new Set(kill.participants.map((p) => `${p.groupId}:${p.userId}`)));
+    this.onKillBossChange(kill.bossId);
+    const byName = new Map(kill.drops.map((d) => [d.name.trim().toLowerCase(), d]));
+    this.killLootRows.update((rows) =>
+      rows.map((r) => {
+        const existing = byName.get(r.loot.displayName.trim().toLowerCase());
+        return existing ? { ...r, checked: true, qty: existing.qty } : r;
+      }),
+    );
+    this.killDialogOpen.set(true);
+  }
   closeKillDialog(): void {
     this.killDialogOpen.set(false);
+    this.editingKillId.set(null);
+    this.editingOriginalDrops = [];
   }
 
   /** re-populate the loot checklist from the newly picked boss's own drop table */
@@ -318,18 +362,22 @@ export class RaidsComponent {
   isKillParticipantOn(groupId: string, userId: string): boolean {
     return this.killParticipants().has(`${groupId}:${userId}`);
   }
+  /** twinks don't attend as their own participant — only the main roster is pickable */
+  mainUsers(g: ConstPartyGroup): ConstPartyUser[] {
+    return (g.users ?? []).filter((u) => !u.isTwink);
+  }
   selectAllInGroup(g: ConstPartyGroup): void {
     const parts = new Set(this.killParticipants());
-    for (const u of g.users ?? []) parts.add(`${g.id}:${u.id}`);
+    for (const u of this.mainUsers(g)) parts.add(`${g.id}:${u.id}`);
     this.killParticipants.set(parts);
   }
   clearGroupParticipants(g: ConstPartyGroup): void {
     const parts = new Set(this.killParticipants());
-    for (const u of g.users ?? []) parts.delete(`${g.id}:${u.id}`);
+    for (const u of this.mainUsers(g)) parts.delete(`${g.id}:${u.id}`);
     this.killParticipants.set(parts);
   }
   groupParticipantCount(g: ConstPartyGroup): number {
-    return (g.users ?? []).filter((u) => this.isKillParticipantOn(g.id, u.id)).length;
+    return this.mainUsers(g).filter((u) => this.isKillParticipantOn(g.id, u.id)).length;
   }
   readonly killSelectedGroups = computed(() =>
     this.groups().filter((g) => this.killPackIds().has(g.id)),
@@ -356,16 +404,24 @@ export class RaidsComponent {
         }
       }
     }
+    const originalDropsByName = new Map(
+      this.editingOriginalDrops.map((d) => [d.name.trim().toLowerCase(), d]),
+    );
     const drops: RaidDrop[] = this.killLootRows()
       .filter((r) => r.checked)
-      .map((r) => ({
-        id: newLocalId(),
-        catalogId: r.catalogId,
-        name: r.loot.displayName,
-        icon: r.loot.imgUrl || null,
-        grade: r.loot.grade ?? null,
-        qty: Math.max(1, Math.round(r.qty || 1)),
-      }));
+      .map((r) => {
+        const original = originalDropsByName.get(r.loot.displayName.trim().toLowerCase());
+        return {
+          // keep the original drop's id when it's still checked, since sales reference
+          // `dropId` — regenerating it here would orphan that item's sold-quantity tracking
+          id: original?.id ?? newLocalId(),
+          catalogId: r.catalogId,
+          name: r.loot.displayName,
+          icon: r.loot.imgUrl || null,
+          grade: r.loot.grade ?? null,
+          qty: Math.max(1, Math.round(r.qty || 1)),
+        };
+      });
 
     const killedAt = this.killDate() ? new Date(this.killDate()).getTime() : Date.now();
     const payload: NewRaidKill = {
@@ -383,8 +439,14 @@ export class RaidsComponent {
 
     this.savingKill.set(true);
     try {
-      await this.raidLoot.addKill(payload, this.myEmail());
-      this.toast('success', 'Убийство записано', boss.name);
+      const editId = this.editingKillId();
+      if (editId) {
+        await this.raidLoot.updateKill(editId, payload);
+        this.toast('success', 'Убийство обновлено', boss.name);
+      } else {
+        await this.raidLoot.addKill(payload, this.myEmail());
+        this.toast('success', 'Убийство записано', boss.name);
+      }
       this.closeKillDialog();
     } catch (e) {
       this.toast('error', 'Ошибка', this.msg(e));
@@ -466,6 +528,23 @@ export class RaidsComponent {
     return lines;
   });
 
+/** category of a drop, resolved via a best-effort catalog name match (grade-blind — safe,
+   *  since a name collision only ever happens between grades of the same item type, which
+   *  always share the same category anyway). Falls back to 'other' when unmatched. */
+  private dropCategory(drop: RaidDrop): CraftCategory {
+    return this.catalogNameIndex().get(normName(drop.name))?.category ?? 'other';
+  }
+
+  private static readonly DROP_CATEGORY_ORDER: CraftCategory[] = ['weapon', 'armor', 'jewelry', 'other'];
+  private static readonly DROP_CATEGORY_RANK: Partial<Record<CraftCategory, number>> = {
+    weapon: 0,
+    armor: 1,
+    jewelry: 2,
+  };
+  private dropCategoryRank(category: CraftCategory): number {
+    return RaidsComponent.DROP_CATEGORY_RANK[category] ?? 3;
+  }
+
   readonly dropGroups = computed<DropGroup[]>(() => {
     const byName = new Map<string, DropGroup>();
     for (const line of this.dropLines()) {
@@ -479,6 +558,7 @@ export class RaidsComponent {
         name: line.drop.name,
         icon: line.drop.icon,
         grade: line.drop.grade,
+        category: this.dropCategory(line.drop),
         total: 0,
         lines: [],
       };
@@ -488,14 +568,37 @@ export class RaidsComponent {
     }
     return [...byName.values()]
       .map((g) => ({ ...g, lines: g.lines.sort((a, b) => b.kill.killedAt - a.kill.killedAt) }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort(
+        (a, b) => this.dropCategoryRank(a.category) - this.dropCategoryRank(b.category) ||
+          a.name.localeCompare(b.name),
+      );
   });
 
   readonly dropSearch = signal('');
+  /** 'all' or one specific category — pick ONE bucket to view, not just a sort order */
+  readonly dropCategoryFilter = signal<'all' | CraftCategory>('all');
+  setDropCategoryFilter(cat: 'all' | CraftCategory): void {
+    this.dropCategoryFilter.set(cat);
+  }
   readonly filteredDropGroups = computed(() => {
     const q = normName(this.dropSearch());
-    if (!q) return this.dropGroups();
-    return this.dropGroups().filter((g) => normName(g.name).includes(q));
+    const cat = this.dropCategoryFilter();
+    return this.dropGroups().filter(
+      (g) => (cat === 'all' || g.category === cat) && (!q || normName(g.name).includes(q)),
+    );
+  });
+
+  /** filtered drops split into fixed category sections — Оружие / Броня / Бижутерия / Прочее.
+   *  Collapses to a single unlabelled block once a specific category filter is picked. */
+  readonly categorizedDropGroups = computed<DropCategoryBlock[]>(() => {
+    const groups = this.filteredDropGroups();
+    const cat = this.dropCategoryFilter();
+    if (cat !== 'all') return [{ category: cat, label: CRAFT_CATEGORY_LABEL[cat], groups }];
+    return RaidsComponent.DROP_CATEGORY_ORDER.map((category) => ({
+      category,
+      label: CRAFT_CATEGORY_LABEL[category],
+      groups: groups.filter((g) => g.category === category),
+    })).filter((block) => block.groups.length > 0);
   });
 
   readonly openDropGroups = signal<Set<string>>(new Set());
@@ -713,20 +816,29 @@ export class RaidsComponent {
 
   /** search across item name, boss name, who sold it, and the sale date */
   readonly salesSearch = signal('');
+  /** same 4-bucket category filter as "Дроп на складе" — 'all' or one specific category */
+  readonly salesCategoryFilter = signal<'all' | CraftCategory>('all');
+  setSalesCategoryFilter(cat: 'all' | CraftCategory): void {
+    this.salesCategoryFilter.set(cat);
+  }
+  saleCategory(sale: RaidSale): CraftCategory {
+    return this.catalogNameIndex().get(normName(sale.itemName))?.category ?? 'other';
+  }
   private matchesSaleSearch(s: RaidSale, q: string): boolean {
     return [s.itemName, s.bossName, s.soldBy, this.fmtDate(s.soldAt)]
       .join(' ')
       .toLowerCase()
       .includes(q);
   }
-  readonly filteredOpenSales = computed(() => {
+  private filterSales(list: RaidSale[]): RaidSale[] {
     const q = this.salesSearch().trim().toLowerCase();
-    return q ? this.openSales().filter((s) => this.matchesSaleSearch(s, q)) : this.openSales();
-  });
-  readonly filteredClosedSales = computed(() => {
-    const q = this.salesSearch().trim().toLowerCase();
-    return q ? this.closedSales().filter((s) => this.matchesSaleSearch(s, q)) : this.closedSales();
-  });
+    const cat = this.salesCategoryFilter();
+    return list.filter(
+      (s) => (cat === 'all' || this.saleCategory(s) === cat) && (!q || this.matchesSaleSearch(s, q)),
+    );
+  }
+  readonly filteredOpenSales = computed(() => this.filterSales(this.openSales()));
+  readonly filteredClosedSales = computed(() => this.filterSales(this.closedSales()));
 
   private aggregateOutstanding(list: RaidSale[]) {
     const bank = { total: 0, unpaid: 0 };

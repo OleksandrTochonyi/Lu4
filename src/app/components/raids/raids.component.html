@@ -47,7 +47,7 @@
           (click)="killStatusFilter.set('closed')">Распродано</button>
       </div>
       <span class="rd-spacer"></span>
-      <button pButton type="button" icon="pi pi-plus" label="Отметить убийство" (click)="openKillDialog()"></button>
+      <button pButton type="button" icon="pi pi-plus" label="Добавить РБ" (click)="openKillDialog()"></button>
     </div>
 
     <div class="rd-kills" *ngIf="filteredKills().length; else emptyKills">
@@ -68,6 +68,9 @@
             <i class="pi pi-check-circle"></i> Распродано
           </span>
           <span class="rd-kill-date">{{ fmtDate(k.killedAt) }}</span>
+          <button pButton type="button" icon="pi pi-pencil" class="p-button-sm p-button-text"
+            pTooltip="Редактировать" tooltipPosition="left"
+            (click)="$event.stopPropagation(); openEditKill(k)"></button>
           <button pButton type="button" icon="pi pi-trash" class="p-button-sm p-button-text p-button-danger"
             pTooltip="Удалить" tooltipPosition="left"
             (click)="$event.stopPropagation(); confirmDeleteKill(k)"></button>
@@ -128,7 +131,7 @@
             : 'Отметьте первое, когда завалите босса' }}
         </p>
         <button *ngIf="!killSearch() && killStatusFilter() === 'all'" pButton type="button"
-          label="Отметить убийство" icon="pi pi-plus" class="p-button-sm" (click)="openKillDialog()"></button>
+          label="Добавить РБ" icon="pi pi-plus" class="p-button-sm" (click)="openKillDialog()"></button>
       </div>
     </ng-template>
   </section>
@@ -141,28 +144,43 @@
         <input pInputText type="text" [ngModel]="dropSearch()" (ngModelChange)="dropSearch.set($event)"
           placeholder="Поиск дропа…" />
       </span>
+      <div class="rd-chips">
+        <button type="button" class="rd-toggle-chip" [class.active]="dropCategoryFilter() === 'all'"
+          (click)="setDropCategoryFilter('all')">Все</button>
+        <button type="button" class="rd-toggle-chip" [class.active]="dropCategoryFilter() === 'weapon'"
+          (click)="setDropCategoryFilter('weapon')">Оружие</button>
+        <button type="button" class="rd-toggle-chip" [class.active]="dropCategoryFilter() === 'armor'"
+          (click)="setDropCategoryFilter('armor')">Броня</button>
+        <button type="button" class="rd-toggle-chip" [class.active]="dropCategoryFilter() === 'jewelry'"
+          (click)="setDropCategoryFilter('jewelry')">Бижутерия</button>
+        <button type="button" class="rd-toggle-chip" [class.active]="dropCategoryFilter() === 'other'"
+          (click)="setDropCategoryFilter('other')">Прочее</button>
+      </div>
     </div>
 
-    <div class="rd-drop-groups" *ngIf="filteredDropGroups().length; else emptyDrop">
-      <div class="rd-drop-group" *ngFor="let g of filteredDropGroups(); trackBy: trackByGroupItem">
-        <button type="button" class="rd-group-head" (click)="toggleDropGroup(g.key)">
-          <i class="pi" [ngClass]="isDropGroupOpen(g.key) ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
-          <img *ngIf="g.icon" [src]="g.icon" (error)="imgError($event)" alt="" class="rd-group-icon" />
-          <span class="rd-group-name">{{ g.name }}</span>
-          <app-grade-badge [grade]="g.grade" />
-          <span class="rd-group-total">{{ g.total }} шт</span>
-        </button>
+    <div class="rd-drop-groups" *ngIf="categorizedDropGroups().length; else emptyDrop">
+      <ng-container *ngFor="let block of categorizedDropGroups()">
+        <div class="rd-sales-h" *ngIf="dropCategoryFilter() === 'all'">{{ block.label }}</div>
+        <div class="rd-drop-group" *ngFor="let g of block.groups; trackBy: trackByGroupItem">
+          <button type="button" class="rd-group-head" (click)="toggleDropGroup(g.key)">
+            <i class="pi" [ngClass]="isDropGroupOpen(g.key) ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
+            <img *ngIf="g.icon" [src]="g.icon" (error)="imgError($event)" alt="" class="rd-group-icon" />
+            <span class="rd-group-name">{{ g.name }}</span>
+            <app-grade-badge [grade]="g.grade" />
+            <span class="rd-group-total">{{ g.total }} шт</span>
+          </button>
 
-        <div class="rd-drop-lines" *ngIf="isDropGroupOpen(g.key)">
-          <div class="rd-drop-line" *ngFor="let l of g.lines; trackBy: trackByLine">
-            <span class="rd-line-boss">{{ l.kill.bossName }}</span>
-            <span class="rd-line-date">{{ fmtDate(l.kill.killedAt) }}</span>
-            <span class="rd-line-qty">{{ l.remaining }} шт</span>
-            <button pButton type="button" label="Продать" icon="pi pi-money-bill" class="p-button-sm"
-              (click)="openSell(l)"></button>
+          <div class="rd-drop-lines" *ngIf="isDropGroupOpen(g.key)">
+            <div class="rd-drop-line" *ngFor="let l of g.lines; trackBy: trackByLine">
+              <span class="rd-line-boss">{{ l.kill.bossName }}</span>
+              <span class="rd-line-date">{{ fmtDate(l.kill.killedAt) }}</span>
+              <span class="rd-line-qty">{{ l.remaining }} шт</span>
+              <button pButton type="button" label="Продать" icon="pi pi-money-bill" class="p-button-sm"
+                (click)="openSell(l)"></button>
+            </div>
           </div>
         </div>
-      </div>
+      </ng-container>
     </div>
 
     <ng-template #emptyDrop>
@@ -184,6 +202,18 @@
         <input pInputText type="text" [ngModel]="salesSearch()" (ngModelChange)="salesSearch.set($event)"
           placeholder="Поиск: предмет, босс, продавец, дата…" />
       </span>
+      <div class="rd-chips">
+        <button type="button" class="rd-toggle-chip" [class.active]="salesCategoryFilter() === 'all'"
+          (click)="setSalesCategoryFilter('all')">Все</button>
+        <button type="button" class="rd-toggle-chip" [class.active]="salesCategoryFilter() === 'weapon'"
+          (click)="setSalesCategoryFilter('weapon')">Оружие</button>
+        <button type="button" class="rd-toggle-chip" [class.active]="salesCategoryFilter() === 'armor'"
+          (click)="setSalesCategoryFilter('armor')">Броня</button>
+        <button type="button" class="rd-toggle-chip" [class.active]="salesCategoryFilter() === 'jewelry'"
+          (click)="setSalesCategoryFilter('jewelry')">Бижутерия</button>
+        <button type="button" class="rd-toggle-chip" [class.active]="salesCategoryFilter() === 'other'"
+          (click)="setSalesCategoryFilter('other')">Прочее</button>
+      </div>
     </div>
 
     <div class="rd-outstanding" *ngIf="openSales().length">
@@ -209,10 +239,10 @@
 
     <ng-container *ngIf="sales().length; else emptySales">
       <div class="rd-empty rd-sales-nomatch"
-        *ngIf="salesSearch() && !filteredOpenSales().length && !filteredClosedSales().length">
+        *ngIf="(salesSearch() || salesCategoryFilter() !== 'all') && !filteredOpenSales().length && !filteredClosedSales().length">
         <div class="rd-empty-ic"><i class="pi pi-search"></i></div>
         <p class="rd-empty-title">Ничего не найдено</p>
-        <p class="rd-empty-sub">Попробуйте другой запрос</p>
+        <p class="rd-empty-sub">Попробуйте другой запрос или фильтр</p>
       </div>
 
       <div class="rd-sales-h">
@@ -225,7 +255,7 @@
         </ng-container>
       </div>
       <ng-template #noneOpen>
-        <div class="rd-muted rd-sales-empty" *ngIf="!salesSearch()">Все продажи выданы</div>
+        <div class="rd-muted rd-sales-empty" *ngIf="!salesSearch() && salesCategoryFilter() === 'all'">Все продажи выданы</div>
       </ng-template>
 
       <ng-container *ngIf="filteredClosedSales().length">
@@ -404,7 +434,7 @@
           <span class="rd-payout-amt">{{ fmtMoney(s.payout.bank.amount) }}</span>
           <button pButton type="button" class="p-button-sm" [disabled]="s.locked"
             [class.p-button-success]="s.payout.bank.paid" [class.p-button-outlined]="!s.payout.bank.paid"
-            [label]="s.payout.bank.paid ? 'Выдано' : 'Отметить выдачу'" icon="pi pi-check"
+            [label]="s.payout.bank.paid ? 'Выдано' : 'Не выдано'" icon="pi pi-check"
             (click)="togglePaid(s, { kind: 'bank' }, !s.payout.bank.paid)"></button>
         </div>
         <div class="rd-payout-row">
@@ -412,7 +442,7 @@
           <span class="rd-payout-amt">{{ fmtMoney(s.payout.leader.amount) }}</span>
           <button pButton type="button" class="p-button-sm" [disabled]="s.locked"
             [class.p-button-success]="s.payout.leader.paid" [class.p-button-outlined]="!s.payout.leader.paid"
-            [label]="s.payout.leader.paid ? 'Выдано' : 'Отметить выдачу'" icon="pi pi-check"
+            [label]="s.payout.leader.paid ? 'Выдано' : 'Не выдано'" icon="pi pi-check"
             (click)="togglePaid(s, { kind: 'leader' }, !s.payout.leader.paid)"></button>
         </div>
         <div class="rd-payout-row" *ngFor="let m of mercEntries(s)">
@@ -420,7 +450,7 @@
           <span class="rd-payout-amt">{{ fmtMoney(m.value.amount) }}</span>
           <button pButton type="button" class="p-button-sm" [disabled]="s.locked"
             [class.p-button-success]="m.value.paid" [class.p-button-outlined]="!m.value.paid"
-            [label]="m.value.paid ? 'Выдано' : 'Отметить выдачу'" icon="pi pi-check"
+            [label]="m.value.paid ? 'Выдано' : 'Не выдано'" icon="pi pi-check"
             (click)="togglePaid(s, { kind: 'merc', userId: m.key }, !m.value.paid)"></button>
         </div>
         <div class="rd-payout-row" *ngIf="!mercEntries(s).length">
@@ -436,7 +466,8 @@
 
 <!-- ==================================================== MARK KILL DIALOG === -->
 <p-dialog [visible]="killDialogOpen()" (visibleChange)="$event || closeKillDialog()" [modal]="true"
-  [draggable]="false" [dismissableMask]="true" [style]="{ width: 'min(720px, 96vw)' }" header="Отметить убийство">
+  [draggable]="false" [dismissableMask]="true" [style]="{ width: 'min(720px, 96vw)' }"
+  [header]="editingKillId() ? 'Редактировать убийство' : 'Добавить РБ'">
   <div class="rd-form">
     <div class="rd-form-row">
       <label class="rd-field rd-field--grow">
@@ -466,17 +497,16 @@
         <div class="rd-part-group" *ngFor="let g of killSelectedGroups(); trackBy: trackByGroup">
           <div class="rd-part-group-h">
             {{ g.displayName }}
-            <span class="rd-part-group-n">{{ groupParticipantCount(g) }}/{{ g.users.length }}</span>
+            <span class="rd-part-group-n">{{ groupParticipantCount(g) }}/{{ mainUsers(g).length }}</span>
             <span class="rd-spacer"></span>
             <button type="button" class="rd-mini-link" (click)="selectAllInGroup(g)">все</button>
             <button type="button" class="rd-mini-link" (click)="clearGroupParticipants(g)">никого</button>
           </div>
           <div class="rd-part-grid">
-            <button type="button" class="rd-part-pill" *ngFor="let u of g.users; trackBy: trackByUser"
+            <button type="button" class="rd-part-pill" *ngFor="let u of mainUsers(g); trackBy: trackByUser"
               [class.active]="isKillParticipantOn(g.id, u.id)" (click)="toggleKillParticipant(g.id, u.id)">
               <i class="pi" [ngClass]="isKillParticipantOn(g.id, u.id) ? 'pi-check-circle' : 'pi-circle'"></i>
               {{ u.name }}
-              <span class="rd-part-twink" *ngIf="u.isTwink">твинк</span>
             </button>
           </div>
         </div>
@@ -497,7 +527,8 @@
           <app-grade-badge [grade]="r.loot.grade" />
           <span class="rd-loot-chance" *ngIf="r.loot.chance">{{ r.loot.chance }}%</span>
           <p-inputNumber *ngIf="r.checked" [ngModel]="r.qty" (ngModelChange)="setLootRowQty(r.key, $event)"
-            [min]="1" [showButtons]="true" inputStyleClass="rd-loot-qty"></p-inputNumber>
+            [min]="1" [showButtons]="true" buttonLayout="horizontal" decrementButtonClass="p-button-secondary"
+            incrementButtonClass="p-button-secondary" inputStyleClass="rd-loot-qty"></p-inputNumber>
         </div>
       </div>
       <ng-template #lootEmpty>
