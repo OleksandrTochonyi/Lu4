@@ -793,6 +793,27 @@
   border-radius: 8px;
   padding: 0.5rem 0.65rem;
 }
+.rd-mark-dead {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.65rem;
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.rd-mark-dead label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  font-size: 0.85rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+.rd-mark-dead-hint {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
 
 .rd-participants {
   display: flex;

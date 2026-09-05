@@ -10,6 +10,7 @@ import { DropdownModule } from 'primeng/dropdown';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
 import { TooltipModule } from 'primeng/tooltip';
+import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { ConfirmationService, MessageService } from 'primeng/api';
 
 import { AuthService } from '../../services/auth.service';
@@ -17,6 +18,7 @@ import { OnboardingService } from '../../services/onboarding.service';
 import { GuidedTourComponent, TourStep } from '../shared/guided-tour/guided-tour.component';
 import { ConstPartyGroup, ConstPartyService, ConstPartyUser } from '../../services/const-party.service';
 import { JsonRb, JsonRbLoot, RbJsonDataService, isEnchantScroll } from '../../services/rb-json-data.service';
+import { RbJsonRespService } from '../../services/rb-json-resp.service';
 import {
   CraftCatalogService,
   CraftCategory,
@@ -140,6 +142,7 @@ function newLocalId(): string {
     InputNumberModule,
     InputTextModule,
     TooltipModule,
+    ToggleSwitchModule,
     GradeBadgeComponent,
     GuidedTourComponent,
   ],
@@ -151,6 +154,7 @@ export class RaidsComponent {
   private raidLoot = inject(RaidLootService);
   private constPartyService = inject(ConstPartyService);
   private rbJsonData = inject(RbJsonDataService);
+  private rbJsonResp = inject(RbJsonRespService);
   private craftCatalog = inject(CraftCatalogService);
   private auth = inject(AuthService);
   private onboarding = inject(OnboardingService);
@@ -265,6 +269,9 @@ export class RaidsComponent {
   readonly killBossId = signal<string | null>(null);
   readonly killDate = signal<string>('');
   readonly killNote = signal('');
+  /** also push this boss's kill time to the shared resp tracker (rb-resp-time,
+   *  same store the Bookmarks page uses) using the "Дата и время" above */
+  readonly killMarkAsDead = signal(false);
   readonly killPackIds = signal<Set<string>>(new Set());
   /** `${groupId}:${userId}` -> selected */
   readonly killParticipants = signal<Set<string>>(new Set());
@@ -287,6 +294,7 @@ export class RaidsComponent {
     this.killBossId.set(null);
     this.killDate.set(this.nowLocalInput());
     this.killNote.set('');
+    this.killMarkAsDead.set(false);
     this.killPackIds.set(new Set());
     this.killParticipants.set(new Set());
     this.killLootRows.set([]);
@@ -302,6 +310,7 @@ export class RaidsComponent {
     this.editingOriginalDrops = kill.drops;
     this.killDate.set(this.localInputFromDate(new Date(kill.killedAt)));
     this.killNote.set(kill.note ?? '');
+    this.killMarkAsDead.set(false);
     this.killPackIds.set(new Set(kill.packIds));
     this.killParticipants.set(new Set(kill.participants.map((p) => `${p.groupId}:${p.userId}`)));
     this.onKillBossChange(kill.bossId);
@@ -318,6 +327,7 @@ export class RaidsComponent {
     this.killDialogOpen.set(false);
     this.editingKillId.set(null);
     this.editingOriginalDrops = [];
+    this.killMarkAsDead.set(false);
   }
 
   /** re-populate the loot checklist from the newly picked boss's own drop table */
@@ -463,6 +473,16 @@ export class RaidsComponent {
       } else {
         await this.raidLoot.addKill(payload, this.myEmail());
         this.toast('success', 'Убийство записано', boss.name);
+      }
+      // optionally also mark the boss "killed" in the shared resp tracker
+      // (rb-resp-time — same store the Bookmarks page reads/writes), using the
+      // kill's own "Дата и время" as the death time
+      if (this.killMarkAsDead()) {
+        try {
+          await this.rbJsonResp.setKillTime(boss.id, new Date(killedAt));
+        } catch {
+          this.toast('warn', 'Время смерти не сохранилось', 'Убийство записано, но респ не обновлён');
+        }
       }
       this.closeKillDialog();
     } catch (e) {
@@ -1389,6 +1409,11 @@ export class RaidsComponent {
       bullets: [
         { text: 'Рейд-босс — выпадающий список, отсортированный по уровню, с поиском' },
         { text: 'Дата и время — когда именно убили' },
+        {
+          text:
+            '«Пометить как убитый» — переключатель: заодно проставит этому боссу время смерти (из ' +
+            'поля «Дата и время») в общий трекер респа, тот же, что на карте и в закладках',
+        },
         { text: 'Паки, которые были — отметьте все паки, участвовавшие в убийстве' },
         {
           text:

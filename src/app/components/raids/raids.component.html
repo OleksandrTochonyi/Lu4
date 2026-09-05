@@ -509,6 +509,15 @@
       </label>
     </div>
 
+    <div class="rd-mark-dead">
+      <p-toggleswitch inputId="kill-mark-dead" [ngModel]="killMarkAsDead()"
+        (ngModelChange)="killMarkAsDead.set($event)" />
+      <label for="kill-mark-dead">
+        Пометить как убитый
+        <span class="rd-mark-dead-hint">Время смерти = «Дата и время» выше, для карты и закладок</span>
+      </label>
+    </div>
+
     <div class="rd-field">
       <span>Паки, которые были</span>
       <div class="rd-chips">
