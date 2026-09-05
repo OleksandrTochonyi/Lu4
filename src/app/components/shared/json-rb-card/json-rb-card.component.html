@@ -20,7 +20,7 @@
 
 	<div class="resp-controls flex flex-row flex-wrap items-center justify-center gap-2 min-w-0">
 		<div class="time-cluster">
-			<div class="dead-time-field">
+			<div class="dead-time-field" data-tour="bm-kill-time">
 				<i class="pi pi-calendar dead-time-icon"></i>
 				<p-datepicker
 					class="dead-time-input"
@@ -54,31 +54,33 @@
 
 			<span class="time-divider"></span>
 
-			<div class="resp-mini">
-				<i class="pi pi-hourglass resp-mini-icon"></i>
-				<div class="resp-mini-body">
-					<span class="resp-mini-label">Мин</span>
-					<span class="resp-mini-value">{{ displayMinResp() ? (displayMinResp() | date : 'dd.MM HH:mm' : 'Europe/Kyiv') : '—' }}</span>
+			<div class="resp-minmax-pair" data-tour="bm-resp-minmax">
+				<div class="resp-mini">
+					<i class="pi pi-hourglass resp-mini-icon"></i>
+					<div class="resp-mini-body">
+						<span class="resp-mini-label">Мин</span>
+						<span class="resp-mini-value">{{ displayMinResp() ? (displayMinResp() | date : 'dd.MM HH:mm' : 'Europe/Kyiv') : '—' }}</span>
+					</div>
 				</div>
-			</div>
-			<div class="resp-mini">
-				<i class="pi pi-hourglass resp-mini-icon"></i>
-				<div class="resp-mini-body">
-					<span class="resp-mini-label">Макс</span>
-					<span class="resp-mini-value">{{ displayMaxResp() ? (displayMaxResp() | date : 'dd.MM HH:mm' : 'Europe/Kyiv') : '—' }}</span>
+				<div class="resp-mini">
+					<i class="pi pi-hourglass resp-mini-icon"></i>
+					<div class="resp-mini-body">
+						<span class="resp-mini-label">Макс</span>
+						<span class="resp-mini-value">{{ displayMaxResp() ? (displayMaxResp() | date : 'dd.MM HH:mm' : 'Europe/Kyiv') : '—' }}</span>
+					</div>
 				</div>
-			</div>
-			<div class="resp-mini resp-mini-accent">
-				<i class="pi pi-stopwatch resp-mini-icon"></i>
-				<div class="resp-mini-body">
-					<span class="resp-mini-label">{{ timeLeftLabel() }}</span>
-					<span class="resp-mini-value">{{ respElapsedLabel() != null ? respElapsedLabel() : (timeLeft() ? (timeLeft() | date : 'HH:mm:ss') : '—') }}</span>
+				<div class="resp-mini resp-mini-accent">
+					<i class="pi pi-stopwatch resp-mini-icon"></i>
+					<div class="resp-mini-body">
+						<span class="resp-mini-label">{{ timeLeftLabel() }}</span>
+						<span class="resp-mini-value">{{ respElapsedLabel() != null ? respElapsedLabel() : (timeLeft() ? (timeLeft() | date : 'HH:mm:ss') : '—') }}</span>
+					</div>
 				</div>
 			</div>
 		</div>
 	</div>
 
-	<div class="actions flex flex-row gap-0.5 shrink-0">
+	<div class="actions flex flex-row gap-0.5 shrink-0" data-tour="bm-row-actions">
 		@if (hasMapPoint()) {
 			<p-button
 				icon="pi pi-map-marker"

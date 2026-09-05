@@ -1,5 +1,7 @@
 <p-confirmDialog />
 
+<app-guided-tour [steps]="tourSteps" [active]="tourActive()" (finished)="onTourFinished($event)"></app-guided-tour>
+
 <div class="rd-page">
   <div class="rd-head">
     <div class="rd-head-text">
@@ -7,7 +9,7 @@
       <p>Убийства, дроп на складе, продажи и выплаты</p>
     </div>
     <button pButton type="button" icon="pi pi-cog" label="Выплаты" class="p-button-sm p-button-outlined"
-      (click)="openConfig()"></button>
+      data-tour="rd-tour-payout-btn" (click)="openConfig()"></button>
   </div>
 
   <div class="rd-seg">

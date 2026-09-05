@@ -1,0 +1,31 @@
+<ng-container *ngIf="active() && step() as s">
+  <div class="gt-backdrop" [class.gt-backdrop--transparent]="rect()"></div>
+  <div class="gt-spotlight" *ngIf="rect() as r" [ngStyle]="spotlightStyle()"></div>
+
+  <div class="gt-callout" [ngStyle]="calloutStyle()">
+    <div class="gt-progress">
+      <span class="gt-progress-text">Шаг {{ stepIndex() + 1 }} из {{ total() }}</span>
+      <div class="gt-dots">
+        <span class="gt-dot" *ngFor="let d of steps(); let i = index" [class.active]="i === stepIndex()"></span>
+      </div>
+    </div>
+
+    <h3 class="gt-title">{{ s.title }}</h3>
+    <p class="gt-body" *ngFor="let para of s.paragraphs">{{ para }}</p>
+    <ul class="gt-bullets" *ngIf="s.bullets?.length">
+      <li class="gt-bullet" *ngFor="let b of s.bullets">
+        <i class="pi gt-bullet-icon" [ngClass]="b.icon" *ngIf="b.icon"
+          [style.background]="b.iconBg" [style.color]="b.iconColor"></i>
+        <span>{{ b.text }}</span>
+      </li>
+    </ul>
+
+    <div class="gt-actions">
+      <button type="button" class="gt-skip" (click)="skip()">Пропустить обучение</button>
+      <span class="gt-spacer"></span>
+      <p-button *ngIf="!isFirst()" label="Назад" [text]="true" size="small" severity="secondary" (onClick)="back()"></p-button>
+      <p-button [label]="isLast() ? 'Готово' : 'Далее'" [icon]="isLast() ? 'pi pi-check' : 'pi pi-arrow-right'"
+        iconPos="right" size="small" (onClick)="next()"></p-button>
+    </div>
+  </div>
+</ng-container>

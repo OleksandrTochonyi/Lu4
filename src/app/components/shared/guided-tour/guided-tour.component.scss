@@ -1,0 +1,157 @@
+:host {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  pointer-events: none;
+}
+
+.gt-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  pointer-events: auto;
+  transition: background 0.15s ease;
+}
+/* When a spotlight is showing, the spotlight's own box-shadow does 100% of the
+   dimming — leaving the backdrop's own tint in place too would double-darken
+   the "lit" cutout (it sits underneath the transparent hole), making the
+   highlighted element look dim/grey instead of bright. Kept in the DOM (not
+   *ngIf'd away) purely so it still blocks clicks on the dimmed area. */
+.gt-backdrop--transparent {
+  background: transparent;
+}
+
+.gt-spotlight {
+  position: fixed;
+  border-radius: 10px;
+  box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.65), 0 0 0 3px #fff, 0 0 18px 3px rgba(255, 255, 255, 0.65);
+  transition: top 0.2s ease, left 0.2s ease, width 0.2s ease, height 0.2s ease;
+  pointer-events: none;
+}
+
+.gt-callout {
+  position: fixed;
+  width: 340px;
+  max-width: calc(100vw - 2rem);
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.3);
+  padding: 1rem 1.1rem;
+  pointer-events: auto;
+  transition: top 0.2s ease, left 0.2s ease;
+  color: #0f172a;
+}
+
+.gt-progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.gt-progress-text {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+.gt-dots {
+  display: flex;
+  gap: 0.25rem;
+}
+.gt-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+.gt-dot.active {
+  background: #2563eb;
+}
+
+.gt-title {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+.gt-body {
+  margin: 0 0 0.55rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: #334155;
+}
+.gt-body:last-of-type {
+  margin-bottom: 0.9rem;
+}
+
+.gt-bullets {
+  list-style: none;
+  margin: 0 0 0.9rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.gt-bullet {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.83rem;
+  line-height: 1.4;
+  color: #334155;
+}
+.gt-bullet-icon {
+  flex: none;
+  width: 1.4rem;
+  height: 1.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 0.78rem;
+  margin-top: 0.05rem;
+}
+
+.gt-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.gt-spacer {
+  flex: 1;
+}
+.gt-skip {
+  border: 0;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 0.78rem;
+  cursor: pointer;
+  padding: 0.3rem 0;
+  text-decoration: underline;
+}
+.gt-skip:hover {
+  color: #64748b;
+}
+
+@media (prefers-color-scheme: dark) {
+  .gt-callout {
+    background: #1e293b;
+    color: #f1f5f9;
+  }
+  .gt-title {
+    color: #f8fafc;
+  }
+  .gt-body {
+    color: #cbd5e1;
+  }
+  .gt-bullet {
+    color: #cbd5e1;
+  }
+  .gt-bullet-icon {
+    background: rgba(37, 99, 235, 0.25);
+    color: #93c5fd;
+  }
+}

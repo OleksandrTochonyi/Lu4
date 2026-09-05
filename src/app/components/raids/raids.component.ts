@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs/operators';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
@@ -13,6 +13,8 @@ import { TooltipModule } from 'primeng/tooltip';
 import { ConfirmationService, MessageService } from 'primeng/api';
 
 import { AuthService } from '../../services/auth.service';
+import { OnboardingService } from '../../services/onboarding.service';
+import { GuidedTourComponent, TourStep } from '../shared/guided-tour/guided-tour.component';
 import { ConstPartyGroup, ConstPartyService, ConstPartyUser } from '../../services/const-party.service';
 import { JsonRb, JsonRbLoot, RbJsonDataService } from '../../services/rb-json-data.service';
 import {
@@ -127,6 +129,7 @@ function newLocalId(): string {
     InputTextModule,
     TooltipModule,
     GradeBadgeComponent,
+    GuidedTourComponent,
   ],
   providers: [ConfirmationService],
   templateUrl: './raids.component.html',
@@ -138,8 +141,10 @@ export class RaidsComponent {
   private rbJsonData = inject(RbJsonDataService);
   private craftCatalog = inject(CraftCatalogService);
   private auth = inject(AuthService);
+  private onboarding = inject(OnboardingService);
   private messageService = inject(MessageService);
   private confirmationService = inject(ConfirmationService);
+  private destroyRef = inject(DestroyRef);
 
   readonly view = signal<'kills' | 'drop' | 'sales' | 'stats'>('kills');
 
@@ -1175,5 +1180,283 @@ export class RaidsComponent {
   }
   private msg(e: unknown): string {
     return e instanceof Error && e.message ? e.message : 'Что-то пошло не так';
+  }
+
+  /* ------------------------------------------------------------- onboarding tour */
+
+  // Unlike the Bookmarks tour (personal, per-browser demo data), this page is shared
+  // clan data — the tour never creates or edits anything, it only switches tabs and
+  // expands whatever's already there so it has something real to spotlight, falling
+  // back to a plain centered card wherever nothing exists yet (a brand-new clan).
+
+  private resetTourFilters(): void {
+    this.killSearch.set('');
+    this.killStatusFilter.set('all');
+    this.dropSearch.set('');
+    this.setDropCategoryFilter('all');
+    this.salesSearch.set('');
+    this.setSalesCategoryFilter('all');
+  }
+  // Clears any expand/collapse state left over from browsing before the tour started,
+  // so "the first kill/group/sale" genuinely means the first one in the DOM — a card
+  // the visitor had already expanded earlier could otherwise beat the tour's own pick
+  // to the front (querySelector only ever returns the first match).
+  private resetTourExpandState(): void {
+    this.expandedKillIds.set(new Set());
+    this.openDropGroups.set(new Set());
+    this.expandedSaleIds.set(new Set());
+  }
+  private ensureFirstKillExpanded(): void {
+    const first = this.kills()[0];
+    if (first && !this.isKillExpanded(first.id)) this.toggleKillExpanded(first.id);
+  }
+  private ensureFirstDropGroupExpanded(): void {
+    const first = this.dropGroups()[0];
+    if (first && !this.isDropGroupOpen(first.key)) this.toggleDropGroup(first.key);
+  }
+  private ensureFirstSaleExpanded(): void {
+    const first = this.openSales()[0] ?? this.closedSales()[0];
+    if (first && !this.isSaleExpanded(first.id)) this.toggleSaleExpanded(first.id);
+  }
+
+  readonly tourSteps: TourStep[] = [
+    {
+      title: 'Добро пожаловать на страницу рейд-боссов!',
+      paragraphs: [
+        'Здесь отмечаем убийства рейд-боссов, ведем учёт дропа на складе, продажи и прочие рассчеты.',
+      ],
+      onEnter: () => {
+        this.resetTourFilters();
+        this.resetTourExpandState();
+        this.view.set('kills');
+      },
+    },
+    {
+      title: 'Четыре вкладки',
+      paragraphs: ['Вверху страницы четыре вкладки — переключаются кликом:'],
+      bullets: [
+        { icon: 'pi-flag-fill', text: 'Убийства — журнал того, кого убили и что упало' },
+        { icon: 'pi-box', text: 'Дроп на складе — весь непроданный дроп, сгруппированный по предметам' },
+        { icon: 'pi-wallet', text: 'Продажи — что продали, кому сколько причитается, что уже выдано' },
+        { icon: 'pi-chart-bar', text: 'Статистика — сводки по людям, предметам, боссам и последним выплатам' },
+      ],
+      target: '.rd-seg',
+    },
+    {
+      title: 'Настройка выплат',
+      paragraphs: [
+        'Прежде чем что-то продавать, нужно один раз настроить, как делятся деньги — кнопка «Выплаты» в правом верхнем углу.',
+      ],
+      bullets: [
+        { text: 'Лидер — получает весь остаток от каждой продажи' },
+        { text: 'Банк, % — фиксированный процент, который забирает клановый банк' },
+        {
+          text:
+            'Наёмник, % — процент каждому из списка наёмников, но только если он был именно на том ' +
+            'убийстве, с которого продан дроп',
+        },
+      ],
+      target: '[data-tour="rd-tour-payout-btn"]',
+    },
+    {
+      title: 'Вкладка «Убийства» — панель инструментов',
+      paragraphs: [
+        'Поиск ищет сразу по названию босса, участнику, предмету и дате.',
+        'Три фильтра справа: «Все», «Есть дроп» (что-то ещё не продано) и «Распродано» (весь дроп с этого убийства уже продан).',
+        'Кнопка «Добавить РБ» открывает форму отметки нового убийства.',
+      ],
+      onEnter: () => {
+        this.resetTourFilters();
+        this.view.set('kills');
+      },
+      target: '.rd-toolbar',
+    },
+    {
+      title: 'Карточка убийства',
+      paragraphs: [
+        'Каждая строка — одно убийство. По умолчанию она свёрнута — виден только босс, уровень, дата и значок статуса:',
+      ],
+      bullets: [
+        { icon: 'pi-flag-fill', iconBg: '#eef2ff', iconColor: '#4f46e5', text: 'ещё есть непроданный дроп' },
+        { icon: 'pi-check', iconBg: '#dcfce7', iconColor: '#16a34a', text: '«Распродано» — весь дроп уже продан' },
+        { icon: 'pi-pencil', text: 'редактировать убийство — босса, дату, участников, дроп' },
+        { icon: 'pi-trash', text: 'удалить запись целиком (история продаж при этом не пропадает)' },
+      ],
+      onEnter: () => this.view.set('kills'),
+      target: '.rd-kill-head',
+    },
+    {
+      title: 'Развёрнутая карточка убийства',
+      paragraphs: [
+        'Клик по строке разворачивает её: видно участников по пакам и весь дроп, отмеченный с этого убийства.',
+        'Янтарная подсветка имени — это наёмник (из ростера в настройках выплат); у остальных участников просто нет права на долю.',
+        'На чипе дропа появляется «остаток N» или «продано», как только часть или весь предмет уже продан.',
+      ],
+      onEnter: () => {
+        this.view.set('kills');
+        this.ensureFirstKillExpanded();
+      },
+      target: '.rd-kill-body',
+    },
+    {
+      title: 'Форма «Добавить РБ»',
+      paragraphs: ['Открывается кнопкой «Добавить РБ» или карандашом на существующей записи. В форме:'],
+      bullets: [
+        { text: 'Рейд-босс — выпадающий список, отсортированный по уровню, с поиском' },
+        { text: 'Дата и время — когда именно убили' },
+        { text: 'Паки, которые были — отметьте все паки, участвовавшие в убийстве' },
+        {
+          text:
+            'Участники — по каждому паку отдельно выберите, кто реально был (твинки в этом списке не ' +
+            'показываются — им доля не положена)',
+        },
+        {
+          text:
+            'Дроп — настоящая таблица дропа именно этого босса из базы, с чекбоксами и количеством на ' +
+            'каждый предмет',
+        },
+      ],
+    },
+    {
+      title: 'Вкладка «Дроп на складе» — панель инструментов',
+      paragraphs: [
+        'Тут собран весь дроп, который ещё не продан, сгруппированный по предмету — даже если он падал с разных боссов.',
+        'Фильтр по категории показывает только оружие, только броню, только бижутерию или всё прочее — либо «Все» сразу.',
+        'Поиск ищет по названию предмета.',
+      ],
+      onEnter: () => {
+        this.resetTourFilters();
+        this.view.set('drop');
+      },
+      target: '.rd-toolbar',
+    },
+    {
+      title: 'Группа дропа',
+      paragraphs: [
+        'Заголовок — иконка, название, грейд и общее количество на складе.',
+        'Разверните группу — и увидите, с какого именно убийства и когда этот дроп пришёл, сколько осталось, и кнопку «Продать» на каждую строку.',
+      ],
+      onEnter: () => {
+        this.view.set('drop');
+        this.ensureFirstDropGroupExpanded();
+      },
+      target: '.rd-drop-group',
+    },
+    {
+      title: 'Продажа дропа',
+      paragraphs: ['Кнопка «Продать» на конкретной строке дропа открывает диалог продажи:'],
+      bullets: [
+        { text: 'Количество — не больше, чем реально осталось от этого убийства' },
+        { text: 'Цена — общая сумма продажи' },
+        { text: 'Ниже сразу показывается предпросмотр — сколько получит банк, лидер и каждый наёмник при такой цене' },
+      ],
+    },
+    {
+      title: 'Вкладка «Продажи» — панель инструментов',
+      paragraphs: ['Тот же фильтр по категории и поиск (по предмету, боссу, продавцу и дате), что и в «Дропе на складе».'],
+      onEnter: () => {
+        this.resetTourFilters();
+        this.view.set('sales');
+      },
+      target: '.rd-toolbar',
+    },
+    {
+      title: 'Панель «В процессе»',
+      paragraphs: [
+        'Показывает суммарно, сколько ещё не выдано — отдельно банку, лидеру и каждому наёмнику, по всем незавершённым продажам сразу.',
+        'Кнопка «Всем выдано» разом отмечает все доли всех открытых продаж как выданные.',
+      ],
+      onEnter: () => this.view.set('sales'),
+      target: '.rd-outstanding',
+    },
+    {
+      title: '«В процессе» и «Завершённые»',
+      paragraphs: [
+        'Каждая продажа — своя строка: предмет, количество, босс, цена, дата. Клик разворачивает её.',
+        'Пока не выдана хотя бы одна доля — продажа лежит в «В процессе». Как только выданы все доли — она сама переезжает в «Завершённые».',
+      ],
+      onEnter: () => this.view.set('sales'),
+      target: '.rd-sale-head',
+    },
+    {
+      title: 'Доли и фиксация продажи',
+      paragraphs: [
+        'В развёрнутой продаже — три вида долей: банк, лидер (остаток) и каждый наёмник с этого убийства. Кнопка переключает «Выдано» / «Не выдано» по каждой доле отдельно.',
+        'Как только выданы все доли, продажа автоматически «фиксируется» — кнопки блокируются, чтобы случайно не поменять уже закрытую продажу.',
+        'Разблокировать можно кнопкой «Редактировать» (спросит подтверждение), а передумать и снова закрыть без правок — кнопкой «Отмена».',
+      ],
+      onEnter: () => {
+        this.view.set('sales');
+        this.ensureFirstSaleExpanded();
+      },
+      target: '.rd-payout',
+    },
+    {
+      title: 'Вкладка «Статистика» — карточки',
+      paragraphs: ['Сверху четыре цифры: сколько всего боссов убито, сколько продаж, сколько всего заработали и сколько получил банк.'],
+      onEnter: () => this.view.set('stats'),
+      target: '.rd-stat-tiles',
+    },
+    {
+      title: 'Таблица «По людям»',
+      paragraphs: ['По каждому получателю (банк, лидер, каждый наёмник) — сколько уже выдано, сколько ещё ожидает, число выплат и дата последней.'],
+      onEnter: () => this.view.set('stats'),
+      target: '.rd-stat-table--people',
+    },
+    {
+      title: 'Топ дропа по выручке',
+      paragraphs: ['Какие предметы принесли больше всего денег — сколько штук продано и на какую сумму, по убыванию выручки.'],
+      onEnter: () => this.view.set('stats'),
+      target: '.rd-stat-table--items',
+    },
+    {
+      title: 'Статистика по боссам',
+      paragraphs: ['То же самое, но по каждому боссу: сколько раз убит и сколько принёс выручки.'],
+      onEnter: () => this.view.set('stats'),
+      target: '.rd-stat-table--bosses',
+    },
+    {
+      title: 'Последние выплаты',
+      paragraphs: [
+        'Внизу — лента фактически выданных выплат: кому, какая роль, сколько, за какой предмет с какого босса и когда.',
+        'Если выплат много — появляется постраничная навигация, по 10 штук на страницу.',
+      ],
+      onEnter: () => this.view.set('stats'),
+      target: '.rd-stat-table--payouts',
+    },
+    {
+      title: 'Готово!',
+      paragraphs: [
+        'Теперь вы знаете всё: как отмечать убийства, что происходит с дропом, как проходит продажа и раздел денег, и где смотреть статистику.',
+        'Попробуй блять только с тупыми вопросами прийти!',
+      ],
+    },
+  ];
+
+  readonly tourActive = signal(false);
+  private readonly pendingTourUid = signal<string | null>(null);
+
+  onTourFinished(result: { skipped: boolean }): void {
+    this.tourActive.set(false);
+    const uid = this.pendingTourUid();
+    this.pendingTourUid.set(null);
+    if (uid) void this.onboarding.markTourDone(uid, 'raids', result.skipped);
+  }
+
+  constructor() {
+    this.auth.user$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((user) => {
+      const uid = user?.uid ?? null;
+      if (!uid) return;
+      this.onboarding.hasCompletedTour(uid, 'raids').then((done) => {
+        if (!done) this.pendingTourUid.set(uid);
+      });
+    });
+
+    // Unlike Bookmarks, this tour shows for any not-yet-completed account regardless
+    // of existing data — it's explanatory, not gated on "brand new" data.
+    effect(() => {
+      if (this.tourActive() || !this.pendingTourUid()) return;
+      this.tourActive.set(true);
+    });
   }
 }

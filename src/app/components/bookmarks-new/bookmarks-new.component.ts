@@ -1,4 +1,4 @@
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { timer } from 'rxjs';
@@ -16,11 +16,110 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 
 import { RbJsonDataService } from '../../services/rb-json-data.service';
 import { RbJsonRespService } from '../../services/rb-json-resp.service';
+import { AuthService } from '../../services/auth.service';
+import { OnboardingService } from '../../services/onboarding.service';
 import { getRbKey, readHiddenIds } from '../../utils/rb-hidden';
 import { enrichJsonRb } from '../../utils/rb-json-enrich';
 import { calculateStatus } from '../../utils/rb-enrich';
 import { RbStatus } from '../../constants/status';
 import { JsonRbCardComponent } from '../shared/json-rb-card/json-rb-card.component';
+import { GuidedTourComponent, TourStep } from '../shared/guided-tour/guided-tour.component';
+
+const BOOKMARKS_TOUR_STEPS: TourStep[] = [
+  {
+    title: 'Добро пожаловать на Букмарки!',
+    paragraphs: [
+      'Это ваша личная страница закладок — то, что вы тут создадите, видите только вы.',
+      'Сейчас за пару минут покажу, как всё устроено.',
+      'В любой момент можно нажать «Пропустить обучение» внизу.',
+    ],
+  },
+  {
+    title: 'Закладки — вкладки сверху',
+    paragraphs: [
+      'Каждая вкладка — это одна закладка со своим набором рейд-боссов.',
+      'Закладок может быть сколько угодно и любых: «Основной фарм», «Ивент», «Для пати» — ' +
+        'раскладывайте боссов по смыслу, как вам удобно.',
+      'Вкладки можно перетаскивать и менять местами.',
+    ],
+    target: '[data-tour="bm-tabs"]',
+  },
+  {
+    title: 'Кнопка «Новая закладка»',
+    paragraphs: ['Создаёт ещё одну закладку — просто дайте ей название, и она появится в списке вкладок.'],
+    target: '[data-tour="bm-new-tab-btn"]',
+  },
+  {
+    title: 'Добавление рейд-боссов',
+    paragraphs: [
+      'Тут вы добавляете боссов в открытую сейчас закладку.',
+      'Есть фильтр по уровню («с» — «по») и кнопка «Добавить все» / «Убрать все» для массового ' +
+        'добавления целого диапазона уровней разом.',
+    ],
+    target: '[data-tour="bm-rb-picker"]',
+  },
+  {
+    title: 'Время убийства',
+    paragraphs: [
+      'Отмечайте здесь точное время, когда убили босса — по нему автоматически считается, когда он снова заспавнится.',
+    ],
+    bullets: [
+      { icon: 'pi-check', text: 'сохранить правку времени' },
+      { icon: 'pi-times', text: 'отменить правку' },
+      { icon: 'pi-trash', text: 'стереть время убийства целиком' },
+    ],
+    target: '[data-tour="bm-kill-time"]',
+  },
+  {
+    title: 'Мин, Макс и обратный отсчёт',
+    paragraphs: [
+      '«Мин» и «Макс» — это начало и конец окна респауна, посчитанные от времени убийства. Босс ' +
+        'может заспавниться в любой момент между этими двумя значениями.',
+      'Третье значение справа — живой обратный отсчёт: «До мин. респа», пока идёт ожидание, а ' +
+        'дальше — «В респе уже», «До 2-го мин. респа» и так далее, в зависимости от текущего статуса.',
+    ],
+    target: '[data-tour="bm-resp-minmax"]',
+  },
+  {
+    title: 'Цвет статуса закладки',
+    paragraphs: ['Цифры на вкладке показывают статус боссов внутри неё:'],
+    bullets: [
+      { text: '🔴 красный — босс убит, респ ещё не подошёл' },
+      { text: '🟡 жёлтый — респ примерно через час' },
+      { text: '🟢 зелёный — босс уже в респе (или во втором респе) — самое время фармить' },
+    ],
+    target: '[data-tour="bm-status-pill"]',
+  },
+  {
+    title: 'Кнопки на строке босса',
+    paragraphs: ['У каждого босса есть свой набор кнопок:'],
+    bullets: [
+      { icon: 'pi-map-marker', text: 'показать босса на карте' },
+      { icon: 'pi-refresh', text: 'поставить время убийства «прямо сейчас»' },
+      { icon: 'pi-info-circle', text: 'инфо — характеристики и дроп босса' },
+      { icon: 'pi-trash', text: 'убрать босса из этой закладки' },
+    ],
+    target: '[data-tour="bm-row-actions"]',
+  },
+  {
+    title: 'Кнопки на панели закладки',
+    paragraphs: ['А эти кнопки относятся ко всей открытой закладке сразу:'],
+    bullets: [
+      { icon: 'pi-eraser', text: '«Очистить респы» — разом стереть время убийства у всех боссов закладки' },
+      { icon: 'pi-sliders-h', text: '«Фильтры» — показать только тех, кто в респе или через час до него' },
+      { icon: 'pi-pencil', text: 'переименовать закладку' },
+      { icon: 'pi-trash', text: 'удалить закладку целиком' },
+    ],
+    target: '[data-tour="bm-tab-actions"]',
+  },
+  {
+    title: 'Готово!',
+    paragraphs: [
+      'Теперь вы знаете всё основное: создавайте закладки, добавляйте боссов, отмечайте время убийства.',
+      'Респауны приложение посчитает само. Удачи на фарме!',
+    ],
+  },
+];
 
 interface CustomBossTab {
   id: string;
@@ -50,6 +149,7 @@ interface CustomBossTab {
     ConfirmDialogModule,
     DragDropModule,
     JsonRbCardComponent,
+    GuidedTourComponent,
   ],
   providers: [ConfirmationService],
   templateUrl: './bookmarks-new.component.html',
@@ -58,6 +158,8 @@ interface CustomBossTab {
 export class BookmarksNewComponent {
   private destroyRef = inject(DestroyRef);
   private rbJsonData = inject(RbJsonDataService);
+  private auth = inject(AuthService);
+  private onboarding = inject(OnboardingService);
   private rbJsonResp = inject(RbJsonRespService);
   private confirmationService = inject(ConfirmationService);
   private messageService = inject(MessageService);
@@ -222,6 +324,39 @@ export class BookmarksNewComponent {
     return segments;
   }
 
+  // ---- first-time onboarding tour ----
+
+  readonly tourSteps = BOOKMARKS_TOUR_STEPS;
+  readonly tourActive = signal(false);
+  /** set once we know this user hasn't finished the tour yet — gates the kickoff effect below */
+  private readonly pendingTourUid = signal<string | null>(null);
+
+  onTourFinished(result: { skipped: boolean }): void {
+    this.tourActive.set(false);
+    const uid = this.pendingTourUid();
+    // clear it FIRST — otherwise the kickoff effect below (which reacts to both
+    // signals) sees tourActive flip back to false while pendingTourUid is still
+    // set and immediately restarts the tour it was just told to close
+    this.pendingTourUid.set(null);
+    if (uid) void this.onboarding.markTourDone(uid, 'bookmarks', result.skipped);
+  }
+
+  // Creates a small starter bookmark for the tour to point at. Only ever called
+  // for an account with zero bookmarks (the kickoff effect below won't start the
+  // tour at all otherwise), so this never touches or overwrites real user data.
+  private ensureTourContent(): void {
+    const demoRbId = this.rbOptions()[0]?.value;
+    const newTab: CustomBossTab = {
+      id: this.generateId(),
+      name: 'Моя первая закладка',
+      rbIds: demoRbId ? [demoRbId] : [],
+    };
+    const next = [...this.tabs(), newTab];
+    this.tabs.set(next);
+    this.writeStoredTabs(next);
+    this.activeTabId.set(newTab.id);
+  }
+
   constructor() {
     this.rbJsonData
       .getRaidBosses()
@@ -231,6 +366,32 @@ export class BookmarksNewComponent {
     timer(0, 1000)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.now.set(Date.now()));
+
+    this.auth.user$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((user) => {
+      const uid = user?.uid ?? null;
+      if (!uid) return;
+      this.onboarding.hasCompletedTour(uid, 'bookmarks').then((done) => {
+        if (!done) this.pendingTourUid.set(uid);
+      });
+    });
+
+    // Waits for both the auth check above and the RB catalog to load (so a starter
+    // bookmark can reference a real boss), then starts the tour exactly once — but
+    // only for an account with NO bookmarks of its own yet. Someone who already has
+    // real bookmarks clearly doesn't need the tour, even if they never happened to
+    // finish/skip it (e.g. it rolled out after they'd already been using the page).
+    effect(() => {
+      if (
+        this.tourActive() ||
+        !this.pendingTourUid() ||
+        this.items().length === 0 ||
+        this.tabs().length > 0
+      ) {
+        return;
+      }
+      this.ensureTourContent();
+      this.tourActive.set(true);
+    });
   }
 
   // Everything except the live resp filters — stays free of a `now` dependency, so

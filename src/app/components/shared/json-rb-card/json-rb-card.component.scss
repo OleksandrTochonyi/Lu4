@@ -252,6 +252,12 @@
   background: var(--p-surface-0, #fff);
 }
 
+.resp-minmax-pair {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .resp-mini {
   display: flex;
   align-items: center;
