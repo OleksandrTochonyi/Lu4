@@ -195,6 +195,30 @@
   background: #f1f5f9;
   border-bottom-color: var(--line);
 }
+.rd-kill.is-highlighted {
+  // the ring needs to paint OUTSIDE the card's own box on every side — .rd-kill's
+  // overflow:hidden (there to clip the header/body's square corners to match the
+  // card's own rounded ones) was clipping it, especially left/right where there's
+  // no flex gap to bleed into like there is between stacked cards vertically.
+  // .rd-kill-head/.rd-kill-body now carry their own matching corner radius (see
+  // below), so it's safe to let this one card go overflow:visible during the flash.
+  overflow: visible;
+  animation: rd-kill-flash 4s ease-out;
+}
+@keyframes rd-kill-flash {
+  0% {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.5), 0 4px 18px rgba(37, 99, 235, 0.25);
+  }
+  75% {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3), 0 4px 18px rgba(37, 99, 235, 0.12);
+  }
+  100% {
+    border-color: var(--line);
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+  }
+}
 .rd-kill-head {
   display: flex;
   align-items: center;
@@ -203,6 +227,9 @@
   background: #fff;
   cursor: pointer;
   transition: background 0.12s;
+  // matches .rd-kill's own radius so it stays correctly rounded even when the
+  // card's overflow isn't clipping it (see .rd-kill.is-highlighted)
+  border-radius: 12px 12px 0 0;
 }
 .rd-kill-head:hover {
   background: #f8fafc;
@@ -277,6 +304,8 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  // matches .rd-kill's own radius — see .rd-kill-head's comment above
+  border-radius: 0 0 12px 12px;
 }
 .rd-kill-pack {
   display: flex;
@@ -513,6 +542,9 @@
 .rd-sales-h--closed {
   color: #94a3b8;
 }
+.rd-sales-h--free {
+  color: #a855f7;
+}
 .rd-sales-h-n {
   background: #e2e8f0;
   color: #475569;
@@ -535,6 +567,10 @@
 }
 .rd-sales--closed {
   opacity: 0.75;
+}
+.rd-sales--free .rd-sale {
+  border-style: dashed;
+  border-color: #e9d5ff;
 }
 .rd-sale {
   border: 1px solid var(--line);
@@ -572,8 +608,16 @@
 }
 .rd-sale-boss {
   margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   color: var(--muted);
   font-size: 0.78rem;
+  line-height: 1.25;
+}
+.rd-sale-boss-date {
+  font-size: 0.68rem;
+  color: #94a3b8;
 }
 .rd-sale-price {
   font-weight: 700;

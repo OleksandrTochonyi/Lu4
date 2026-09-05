@@ -53,8 +53,9 @@
     </div>
 
     <div class="rd-kills" *ngIf="filteredKills().length; else emptyKills">
-      <div class="rd-kill" *ngFor="let k of filteredKills(); trackBy: trackByKill"
-        [class.is-open]="isKillExpanded(k.id)" [class.is-soldout]="isKillFullySold(k)">
+      <div class="rd-kill" *ngFor="let k of filteredKills(); trackBy: trackByKill" [attr.data-kill-id]="k.id"
+        [class.is-open]="isKillExpanded(k.id)" [class.is-soldout]="isKillFullySold(k)"
+        [class.is-highlighted]="highlightedKillId() === k.id">
         <div class="rd-kill-head" role="button" tabindex="0" (click)="toggleKillExpanded(k.id)"
           (keydown.enter)="toggleKillExpanded(k.id)">
           <i class="pi rd-kill-chevron" [ngClass]="isKillExpanded(k.id) ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
@@ -245,7 +246,7 @@
 
     <ng-container *ngIf="sales().length; else emptySales">
       <div class="rd-empty rd-sales-nomatch"
-        *ngIf="(salesSearch() || salesCategoryFilter() !== 'all') && !filteredOpenSales().length && !filteredClosedSales().length">
+        *ngIf="(salesSearch() || salesCategoryFilter() !== 'all') && !filteredOpenSales().length && !filteredClosedSales().length && !filteredFreeSales().length">
         <div class="rd-empty-ic"><i class="pi pi-search"></i></div>
         <p class="rd-empty-title">Ничего не найдено</p>
         <p class="rd-empty-sub">Попробуйте другой запрос или фильтр</p>
@@ -271,6 +272,18 @@
         </div>
         <div class="rd-sales rd-sales--closed">
           <ng-container *ngFor="let s of filteredClosedSales(); trackBy: trackBySale">
+            <ng-container *ngTemplateOutlet="saleRow; context: { $implicit: s }"></ng-container>
+          </ng-container>
+        </div>
+      </ng-container>
+
+      <ng-container *ngIf="filteredFreeSales().length">
+        <div class="rd-sales-h rd-sales-h--free" pTooltip="Продано за 0 адены — делить нечего" tooltipPosition="top">
+          Бесплатно
+          <span class="rd-sales-h-n">{{ filteredFreeSales().length }}</span>
+        </div>
+        <div class="rd-sales rd-sales--free">
+          <ng-container *ngFor="let s of filteredFreeSales(); trackBy: trackBySale">
             <ng-container *ngTemplateOutlet="saleRow; context: { $implicit: s }"></ng-container>
           </ng-container>
         </div>
@@ -406,16 +419,23 @@
 <!-- one sale card, reused for "в процессе" and "завершённые" -->
 <ng-template #saleRow let-s>
   <div class="rd-sale" [class.is-settled]="isSaleSettled(s)">
-    <button type="button" class="rd-sale-head" (click)="toggleSaleExpanded(s.id)">
+    <div class="rd-sale-head" role="button" tabindex="0" (click)="toggleSaleExpanded(s.id)"
+      (keydown.enter)="toggleSaleExpanded(s.id)">
       <i class="pi" [ngClass]="isSaleExpanded(s.id) ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
       <img *ngIf="s.icon" [src]="s.icon" (error)="imgError($event)" alt="" class="rd-sale-icon" />
       <span class="rd-sale-name">{{ s.itemName }} × {{ s.qty }}</span>
       <app-grade-badge [grade]="s.grade" />
       <i class="pi pi-check-circle rd-sale-done" *ngIf="isSaleSettled(s)" pTooltip="Всё выдано"></i>
-      <span class="rd-sale-boss">{{ s.bossName }}</span>
+      <span class="rd-sale-boss">
+        {{ s.bossName }}
+        <span class="rd-sale-boss-date" *ngIf="killedAtForSale(s) as killedAt">убит {{ fmtDate(killedAt) }}</span>
+      </span>
       <span class="rd-sale-price">{{ fmtMoney(s.price) }}</span>
       <span class="rd-sale-date">{{ fmtDate(s.soldAt) }}</span>
-    </button>
+      <button pButton type="button" icon="pi pi-flag-fill" class="p-button-sm p-button-text"
+        pTooltip="Перейти к убийству" tooltipPosition="left"
+        (click)="$event.stopPropagation(); goToKill(s)"></button>
+    </div>
 
     <div class="rd-sale-body" *ngIf="isSaleExpanded(s.id)">
       <div class="rd-sale-meta">Продал: {{ s.soldBy }}</div>

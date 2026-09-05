@@ -726,11 +726,9 @@ export class RaidsComponent {
     const cfg = this.config();
     if (!line || !cfg) return;
     const qty = Math.max(1, Math.min(line.remaining, Math.round(this.sellQty() || 1)));
+    // 0 is a valid price (giveaways etc.) — such sales just land in their own
+    // "Бесплатно" group instead of "в процессе"/"завершённые" (see `isFreeSale`)
     const price = Math.max(0, this.sellTotalPrice());
-    if (price <= 0) {
-      this.toast('warn', 'Укажите цену продажи', '');
-      return;
-    }
 
     const payout = this.computePayout(price, line.kill, cfg);
     this.savingSale.set(true);
@@ -854,10 +852,28 @@ export class RaidsComponent {
     for (const m of Object.values(s.payout.mercenaries)) if (!m.paid) return false;
     return true;
   }
-  readonly openSales = computed(() => this.sales().filter((s) => !this.isSaleSettled(s)));
-  readonly closedSales = computed(() => this.sales().filter((s) => this.isSaleSettled(s)));
+  /** sold for 0 — nothing to actually pay out, so these never belong in "в процессе"
+   *  (nagging to mark a 0 share "выдано" is pointless) or "завершённые"; own group */
+  private isFreeSale(s: RaidSale): boolean {
+    return s.price === 0;
+  }
+  readonly freeSales = computed(() => this.sales().filter((s) => this.isFreeSale(s)));
+  readonly openSales = computed(() =>
+    this.sales().filter((s) => !this.isFreeSale(s) && !this.isSaleSettled(s)),
+  );
+  readonly closedSales = computed(() =>
+    this.sales().filter((s) => !this.isFreeSale(s) && this.isSaleSettled(s)),
+  );
 
-  /** search across item name, boss name, who sold it, and the sale date */
+  /** kill lookup by id — used for the sale row's "killed at" caption and the
+   *  "go to kill" jump button, without re-scanning `kills()` per sale */
+  private readonly killsById = computed(() => new Map(this.kills().map((k) => [k.id, k])));
+  killedAtForSale(s: RaidSale): number | null {
+    return this.killsById().get(s.killId)?.killedAt ?? null;
+  }
+
+  /** search across item name, boss name, who sold it, the sale date, and the
+   *  date the boss was actually killed (not the same as the sale date) */
   readonly salesSearch = signal('');
   /** same 5-bucket category filter as "Дроп на складе" — 'all' or one specific category */
   readonly salesCategoryFilter = signal<'all' | RaidItemCategory>('all');
@@ -868,7 +884,8 @@ export class RaidsComponent {
     return this.itemCategory(sale.itemName, this.catalogNameIndex().get(normName(sale.itemName))?.category);
   }
   private matchesSaleSearch(s: RaidSale, q: string): boolean {
-    return [s.itemName, s.bossName, s.soldBy, this.fmtDate(s.soldAt)]
+    const killedAt = this.killedAtForSale(s);
+    return [s.itemName, s.bossName, s.soldBy, this.fmtDate(s.soldAt), killedAt ? this.fmtDate(killedAt) : '']
       .join(' ')
       .toLowerCase()
       .includes(q);
@@ -882,6 +899,36 @@ export class RaidsComponent {
   }
   readonly filteredOpenSales = computed(() => this.filterSales(this.openSales()));
   readonly filteredClosedSales = computed(() => this.filterSales(this.closedSales()));
+  readonly filteredFreeSales = computed(() => this.filterSales(this.freeSales()));
+
+  /** briefly outlined after `goToKill` jumps to it, so it's obvious which card is
+   *  actually the one you were sent to, not just "the one that happens to be centered" */
+  readonly highlightedKillId = signal<string | null>(null);
+  private highlightTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  /** switch to "Убийства", clear any filters that might be hiding it, expand the
+   *  card, scroll it into view, and flash a highlight — jump-to-source for a sale's kill */
+  goToKill(sale: RaidSale): void {
+    const kill = this.kills().find((k) => k.id === sale.killId);
+    if (!kill) {
+      this.toast('warn', 'Убийство не найдено', 'Возможно, оно было удалено');
+      return;
+    }
+    this.killSearch.set('');
+    this.killStatusFilter.set('all');
+    this.view.set('kills');
+    if (!this.isKillExpanded(kill.id)) this.toggleKillExpanded(kill.id);
+
+    if (this.highlightTimeout != null) clearTimeout(this.highlightTimeout);
+    this.highlightedKillId.set(kill.id);
+    this.highlightTimeout = setTimeout(() => this.highlightedKillId.set(null), 4000);
+
+    setTimeout(() => {
+      document
+        .querySelector(`[data-kill-id="${kill.id}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+  }
 
   private aggregateOutstanding(list: RaidSale[]) {
     const bank = { total: 0, unpaid: 0 };
@@ -1391,7 +1438,10 @@ export class RaidsComponent {
     },
     {
       title: 'Вкладка «Продажи» — панель инструментов',
-      paragraphs: ['Тот же фильтр по категории и поиск (по предмету, боссу, продавцу и дате), что и в «Дропе на складе».'],
+      paragraphs: [
+        'Тот же фильтр по категории, что и в «Дропе на складе».',
+        'Поиск ищет по предмету, боссу, продавцу, дате продажи и дате убийства босса.',
+      ],
       onEnter: () => {
         this.resetTourFilters();
         this.view.set('sales');
@@ -1408,11 +1458,13 @@ export class RaidsComponent {
       target: '.rd-outstanding',
     },
     {
-      title: '«В процессе» и «Завершённые»',
+      title: '«В процессе», «Завершённые» и «Бесплатно»',
       paragraphs: [
-        'Каждая продажа — своя строка: предмет, количество, босс, цена, дата. Клик разворачивает её.',
+        'Каждая продажа — своя строка: предмет, количество, босс (мелким шрифтом под ним — когда именно убили этого босса), цена, дата. Клик разворачивает её.',
         'Пока не выдана хотя бы одна доля — продажа лежит в «В процессе». Как только выданы все доли — она сама переезжает в «Завершённые».',
+        'Если продали за 0 адены (например, отдали бесплатно) — такая продажа попадает в отдельную группу «Бесплатно»: делить там нечего, поэтому она не путается под ногами в «В процессе».',
       ],
+      bullets: [{ icon: 'pi-flag-fill', text: 'кнопка справа переносит на убийство, с которого продан этот предмет' }],
       onEnter: () => this.view.set('sales'),
       target: '.rd-sale-head',
     },
