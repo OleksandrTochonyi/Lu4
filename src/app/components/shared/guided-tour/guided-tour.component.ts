@@ -62,25 +62,46 @@ export class GuidedTourComponent implements OnDestroy {
   readonly isFirst = computed(() => this.stepIndex() === 0);
 
   readonly calloutStyle = computed<Record<string, string>>(() => {
+    const margin = 16;
+    const viewportH = window.innerHeight;
     const r = this.rect();
     if (!r) {
-      // no target (or not found yet) — centered card
-      return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
+      // no target (or not found yet) — centered card. Still capped in case the
+      // viewport itself is short (e.g. a small laptop window) and the card's
+      // content is tall enough to overflow it either way.
+      return {
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        'max-height': `calc(100vh - ${margin * 2}px)`,
+        'overflow-y': 'auto',
+      };
     }
-    const margin = 16;
     const calloutWidth = 340;
     const viewportW = window.innerWidth;
-    const viewportH = window.innerHeight;
     const spaceBelow = viewportH - r.bottom;
-    const placeBelow = spaceBelow > 180 || r.top < 180;
+    const spaceAbove = r.top;
+    // Whichever side actually has more room — not just "is there some room below" —
+    // so a target near the bottom of a tall page reliably flips to "above" instead
+    // of pushing the callout (which can run tall: several paragraphs + an icon list)
+    // off the bottom of the viewport where it can't be read or clicked.
+    const placeBelow = spaceBelow >= spaceAbove;
 
     let left = r.left + r.width / 2 - calloutWidth / 2;
     left = Math.max(margin, Math.min(left, viewportW - calloutWidth - margin));
 
     if (placeBelow) {
-      return { top: `${r.bottom + margin}px`, left: `${left}px`, transform: 'none' };
+      const top = r.bottom + margin;
+      // cap height to whatever space is actually left below `top` — the callout
+      // scrolls internally rather than ever extending past the viewport
+      const maxHeight = Math.max(120, viewportH - top - margin);
+      return { top: `${top}px`, left: `${left}px`, transform: 'none', 'max-height': `${maxHeight}px`, 'overflow-y': 'auto' };
     }
-    return { top: `${r.top - margin}px`, left: `${left}px`, transform: 'translateY(-100%)' };
+    const top = r.top - margin;
+    // the box grows UPWARD from `top` (translateY(-100%)), so its available room
+    // is everything above `top`, down to the page's own top margin
+    const maxHeight = Math.max(120, top - margin);
+    return { top: `${top}px`, left: `${left}px`, transform: 'translateY(-100%)', 'max-height': `${maxHeight}px`, 'overflow-y': 'auto' };
   });
 
   readonly spotlightStyle = computed<Record<string, string>>(() => {
