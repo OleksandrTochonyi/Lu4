@@ -155,6 +155,8 @@
           (click)="setDropCategoryFilter('armor')">Броня</button>
         <button type="button" class="rd-toggle-chip" [class.active]="dropCategoryFilter() === 'jewelry'"
           (click)="setDropCategoryFilter('jewelry')">Бижутерия</button>
+        <button type="button" class="rd-toggle-chip" [class.active]="dropCategoryFilter() === 'scroll'"
+          (click)="setDropCategoryFilter('scroll')">Заточки</button>
         <button type="button" class="rd-toggle-chip" [class.active]="dropCategoryFilter() === 'other'"
           (click)="setDropCategoryFilter('other')">Прочее</button>
       </div>
@@ -213,6 +215,8 @@
           (click)="setSalesCategoryFilter('armor')">Броня</button>
         <button type="button" class="rd-toggle-chip" [class.active]="salesCategoryFilter() === 'jewelry'"
           (click)="setSalesCategoryFilter('jewelry')">Бижутерия</button>
+        <button type="button" class="rd-toggle-chip" [class.active]="salesCategoryFilter() === 'scroll'"
+          (click)="setSalesCategoryFilter('scroll')">Заточки</button>
         <button type="button" class="rd-toggle-chip" [class.active]="salesCategoryFilter() === 'other'"
           (click)="setSalesCategoryFilter('other')">Прочее</button>
       </div>

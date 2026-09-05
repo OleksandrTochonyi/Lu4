@@ -108,7 +108,7 @@ function gradeRank(grade?: string): number {
 // Enchant scrolls sort as their own group at the very bottom of the loot list,
 // below even ungraded items — grade doesn't really describe them the way it
 // describes equipment, and grouping them keeps a long drop list scannable.
-function isEnchantScroll(name: string): boolean {
+export function isEnchantScroll(name: string): boolean {
   return String(name ?? '').includes('Scroll: Enchant');
 }
 

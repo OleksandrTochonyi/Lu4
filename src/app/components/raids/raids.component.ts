@@ -16,9 +16,8 @@ import { AuthService } from '../../services/auth.service';
 import { OnboardingService } from '../../services/onboarding.service';
 import { GuidedTourComponent, TourStep } from '../shared/guided-tour/guided-tour.component';
 import { ConstPartyGroup, ConstPartyService, ConstPartyUser } from '../../services/const-party.service';
-import { JsonRb, JsonRbLoot, RbJsonDataService } from '../../services/rb-json-data.service';
+import { JsonRb, JsonRbLoot, RbJsonDataService, isEnchantScroll } from '../../services/rb-json-data.service';
 import {
-  CRAFT_CATEGORY_LABEL,
   CraftCatalogService,
   CraftCategory,
   CraftEntry,
@@ -55,18 +54,31 @@ interface DropLine {
   remaining: number;
 }
 
+/** the 5 buckets "Дроп на складе"/"Продажи" filter/group by — narrower than the full
+ *  7-value CraftCategory (weapon/armor/jewelry/resource/part/recipe/other) from the
+ *  craft catalogue, plus a "scroll" bucket the catalogue has no concept of at all
+ *  (enchant scrolls are detected by name, see `isEnchantScroll`, not by category). */
+type RaidItemCategory = 'weapon' | 'armor' | 'jewelry' | 'scroll' | 'other';
+const RAID_CATEGORY_LABEL: Record<RaidItemCategory, string> = {
+  weapon: 'Оружие',
+  armor: 'Броня',
+  jewelry: 'Бижутерия',
+  scroll: 'Заточки',
+  other: 'Прочее',
+};
+
 interface DropGroup {
   key: string;
   name: string;
   icon: string | null;
   grade: string | null;
-  category: CraftCategory;
+  category: RaidItemCategory;
   total: number;
   lines: DropLine[];
 }
 
 interface DropCategoryBlock {
-  category: CraftCategory;
+  category: RaidItemCategory;
   label: string;
   groups: DropGroup[];
 }
@@ -533,21 +545,43 @@ export class RaidsComponent {
     return lines;
   });
 
-/** category of a drop, resolved via a best-effort catalog name match (grade-blind — safe,
-   *  since a name collision only ever happens between grades of the same item type, which
-   *  always share the same category anyway). Falls back to 'other' when unmatched. */
-  private dropCategory(drop: RaidDrop): CraftCategory {
-    return this.catalogNameIndex().get(normName(drop.name))?.category ?? 'other';
+  /** the catalogue has 7 categories (weapon/armor/jewelry/resource/part/recipe/other), but
+   *  this page only ever offers 5 filter buckets — collapse anything that isn't gear into
+   *  'other' so a resource/part/recipe item (a crafting material — "кусок" mats, etc.) is
+   *  reachable under "Прочее" instead of silently matching none of the buckets and
+   *  disappearing from every specific-category filter (and from the "Все" grouped view).
+   *  Enchant scrolls get their own "Заточки" bucket regardless of catalog category, since
+   *  the catalogue itself has no concept of "scroll" — detected purely by name. */
+  private itemCategory(name: string, catalogCategory: CraftCategory | null | undefined): RaidItemCategory {
+    if (isEnchantScroll(name)) return 'scroll';
+    if (catalogCategory === 'weapon' || catalogCategory === 'armor' || catalogCategory === 'jewelry') {
+      return catalogCategory;
+    }
+    return 'other';
   }
 
-  private static readonly DROP_CATEGORY_ORDER: CraftCategory[] = ['weapon', 'armor', 'jewelry', 'other'];
-  private static readonly DROP_CATEGORY_RANK: Partial<Record<CraftCategory, number>> = {
+  /** category of a drop, resolved via a best-effort catalog name match (grade-blind — safe,
+   *  since a name collision only ever happens between grades of the same item type, which
+   *  always share the same category anyway). Falls back to 'other' when unmatched. */
+  private dropCategory(drop: RaidDrop): RaidItemCategory {
+    return this.itemCategory(drop.name, this.catalogNameIndex().get(normName(drop.name))?.category);
+  }
+
+  private static readonly DROP_CATEGORY_ORDER: RaidItemCategory[] = [
+    'weapon',
+    'armor',
+    'jewelry',
+    'scroll',
+    'other',
+  ];
+  private static readonly DROP_CATEGORY_RANK: Partial<Record<RaidItemCategory, number>> = {
     weapon: 0,
     armor: 1,
     jewelry: 2,
+    scroll: 3,
   };
-  private dropCategoryRank(category: CraftCategory): number {
-    return RaidsComponent.DROP_CATEGORY_RANK[category] ?? 3;
+  private dropCategoryRank(category: RaidItemCategory): number {
+    return RaidsComponent.DROP_CATEGORY_RANK[category] ?? 4;
   }
 
   readonly dropGroups = computed<DropGroup[]>(() => {
@@ -581,8 +615,8 @@ export class RaidsComponent {
 
   readonly dropSearch = signal('');
   /** 'all' or one specific category — pick ONE bucket to view, not just a sort order */
-  readonly dropCategoryFilter = signal<'all' | CraftCategory>('all');
-  setDropCategoryFilter(cat: 'all' | CraftCategory): void {
+  readonly dropCategoryFilter = signal<'all' | RaidItemCategory>('all');
+  setDropCategoryFilter(cat: 'all' | RaidItemCategory): void {
     this.dropCategoryFilter.set(cat);
   }
   readonly filteredDropGroups = computed(() => {
@@ -598,10 +632,10 @@ export class RaidsComponent {
   readonly categorizedDropGroups = computed<DropCategoryBlock[]>(() => {
     const groups = this.filteredDropGroups();
     const cat = this.dropCategoryFilter();
-    if (cat !== 'all') return [{ category: cat, label: CRAFT_CATEGORY_LABEL[cat], groups }];
+    if (cat !== 'all') return [{ category: cat, label: RAID_CATEGORY_LABEL[cat], groups }];
     return RaidsComponent.DROP_CATEGORY_ORDER.map((category) => ({
       category,
-      label: CRAFT_CATEGORY_LABEL[category],
+      label: RAID_CATEGORY_LABEL[category],
       groups: groups.filter((g) => g.category === category),
     })).filter((block) => block.groups.length > 0);
   });
@@ -821,13 +855,13 @@ export class RaidsComponent {
 
   /** search across item name, boss name, who sold it, and the sale date */
   readonly salesSearch = signal('');
-  /** same 4-bucket category filter as "Дроп на складе" — 'all' or one specific category */
-  readonly salesCategoryFilter = signal<'all' | CraftCategory>('all');
-  setSalesCategoryFilter(cat: 'all' | CraftCategory): void {
+  /** same 5-bucket category filter as "Дроп на складе" — 'all' or one specific category */
+  readonly salesCategoryFilter = signal<'all' | RaidItemCategory>('all');
+  setSalesCategoryFilter(cat: 'all' | RaidItemCategory): void {
     this.salesCategoryFilter.set(cat);
   }
-  saleCategory(sale: RaidSale): CraftCategory {
-    return this.catalogNameIndex().get(normName(sale.itemName))?.category ?? 'other';
+  saleCategory(sale: RaidSale): RaidItemCategory {
+    return this.itemCategory(sale.itemName, this.catalogNameIndex().get(normName(sale.itemName))?.category);
   }
   private matchesSaleSearch(s: RaidSale, q: string): boolean {
     return [s.itemName, s.bossName, s.soldBy, this.fmtDate(s.soldAt)]
@@ -1321,7 +1355,7 @@ export class RaidsComponent {
       title: 'Вкладка «Дроп на складе» — панель инструментов',
       paragraphs: [
         'Тут собран весь дроп, который ещё не продан, сгруппированный по предмету — даже если он падал с разных боссов.',
-        'Фильтр по категории показывает только оружие, только броню, только бижутерию или всё прочее — либо «Все» сразу.',
+        'Фильтр по категории показывает только оружие, только броню, только бижутерию, только заточки или всё остальное прочее — либо «Все» сразу.',
         'Поиск ищет по названию предмета.',
       ],
       onEnter: () => {
