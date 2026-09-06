@@ -909,6 +909,23 @@
 .rd-part-pill.active .pi {
   color: #1d4ed8;
 }
+.rd-part-pill.is-merc {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+.rd-part-pill.is-merc .pi {
+  color: #f59e0b;
+}
+.rd-part-pill.is-merc.active {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #92400e;
+  font-weight: 600;
+}
+.rd-part-pill.is-merc.active .pi {
+  color: #b45309;
+}
 .rd-part-twink {
   font-size: 0.62rem;
   color: #7c3aed;
@@ -1112,7 +1129,26 @@
 }
 .rd-loot-list--listing .rd-loot-row {
   flex-wrap: wrap;
-  row-gap: 0.4rem;
+  row-gap: 0.3rem;
+}
+/* let the name take the space it needs on the first line; the qty/price inputs
+   drop to their own indented line underneath */
+.rd-loot-list--listing .rd-loot-name {
+  flex: 1 1 6rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rd-loot-list--listing .rd-loot-chance {
+  flex: none;
+  white-space: nowrap;
+}
+.rd-listing-fields {
+  flex-basis: 100%;
+  display: flex;
+  gap: 0.9rem;
+  padding-left: 2.35rem;
 }
 .rd-listing-field {
   display: inline-flex;
@@ -1131,7 +1167,7 @@
   text-align: center;
 }
 :host ::ng-deep .rd-listing-price-input {
-  width: 7.5rem;
+  width: 6rem;
   text-align: right;
 }
 .rd-listing-reserved {

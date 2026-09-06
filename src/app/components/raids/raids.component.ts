@@ -265,9 +265,10 @@ export class RaidsComponent {
     });
   });
 
-  /** every drop line from this kill has been completely sold off */
+  /** every drop line from this kill has been completely sold off — a kill with no drop
+   *  at all counts as "Распродано" straight away (nothing left to deal with) */
   isKillFullySold(kill: RaidKill): boolean {
-    if (!kill.drops.length) return false;
+    if (!kill.drops.length) return true;
     const sold = this.soldByKey();
     return kill.drops.every((d) => (sold.get(`${kill.id}:${d.id}`) ?? 0) >= d.qty);
   }

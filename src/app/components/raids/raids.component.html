@@ -648,7 +648,9 @@
           </div>
           <div class="rd-part-grid">
             <button type="button" class="rd-part-pill" *ngFor="let u of mainUsers(g); trackBy: trackByUser"
-              [class.active]="isKillParticipantOn(g.id, u.id)" (click)="toggleKillParticipant(g.id, u.id)">
+              [class.active]="isKillParticipantOn(g.id, u.id)" [class.is-merc]="isMercRosterMember(u.id)"
+              [pTooltip]="isMercRosterMember(u.id) ? 'Наёмник' : ''" tooltipPosition="top"
+              (click)="toggleKillParticipant(g.id, u.id)">
               <i class="pi" [ngClass]="isKillParticipantOn(g.id, u.id) ? 'pi-check-circle' : 'pi-circle'"></i>
               {{ u.name }}
             </button>
@@ -825,9 +827,12 @@
           <app-grade-badge [grade]="r.grade" />
           <span class="rd-loot-chance">
             свободно {{ r.available }}
-            <span class="rd-listing-reserved" *ngIf="reservedForItem(r.key, editingListingId()) as reserved">({{ reserved }} в других списках)</span>
+            <span class="rd-listing-reserved"
+              *ngIf="reservedForItem(r.key, editingListingId()) as reserved" [pTooltip]="reserved + ' в других списках'">
+              (−{{ reserved }})
+            </span>
           </span>
-          <ng-container *ngIf="r.checked">
+          <div class="rd-listing-fields" *ngIf="r.checked">
             <span class="rd-listing-field">
               <label>шт</label>
               <p-inputNumber [ngModel]="r.listedQty" (ngModelChange)="setListingRowQty(r.key, $event)"
@@ -840,7 +845,7 @@
               <p-inputNumber [ngModel]="r.unitPrice" (ngModelChange)="setListingRowPrice(r.key, $event)"
                 [min]="0" [useGrouping]="true" inputStyleClass="rd-listing-price-input"></p-inputNumber>
             </span>
-          </ng-container>
+          </div>
         </div>
       </div>
       <ng-template #noStock>
