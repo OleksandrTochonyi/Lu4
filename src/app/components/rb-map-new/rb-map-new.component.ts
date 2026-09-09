@@ -308,7 +308,9 @@ export class RbMapNewComponent {
     const boss = this.selectedBoss();
     if (!boss) return;
     try {
-      await this.jsonRespService.setKillTime(boss.id, this.nowInKyivAsLocalDate());
+      await this.jsonRespService.setKillTime(boss.id, this.nowInKyivAsLocalDate(), {
+        bossName: boss['displayName'] || boss['name'],
+      });
       this.messageService.add({ severity: 'success', summary: 'Респ обновлён', detail: boss['displayName'], life: 2500 });
     } catch {
       this.messageService.add({ severity: 'error', summary: 'Не удалось обновить респ', life: 4000 });

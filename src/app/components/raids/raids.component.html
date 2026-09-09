@@ -547,7 +547,7 @@
     </div>
 
     <div class="rd-sale-body" *ngIf="isSaleExpanded(s.id)">
-      <div class="rd-sale-meta">Продал: {{ s.soldBy }}</div>
+      <div class="rd-sale-meta" [pTooltip]="who(s.soldBy) !== s.soldBy ? s.soldBy : ''">Продал: {{ who(s.soldBy) }}</div>
 
       <div class="rd-lock-banner" *ngIf="s.locked">
         <i class="pi pi-lock"></i>

@@ -14,12 +14,29 @@ import { MenubarModule } from 'primeng/menubar';
 import { RippleModule } from 'primeng/ripple';
 import { ToastModule } from 'primeng/toast';
 import { MenuItem } from 'primeng/api';
-import { combineLatest } from 'rxjs';
 import { filter } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { AuthService } from './services/auth.service';
-import { isWarehouseEmail } from './data/warehouse-access';
+import { SiteUsersService } from './services/site-users.service';
+import { ActivityLogService } from './services/activity-log.service';
+
+const PAGE_NAMES: Record<string, string> = {
+  '/': 'Букмарки',
+  '/bookmarks': 'Букмарки',
+  '/bookmarks-new': 'Букмарки',
+  '/home-new': 'Главная',
+  '/users': 'Клан',
+  '/const-party': 'Клан',
+  '/warehouse': 'Склад',
+  '/raids': 'Рейды',
+  '/rb-map': 'Карта РБ',
+  '/rb-map-new': 'Карта РБ',
+  '/rb-list': 'Список РБ',
+  '/rb-list-new': 'Список РБ',
+  '/startistics': 'Статистика',
+  '/admin/users': 'Пользователи',
+};
 
 @Component({
   selector: 'app-root',
@@ -40,8 +57,13 @@ import { isWarehouseEmail } from './data/warehouse-access';
 export class AppComponent {
   private router = inject(Router);
   private authService = inject(AuthService);
+  private siteUsers = inject(SiteUsersService);
+  private activityLog = inject(ActivityLogService);
   private location = inject(Location);
   private destroyRef = inject(DestroyRef);
+
+  private lastLoggedPath = '';
+  private lastLoggedAt = 0;
 
   private currentUrl = this.location.path(true) || this.router.url;
 
@@ -69,7 +91,6 @@ export class AppComponent {
 
   private readonly allMenuItems: (MenuItem & {
     adminOnly?: boolean;
-    warehouseOnly?: boolean;
   })[] = [
     {
       label: 'Bookmarks',
@@ -96,13 +117,13 @@ export class AppComponent {
       label: 'WH',
       icon: 'pi pi-box',
       routerLink: '/warehouse',
-      warehouseOnly: true,
+      adminOnly: true,
     },
     {
       label: 'Raids',
       icon: 'pi pi-book',
       routerLink: '/raids',
-      warehouseOnly: true,
+      adminOnly: true,
     },
     // {
     //   label: 'RB List',
@@ -114,6 +135,12 @@ export class AppComponent {
       label: 'Statistics',
       icon: 'pi pi-chart-bar',
       routerLink: '/startistics',
+      adminOnly: true,
+    },
+    {
+      label: 'Users',
+      icon: 'pi pi-user-edit',
+      routerLink: '/admin/users',
       adminOnly: true,
     },
   ];
@@ -128,16 +155,34 @@ export class AppComponent {
       )
       .subscribe((e) => {
         this.currentUrl = e.urlAfterRedirects;
+        const path = e.urlAfterRedirects.split('?')[0].split('#')[0];
+        if (path === '/login') return;
+        const now = Date.now();
+        // don't spam the log if the same page is re-hit within a few seconds
+        if (path === this.lastLoggedPath && now - this.lastLoggedAt < 8000) return;
+        this.lastLoggedPath = path;
+        this.lastLoggedAt = now;
+        this.activityLog.log('Открыл', PAGE_NAMES[path] ?? path, 'nav');
       });
 
-    combineLatest([this.authService.isAdmin$, this.authService.user$])
+    this.siteUsers.isAdmin$
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(([isAdmin, user]) => {
-        const canWarehouse = isAdmin || isWarehouseEmail(user?.email);
+      .subscribe((isAdmin) => {
         this.items = this.allMenuItems.filter(
-          (item) =>
-            (isAdmin || !item.adminOnly) && (canWarehouse || !item.warehouseOnly),
+          (item) => isAdmin || !item.adminOnly,
         );
+      });
+
+    // an account that's already inside the app and loses access (blocked, or
+    // removed from the list) gets bounced out live
+    this.siteUsers.deniedReason$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((reason) => {
+        if (!reason || this.isLoginPage) return;
+        const param = reason === 'blocked' ? 'blocked' : 'denied';
+        void this.authService
+          .logout()
+          .finally(() => this.router.navigate(['/login'], { queryParams: { [param]: 1 } }));
       });
   }
 

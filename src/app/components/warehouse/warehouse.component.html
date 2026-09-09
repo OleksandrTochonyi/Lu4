@@ -420,7 +420,7 @@
   <ul class="wh-hist-list" *ngIf="historyItem() as hi">
     <li *ngFor="let h of hi.history">
       <div class="wh-hist-row">
-        <span class="wh-hist-who">{{ h.byName }}</span>
+        <span class="wh-hist-who">{{ who(h.byEmail) }}</span>
         <span class="wh-hist-move">
           {{ h.from }} <i class="pi pi-arrow-right"></i>
           <b [class.up]="h.to > h.from" [class.down]="h.to < h.from">{{ h.to }}</b>
@@ -429,7 +429,7 @@
       </div>
       <div class="wh-hist-meta">
         <span>{{ fmtTs(h.ts) }}</span>
-        <span class="wh-hist-email">{{ h.byEmail }}</span>
+        <span class="wh-hist-email" *ngIf="who(h.byEmail) !== h.byEmail">{{ h.byEmail }}</span>
       </div>
     </li>
     <li *ngIf="!hi.history.length" class="wh-muted">Изменений ещё не было</li>

@@ -16,6 +16,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 
 import { RbJsonDataService } from '../../services/rb-json-data.service';
 import { RbJsonRespService } from '../../services/rb-json-resp.service';
+import { ActivityLogService } from '../../services/activity-log.service';
 import { AuthService } from '../../services/auth.service';
 import { OnboardingService } from '../../services/onboarding.service';
 import { getRbKey, readHiddenIds } from '../../utils/rb-hidden';
@@ -161,6 +162,7 @@ export class BookmarksNewComponent {
   private auth = inject(AuthService);
   private onboarding = inject(OnboardingService);
   private rbJsonResp = inject(RbJsonRespService);
+  private activityLog = inject(ActivityLogService);
   private confirmationService = inject(ConfirmationService);
   private messageService = inject(MessageService);
 
@@ -456,7 +458,9 @@ export class BookmarksNewComponent {
     if (!rbId) return;
 
     this.rbJsonResp
-      .setKillTime(rbId, event.deadTime)
+      .setKillTime(rbId, event.deadTime, {
+        bossName: event.rb?.displayName || event.rb?.name,
+      })
       .then(() => {
         this.messageService.add({ severity: 'success', summary: 'Время сохранено', life: 2500 });
       })
@@ -511,12 +515,16 @@ export class BookmarksNewComponent {
       this.tabs.set(next);
       this.writeStoredTabs(next);
       this.activeTabId.set(newTab.id);
+      this.activityLog.log('Создал закладку', name);
     } else if (this.editingTabId) {
       const editingId = this.editingTabId;
       const hidden = this.tabHiddenDraft();
+      const prev = this.tabs().find((t) => t.id === editingId);
       const next = this.tabs().map((t) => (t.id === editingId ? { ...t, name, hidden } : t));
       this.tabs.set(next);
       this.writeStoredTabs(next);
+      const renamed = prev && prev.name !== name ? `${prev.name} → ${name}` : name;
+      this.activityLog.log('Изменил закладку', renamed);
 
       if (hidden && this.activeTabId() === editingId) {
         this.activeTabId.set(next.find((t) => !t.hidden)?.id ?? '');
@@ -595,8 +603,14 @@ export class BookmarksNewComponent {
       )
     );
 
-    Promise.allSettled(rbIds.map((id) => this.rbJsonResp.setKillTime(id, null))).then((results) => {
+    Promise.allSettled(
+      rbIds.map((id) => this.rbJsonResp.setKillTime(id, null, { silent: true })),
+    ).then((results) => {
       const failed = results.filter((r) => r.status === 'rejected').length;
+      const cleared = rbIds.length - failed;
+      if (cleared > 0) {
+        this.activityLog.log('Очистил время убийства РБ', `${tab.name}: ${cleared}`);
+      }
       if (failed) {
         this.messageService.add({
           severity: 'warn',
@@ -610,6 +624,7 @@ export class BookmarksNewComponent {
   }
 
   private deleteTab(tabId: string): void {
+    const gone = this.tabs().find((t) => t.id === tabId);
     const next = this.tabs().filter((t) => t.id !== tabId);
     this.tabs.set(next);
     this.writeStoredTabs(next);
@@ -617,6 +632,7 @@ export class BookmarksNewComponent {
     if (this.activeTabId() === tabId) {
       this.activeTabId.set(next.find((t) => !t.hidden)?.id ?? '');
     }
+    this.activityLog.log('Удалил закладку', gone?.name ?? '');
   }
 
   showTab(tab: CustomBossTab): void {

@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, OnInit, computed, effect, inject, input, output, signal } from '@angular/core';
 import { Timestamp } from 'firebase/firestore';
 import { Router } from '@angular/router';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { timer } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
@@ -13,6 +13,7 @@ import { TooltipModule } from 'primeng/tooltip';
 
 import { JsonRb } from '../../../services/rb-json-data.service';
 import { RespHistoryEntry } from '../../../services/rb-json-resp.service';
+import { SiteUsersService, actorLabel } from '../../../services/site-users.service';
 import { RbStatus } from '../../../constants/status';
 import { TgService } from '../../../services/tg.service';
 import { calculateStatus } from '../../../utils/rb-enrich';
@@ -38,6 +39,16 @@ export class JsonRbCardComponent implements OnInit {
   private router = inject(Router);
   private destroyRef = inject(DestroyRef);
   private tgService = inject(TgService);
+  private siteUsers = inject(SiteUsersService);
+
+  /** email -> name from the site-users list, for the "кто менял" caption */
+  private readonly actorNames = toSignal(this.siteUsers.namesByEmail$, {
+    initialValue: new Map<string, string>(),
+  });
+  /** a real name for a stored email, or the email itself when we have none */
+  who(email: string | null | undefined): string {
+    return actorLabel(email, this.actorNames());
+  }
 
   rb = input<(JsonRb & { hidden?: boolean; deadTime?: Date | null; minResp?: Date | null; maxResp?: Date | null; secondMinResp?: Date | null; secondMaxResp?: Date | null; status?: RbStatus }) | null>(null);
   showDeleteButton = input(false);
@@ -247,7 +258,7 @@ export class JsonRbCardComponent implements OnInit {
         const toTime = e.to ? this.toDate(e.to) : null;
         const fromLabel = fromTime ? this.formatRuDateTime(fromTime) : '—';
         const toLabel = toTime ? this.formatRuDateTime(toTime) : '—';
-        return `${fromLabel} → ${toLabel} (${e.changedBy || 'кто-то'})`;
+        return `${fromLabel} → ${toLabel} (${this.who(e.changedBy) || 'кто-то'})`;
       })
       .join(' • ');
   });

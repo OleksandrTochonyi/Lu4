@@ -148,8 +148,8 @@
 								<i class="pi pi-arrow-right history-entry-arrow"></i>
 								<span class="history-entry-to">{{ entry.to ? (toDate(entry.to) | date : 'dd.MM.yy HH:mm') : 'без времени' }}</span>
 							</span>
-							<span class="history-entry-meta">
-								{{ entry.changedBy || 'кто-то' }} · {{ toDate(entry.changedAt) | date : 'dd.MM HH:mm' }}
+							<span class="history-entry-meta" [pTooltip]="who(entry.changedBy) !== entry.changedBy ? entry.changedBy : ''">
+								{{ who(entry.changedBy) || 'кто-то' }} · {{ toDate(entry.changedAt) | date : 'dd.MM HH:mm' }}
 							</span>
 						</div>
 

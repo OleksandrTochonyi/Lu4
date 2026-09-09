@@ -228,7 +228,9 @@ export class HomeNewComponent {
     if (!rbId) return;
 
     this.rbJsonResp
-      .setKillTime(rbId, event.deadTime)
+      .setKillTime(rbId, event.deadTime, {
+        bossName: event.rb?.displayName || event.rb?.name,
+      })
       .then(() => {
         this.messageService.add({ severity: 'success', summary: 'Время сохранено', life: 2500 });
       })

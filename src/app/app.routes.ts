@@ -12,17 +12,17 @@ import { HomeNewComponent } from './components/home-new/home-new.component';
 import { BookmarksNewComponent } from './components/bookmarks-new/bookmarks-new.component';
 import { RbListNewComponent } from './components/rb-list-new/rb-list-new.component';
 import { RbMapNewComponent } from './components/rb-map-new/rb-map-new.component';
+import { AdminUsersComponent } from './components/admin-users/admin-users.component';
 import { authGuard } from './guards/auth.guard';
 import { adminGuard } from './guards/admin.guard';
-import { warehouseGuard } from './guards/warehouse.guard';
 import { loginRedirectGuard } from './guards/login-redirect.guard';
 
 export const routes: Routes = [
 	{ path: '', component: BookmarksNewComponent, canActivate: [authGuard] },
 	{ path: 'users', component: UsersComponent, canActivate: [authGuard] },
 	{ path: 'const-party', component: UsersComponent, canActivate: [authGuard] },
-	{ path: 'warehouse', component: WarehouseComponent, canActivate: [authGuard, warehouseGuard] },
-	{ path: 'raids', component: RaidsComponent, canActivate: [authGuard, warehouseGuard] },
+	{ path: 'warehouse', component: WarehouseComponent, canActivate: [authGuard, adminGuard] },
+	{ path: 'raids', component: RaidsComponent, canActivate: [authGuard, adminGuard] },
 	{ path: 'rb-list', component: RaidBossListComponent, canActivate: [authGuard, adminGuard] },
 	{ path: 'rb-map', component: RbMapComponent, canActivate: [authGuard] },
 	{ path: 'bookmarks', component: BookmarksComponent, canActivate: [authGuard] },
@@ -31,6 +31,7 @@ export const routes: Routes = [
 	{ path: 'bookmarks-new', component: BookmarksNewComponent, canActivate: [authGuard] },
 	{ path: 'rb-list-new', component: RbListNewComponent, canActivate: [authGuard, adminGuard] },
 	{ path: 'rb-map-new', component: RbMapNewComponent, canActivate: [authGuard] },
+	{ path: 'admin/users', component: AdminUsersComponent, canActivate: [authGuard, adminGuard] },
 	{ path: 'login', component: LoginComponent, canActivate: [loginRedirectGuard] },
 ];
 

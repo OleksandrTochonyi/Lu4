@@ -3,12 +3,13 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs/operators';
 
 import { AuthService } from './auth.service';
+import { SiteUsersService } from './site-users.service';
 import { ConstPartyGroup, ConstPartyUser } from './const-party.service';
 
 /**
  * Who is allowed to do what on the Clan page.
  *
- *  - admin (email contains "admin")            → full CRUD on packs + members + gear
+ *  - admin (site-users role 'admin')           → full CRUD on packs + members + gear
  *  - party leader (isPL member, e-mail match)  → CRUD members + gear, but only in
  *                                                the pack(s) where they are the PL
  *  - a plain member (e-mail match, not PL)     → edit only their OWN level + gear
@@ -17,13 +18,14 @@ import { ConstPartyGroup, ConstPartyUser } from './const-party.service';
 @Injectable({ providedIn: 'root' })
 export class ClanAccessService {
   private auth = inject(AuthService);
+  private siteUsers = inject(SiteUsersService);
 
   readonly email = toSignal(
     this.auth.user$.pipe(map((u) => String(u?.email ?? '').trim().toLowerCase())),
     { initialValue: '' },
   );
 
-  readonly isAdmin = toSignal(this.auth.isAdmin$, { initialValue: false });
+  readonly isAdmin = toSignal(this.siteUsers.isAdmin$, { initialValue: false });
 
   /** Is the current user the PL of this pack? */
   isPlOf(group: ConstPartyGroup | null | undefined): boolean {

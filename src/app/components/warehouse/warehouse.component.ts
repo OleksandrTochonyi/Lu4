@@ -22,6 +22,7 @@ import {
   normName,
 } from '../../services/craft-catalog.service';
 import { StockItem, WarehouseService } from '../../services/warehouse.service';
+import { SiteUsersService, actorLabel } from '../../services/site-users.service';
 
 interface CatalogSuggestion {
   id: string;
@@ -55,8 +56,18 @@ interface CatalogSuggestion {
 export class WarehouseComponent {
   private warehouse = inject(WarehouseService);
   private craftCatalog = inject(CraftCatalogService);
+  private siteUsers = inject(SiteUsersService);
   private messageService = inject(MessageService);
   private confirmationService = inject(ConfirmationService);
+
+  /** email -> name from the site-users list, for the history dialog captions */
+  private readonly actorNames = toSignal(this.siteUsers.namesByEmail$, {
+    initialValue: new Map<string, string>(),
+  });
+  /** name for a stored email, or the email itself when we have no name */
+  who(email: string | null | undefined): string {
+    return actorLabel(email, this.actorNames());
+  }
 
   readonly categoryLabel = CRAFT_CATEGORY_LABEL;
   // craftable categories worth showing — "Прочее" (other) is hidden

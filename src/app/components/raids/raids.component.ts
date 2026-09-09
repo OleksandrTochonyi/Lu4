@@ -41,6 +41,7 @@ import {
   SalePayout,
 } from '../../services/raid-loot.service';
 import { GradeBadgeComponent } from '../shared/grade-badge/grade-badge.component';
+import { SiteUsersService, actorLabel } from '../../services/site-users.service';
 
 /** one row of the selected boss's own drop table, checkable + quantity */
 interface LootRow {
@@ -172,6 +173,7 @@ export class RaidsComponent {
   private rbJsonResp = inject(RbJsonRespService);
   private craftCatalog = inject(CraftCatalogService);
   private auth = inject(AuthService);
+  private siteUsers = inject(SiteUsersService);
   private onboarding = inject(OnboardingService);
   private messageService = inject(MessageService);
   private confirmationService = inject(ConfirmationService);
@@ -190,6 +192,15 @@ export class RaidsComponent {
   readonly bosses = toSignal(this.rbJsonData.getRaidBosses(), { initialValue: [] as JsonRb[] });
   readonly catalog = toSignal(this.craftCatalog.catalog$, { initialValue: [] as CraftEntry[] });
   readonly myEmail = toSignal(this.auth.user$.pipe(map((u) => u?.email ?? '')), { initialValue: '' });
+
+  /** email -> name from the site-users list, for "кто продал / отметил" captions */
+  private readonly actorNames = toSignal(this.siteUsers.namesByEmail$, {
+    initialValue: new Map<string, string>(),
+  });
+  /** a real name for a stored email, or the email itself when we have none */
+  who(email: string | null | undefined): string {
+    return actorLabel(email, this.actorNames());
+  }
 
   private readonly catalogNameIndex = computed(() => buildNameIndex(this.catalog()));
 
@@ -499,7 +510,8 @@ export class RaidsComponent {
       // kill's own "Дата и время" as the death time
       if (this.killMarkAsDead()) {
         try {
-          await this.rbJsonResp.setKillTime(boss.id, new Date(killedAt));
+          // the kill itself is already logged by raid-loot — don't double-log
+          await this.rbJsonResp.setKillTime(boss.id, new Date(killedAt), { silent: true });
         } catch {
           this.toast('warn', 'Время смерти не сохранилось', 'Убийство записано, но респ не обновлён');
         }
@@ -925,7 +937,7 @@ export class RaidsComponent {
   }
   private matchesSaleSearch(s: RaidSale, q: string): boolean {
     const killedAt = this.killedAtForSale(s);
-    return [s.itemName, s.bossName, s.soldBy, this.fmtDate(s.soldAt), killedAt ? this.fmtDate(killedAt) : '']
+    return [s.itemName, s.bossName, s.soldBy, this.who(s.soldBy), this.fmtDate(s.soldAt), killedAt ? this.fmtDate(killedAt) : '']
       .join(' ')
       .toLowerCase()
       .includes(q);

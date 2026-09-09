@@ -1,0 +1,195 @@
+<p-confirmDialog />
+
+<div class="au-page">
+  <div class="au-head">
+    <div class="au-head-text">
+      <h1>Пользователи</h1>
+      <p>Кто может заходить на сайт, их роли и блокировки</p>
+    </div>
+    <button pButton type="button" icon="pi pi-plus" label="Добавить" (click)="openAdd()"></button>
+  </div>
+
+  <div class="au-note">
+    Зайти на сайт может только тот, кто есть в этом списке и не заблокирован. Аккаунт (email + пароль)
+    заводится вручную в консоли Firebase, а сюда его добавляешь кнопкой «Добавить». «Заблокировать» —
+    закрывает вход сразу; «убрать из списка» — тоже закрывает вход (записи больше нет).
+  </div>
+
+  <div class="au-tiles">
+    <div class="au-tile">
+      <span class="au-tile-label">Всего</span>
+      <span class="au-tile-value">{{ stats().total }}</span>
+    </div>
+    <div class="au-tile">
+      <span class="au-tile-label">Админов</span>
+      <span class="au-tile-value">{{ stats().admins }}</span>
+    </div>
+    <div class="au-tile au-tile--warn">
+      <span class="au-tile-label">Заблокировано</span>
+      <span class="au-tile-value">{{ stats().blocked }}</span>
+    </div>
+  </div>
+
+  <span class="au-search">
+    <i class="pi pi-search"></i>
+    <input pInputText type="text" [ngModel]="search()" (ngModelChange)="search.set($event)"
+      placeholder="Поиск по email, имени, заметке…" />
+  </span>
+
+  <div class="au-table" *ngIf="filtered().length; else empty">
+    <div class="au-row au-row--h">
+      <span>Email</span><span>Имя</span><span>Роль</span><span>Статус</span>
+      <span>Последний вход</span><span class="au-actions-h">Действия</span>
+    </div>
+    <div class="au-row" *ngFor="let u of filtered(); trackBy: trackByUser" [class.au-row--blocked]="u.blocked">
+      <span class="au-email">
+        {{ u.email }}
+        <span class="au-me" *ngIf="isMe(u)">вы</span>
+      </span>
+      <span class="au-name">
+        {{ u.name || '—' }}
+        <span class="au-note-inline" *ngIf="u.note" [pTooltip]="u.note">
+          <i class="pi pi-comment"></i>
+        </span>
+      </span>
+      <span>
+        <span class="au-role" [ngClass]="'au-role--' + u.role">{{ roleLabel(u.role) }}</span>
+      </span>
+      <span>
+        <span class="au-status" [class.au-status--blocked]="u.blocked">
+          {{ u.blocked ? 'Заблокирован' : 'Активен' }}
+        </span>
+      </span>
+      <span class="au-date">{{ fmtDate(u.lastSeenAt) }}</span>
+      <span class="au-actions">
+        <button pButton type="button" icon="pi pi-pencil" class="p-button-sm p-button-text"
+          pTooltip="Редактировать" tooltipPosition="top" (click)="openEdit(u)"></button>
+        <button pButton type="button" icon="pi pi-history" class="p-button-sm p-button-text"
+          pTooltip="История действий" tooltipPosition="top" (click)="openHistory(u)"></button>
+        <button pButton type="button" class="p-button-sm p-button-text" [disabled]="isMe(u)"
+          [icon]="u.blocked ? 'pi pi-lock-open' : 'pi pi-ban'"
+          [class.p-button-danger]="!u.blocked && !isMe(u)" [class.p-button-success]="u.blocked"
+          [pTooltip]="isMe(u) ? 'Себя нельзя' : (u.blocked ? 'Разблокировать' : 'Заблокировать')"
+          tooltipPosition="top" (click)="toggleBlocked(u)"></button>
+        <button pButton type="button" icon="pi pi-trash" class="p-button-sm p-button-text p-button-danger"
+          [disabled]="isMe(u)" [pTooltip]="isMe(u) ? 'Себя нельзя' : 'Убрать из списка'"
+          tooltipPosition="left" (click)="confirmDelete(u)"></button>
+      </span>
+    </div>
+  </div>
+
+  <ng-template #empty>
+    <div class="au-empty">
+      <div class="au-empty-ic"><i class="pi pi-users"></i></div>
+      <p class="au-empty-title">{{ search() ? 'Никого не найдено' : 'Список пуст' }}</p>
+      <p class="au-empty-sub">
+        {{ search() ? 'Другой запрос' : 'Нажмите «Добавить», чтобы дать кому-то доступ' }}
+      </p>
+    </div>
+  </ng-template>
+</div>
+
+<!-- ================================================================ ADD === -->
+<p-dialog [visible]="addOpen()" (visibleChange)="$event || closeAdd()" [modal]="true" [draggable]="false"
+  [dismissableMask]="true" [style]="{ width: 'min(440px, 96vw)' }" header="Добавить пользователя">
+  <div class="au-form">
+    <label class="au-field">
+      <span>Email аккаунта</span>
+      <input pInputText type="email" [ngModel]="addEmail()" (ngModelChange)="addEmail.set($event)"
+        placeholder="user@example.com" />
+    </label>
+    <label class="au-field">
+      <span>Имя (необязательно)</span>
+      <input pInputText type="text" [ngModel]="addName()" (ngModelChange)="addName.set($event)" />
+    </label>
+    <label class="au-field">
+      <span>Роль</span>
+      <p-dropdown [options]="roleOptions" optionLabel="label" optionValue="value" [ngModel]="addRole()"
+        (ngModelChange)="addRole.set($event)" appendTo="body"></p-dropdown>
+    </label>
+    <label class="au-field">
+      <span>Заметка (необязательно)</span>
+      <input pInputText type="text" [ngModel]="addNote()" (ngModelChange)="addNote.set($event)" />
+    </label>
+    <p class="au-form-hint">
+      Аккаунт с таким email должен существовать в Firebase Auth — заведите его в консоли, если ещё нет.
+    </p>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton type="button" label="Отмена" class="p-button-sm p-button-text" (click)="closeAdd()"></button>
+    <button pButton type="button" label="Добавить" class="p-button-sm" [disabled]="savingAdd()"
+      (click)="submitAdd()"></button>
+  </ng-template>
+</p-dialog>
+
+<!-- =============================================================== EDIT === -->
+<p-dialog [visible]="editOpen()" (visibleChange)="$event || closeEdit()" [modal]="true" [draggable]="false"
+  [dismissableMask]="true" [style]="{ width: 'min(460px, 96vw)' }" header="Редактировать пользователя">
+  <div class="au-form">
+    <label class="au-field">
+      <span>Email аккаунта</span>
+      <input pInputText type="email" [ngModel]="editEmail()" (ngModelChange)="editEmail.set($event)"
+        [disabled]="editIsSelf()" />
+      <small class="au-field-hint" *ngIf="editIsSelf()">Свою почту менять нельзя — она привязана к аккаунту Firebase.</small>
+      <small class="au-field-hint" *ngIf="!editIsSelf() && editEmail().trim().toLowerCase() !== editOrigEmail()">
+        Новый email должен совпадать с почтой аккаунта в Firebase, иначе этот человек не сможет войти.
+      </small>
+    </label>
+    <label class="au-field">
+      <span>Роль</span>
+      <p-dropdown [options]="roleOptions" optionLabel="label" optionValue="value" [ngModel]="editRole()"
+        (ngModelChange)="editRole.set($event)" [disabled]="editIsSelf()" appendTo="body"></p-dropdown>
+      <small class="au-field-hint" *ngIf="editIsSelf()">Нельзя снять роль администратора с самого себя.</small>
+    </label>
+    <label class="au-field">
+      <span>Имя</span>
+      <input pInputText type="text" [ngModel]="editName()" (ngModelChange)="editName.set($event)" />
+    </label>
+    <label class="au-field">
+      <span>Заметка</span>
+      <input pInputText type="text" [ngModel]="editNote()" (ngModelChange)="editNote.set($event)" />
+    </label>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton type="button" label="Отмена" class="p-button-sm p-button-text" (click)="closeEdit()"></button>
+    <button pButton type="button" label="Сохранить" class="p-button-sm" [disabled]="savingEdit()"
+      (click)="submitEdit()"></button>
+  </ng-template>
+</p-dialog>
+
+<!-- ============================================================ HISTORY === -->
+<p-dialog [visible]="historyOpen()" (visibleChange)="$event || closeHistory()" [modal]="true" [draggable]="false"
+  [dismissableMask]="true" [style]="{ width: 'min(520px, 96vw)' }"
+  [header]="'История: ' + (historyUser()?.name || historyUser()?.email || '')">
+  <div class="au-hist">
+    <p class="au-hist-meta" *ngIf="historyUser() as hu">
+      Последний вход: <b>{{ fmtDate(hu.lastSeenAt) }}</b> · последние 50 записей в каждой вкладке
+    </p>
+    <div class="au-hist-tabs">
+      <button type="button" class="au-hist-tab" [class.is-active]="historyTab() === 'action'"
+        (click)="historyTab.set('action')">
+        Действия <span class="au-hist-tab-n">{{ historyActions().length }}</span>
+      </button>
+      <button type="button" class="au-hist-tab" [class.is-active]="historyTab() === 'nav'"
+        (click)="historyTab.set('nav')">
+        Переходы <span class="au-hist-tab-n">{{ historyNav().length }}</span>
+      </button>
+    </div>
+    <ul class="au-hist-list" *ngIf="historyEntries().length; else noHist">
+      <li class="au-hist-row" *ngFor="let e of historyEntries()">
+        <span class="au-hist-time">{{ fmtDate(e.at) }}</span>
+        <span class="au-hist-action">
+          {{ e.action }}<span class="au-hist-detail" *ngIf="e.detail"> — {{ e.detail }}</span>
+        </span>
+      </li>
+    </ul>
+    <ng-template #noHist>
+      <p class="au-hist-empty">
+        {{ historyTab() === 'nav' ? 'Нет записанных переходов.' : 'Нет записанных действий.' }}
+      </p>
+    </ng-template>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton type="button" label="Закрыть" class="p-button-sm p-button-text" (click)="closeHistory()"></button>
+  </ng-template>
+</p-dialog>

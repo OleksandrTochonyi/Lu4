@@ -13,6 +13,7 @@ import { Observable, firstValueFrom } from 'rxjs';
 import { map, take } from 'rxjs/operators';
 
 import { AuthService } from './auth.service';
+import { ActivityLogService } from './activity-log.service';
 
 /** one recorded quantity change on a stock row (newest first, last 5 kept) */
 export interface StockHistoryEntry {
@@ -84,6 +85,7 @@ export interface NewStockItem {
 export class WarehouseService {
   private firestore = inject(Firestore);
   private auth = inject(AuthService);
+  private activityLog = inject(ActivityLogService);
   private col = collection(this.firestore, 'warehouse');
 
   /** live stream of the whole clan stock */
@@ -120,6 +122,7 @@ export class WarehouseService {
           : [],
       updatedAt: Date.now(),
     });
+    this.activityLog.log('Добавил ресурс на склад', name);
     return ref.id;
   }
 
@@ -143,6 +146,7 @@ export class WarehouseService {
     };
     const history = [entry, ...normalizeHistory(raw.history)].slice(0, HISTORY_LIMIT);
     await updateDoc(ref, { qty: to, history, updatedAt: Date.now() });
+    this.activityLog.log('Изменил склад', `${raw.name}: ${from} → ${to}`);
   }
 
   async rename(id: string, name: string): Promise<void> {
@@ -152,9 +156,11 @@ export class WarehouseService {
       name: clean,
       updatedAt: Date.now(),
     });
+    this.activityLog.log('Переименовал ресурс на складе', clean);
   }
 
   async remove(id: string): Promise<void> {
     await deleteDoc(doc(this.firestore, `warehouse/${id}`));
+    this.activityLog.log('Удалил ресурс со склада');
   }
 }

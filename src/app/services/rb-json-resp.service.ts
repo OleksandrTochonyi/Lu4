@@ -4,6 +4,8 @@ import { Firestore, collection, collectionData, doc, getDoc, setDoc } from '@ang
 import { Timestamp } from 'firebase/firestore';
 import { Observable, map } from 'rxjs';
 
+import { ActivityLogService } from './activity-log.service';
+
 const MAX_HISTORY = 5;
 
 export interface RespHistoryEntry {
@@ -29,6 +31,7 @@ export interface RbRespRecord {
 export class RbJsonRespService {
   private firestore = inject(Firestore);
   private auth = inject(Auth);
+  private activityLog = inject(ActivityLogService);
   private respCollection = collection(this.firestore, 'rb-resp-time');
 
   /** Map of db.json monster id -> its kill-time record. */
@@ -44,7 +47,16 @@ export class RbJsonRespService {
     );
   }
 
-  async setKillTime(bossId: string, killTime: Date | null): Promise<void> {
+  /**
+   * @param opts.bossName  human name for the activity-log line (falls back to the id)
+   * @param opts.silent     skip the activity-log write — for flows that already log
+   *                        their own action (e.g. the raids kill dialog)
+   */
+  async setKillTime(
+    bossId: string,
+    killTime: Date | null,
+    opts: { bossName?: string; silent?: boolean } = {},
+  ): Promise<void> {
     const id = (bossId ?? '').trim();
     if (!id) throw new Error('bossId is required');
 
@@ -72,5 +84,19 @@ export class RbJsonRespService {
       },
       { merge: true }
     );
+
+    if (!opts.silent) {
+      const had = (existing?.killTime ?? null) != null;
+      const has = killTime != null;
+      const verb =
+        !had && has
+          ? 'Добавил время убийства РБ'
+          : had && !has
+            ? 'Удалил время убийства РБ'
+            : had && has
+              ? 'Изменил время убийства РБ'
+              : null; // clearing an already-empty time — nothing worth logging
+      if (verb) this.activityLog.log(verb, opts.bossName || id);
+    }
   }
 }
