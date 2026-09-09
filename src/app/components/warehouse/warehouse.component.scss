@@ -211,9 +211,13 @@
   padding: 0.5rem 0.9rem;
   border-top: 1px solid var(--line);
   font-size: 0.86rem;
+  transition: background-color 0.1s ease;
 }
 .wh-tr:first-child {
   border-top: 0;
+}
+.wh-tr:not(.wh-tr--h):hover {
+  background: #dde5fb;
 }
 .wh-tr--h {
   background: #f8fafc;
