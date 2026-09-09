@@ -17,29 +17,44 @@ import { StockItem } from '../../../services/warehouse.service';
 
 /** one line of the "what does this cost" tree */
 export interface CostNode {
+  /** unique per tree position (carries depth + name) — for *ngFor / expand state */
   key: string;
+  /** resource identity (catalogId or normalized name) — for aggregating across the tree */
+  resKey: string;
   name: string;
   icon?: string;
   grade: string | null;
   category: string | null;
   /** how many units this branch needs (already scaled by the parent) */
   need: number;
-  /** units on the clan stock */
+  /**
+   * units of the clan stock ACTUALLY allocated to this line. The whole tree
+   * draws from one shared pool consumed in recipe order, so a resource used in
+   * several branches is never counted twice — a later branch sees only what's
+   * left (possibly 0).
+   */
   have: number;
-  /** max(0, need - have) — the raw gap, before considering sub-crafting */
+  /** max(0, need - have) — the gap this line still has after its stock allocation */
   missing: number;
-  /** how many units we can actually obtain (stock + crafting sub-parts from stock) */
-  producible: number;
-  /** units we still cannot get even after crafting intermediates — max(0, need - producible) */
+  /**
+   * units still unobtainable after crafting intermediates. Leaf: == missing.
+   * Composite: sum of the children's effShort.
+   */
   effShort: number;
   /**
-   * covered  — enough already on the stock
-   * craftable — not on the stock, but base resources cover the sub-craft
+   * covered  — the stock pool fully covered this line
+   * craftable — not covered directly, but the sub-craft's resources cover it
    * short    — even the base resources fall short
    */
   status: 'covered' | 'craftable' | 'short';
   craftable: boolean;
   children: CostNode[];
+}
+
+/** a mutable copy of the clan stock, drawn down as the cost tree is evaluated */
+interface StockPool {
+  byCat: Map<string, number>;
+  byNm: Map<string, number>;
 }
 
 const MAX_DEPTH = 8;
@@ -117,12 +132,6 @@ export class CraftDetailComponent {
     return this.byName().get(normName(name));
   }
 
-  private haveFor(entry: CraftEntry | undefined, name: string): number {
-    const { byCat, byNm } = this.stockIndex();
-    if (entry && byCat.has(entry.id)) return byCat.get(entry.id) ?? 0;
-    return byNm.get(normName(name)) ?? 0;
-  }
-
   /** best recipe for expansion: prefer a material/sub-assembly, then highest chance */
   private pickRecipe(entry: CraftEntry): CraftRecipe | null {
     if (!entry.recipes.length) return null;
@@ -133,40 +142,36 @@ export class CraftDetailComponent {
     )[0];
   }
 
+  /** fresh mutable copy of the clan stock */
+  private makePool(): StockPool {
+    const { byCat, byNm } = this.stockIndex();
+    return { byCat: new Map(byCat), byNm: new Map(byNm) };
+  }
+
   /**
-   * How many units of `entry` we can actually obtain to satisfy `want`:
-   * whatever is on the stock, plus — if it is craftable — as many as the
-   * (recursively resolved) sub-ingredients on the stock allow. Capped at `want`.
-   * Note: each branch sees the full stock independently, so a base resource
-   * shared by several branches is not double-charged here — the flat
-   * "полный список" view is the exact aggregate.
+   * Take up to `want` units of a resource out of the shared pool and return how
+   * many were actually available (mirrors the catalogId-then-name lookup the old
+   * `haveFor` used). Decrements the pool so the same stock can't be handed to
+   * two different branches of one recipe.
    */
-  private producible(
+  private drawFromPool(
+    pool: StockPool,
     entry: CraftEntry | undefined,
     name: string,
     want: number,
-    path: Set<string>,
   ): number {
     if (want <= 0) return 0;
-    const have = this.haveFor(entry, name);
-    const fromStock = Math.min(want, have);
-    const remaining = want - fromStock;
-    if (remaining <= 0) return want;
-    if (!entry?.craftable || path.has(entry.id) || path.size >= MAX_DEPTH) return fromStock;
-
-    const r = this.pickRecipe(entry);
-    if (!r) return fromStock;
-
-    const batches = Math.ceil(remaining / (r.outputQty || 1));
-    const nextPath = new Set(path).add(entry.id);
-    let maxBatches = batches;
-    for (const ing of r.ingredients) {
-      if (ing.qty <= 0) continue;
-      const sub = this.resolve(ing.name, ing.catalogId);
-      const got = this.producible(sub, ing.name, ing.qty * batches, nextPath);
-      maxBatches = Math.min(maxBatches, Math.floor(got / ing.qty));
+    if (entry && pool.byCat.has(entry.id)) {
+      const avail = pool.byCat.get(entry.id) ?? 0;
+      const used = Math.min(want, avail);
+      if (used > 0) pool.byCat.set(entry.id, avail - used);
+      return used;
     }
-    return fromStock + Math.min(remaining, Math.max(0, maxBatches) * (r.outputQty || 1));
+    const nm = normName(name);
+    const avail = pool.byNm.get(nm) ?? 0;
+    const used = Math.min(want, avail);
+    if (used > 0) pool.byNm.set(nm, avail - used);
+    return used;
   }
 
   private buildNode(
@@ -175,20 +180,58 @@ export class CraftDetailComponent {
     need: number,
     path: Set<string>,
     depth: number,
+    pool: StockPool,
   ): CostNode {
     const entry = this.resolve(name, catalogId);
-    const have = this.haveFor(entry, name);
-    const missing = Math.max(0, need - have);
     const craftable = !!entry?.craftable;
-    const key = (entry?.id ?? normName(name)) + '@' + depth + ':' + name;
+    const resKey = entry?.id ?? normName(name);
+    const key = resKey + '@' + depth + ':' + name;
 
-    const producible = this.producible(entry, name, need, path);
-    const effShort = Math.max(0, need - producible);
-    const status: CostNode['status'] =
-      missing === 0 ? 'covered' : effShort === 0 ? 'craftable' : 'short';
+    const sub =
+      entry && craftable && depth < MAX_DEPTH && !path.has(entry.id)
+        ? this.pickRecipe(entry)
+        : null;
 
-    const node: CostNode = {
+    if (sub && entry) {
+      // Composite — ALWAYS expand to its full recipe (a raw bill of materials;
+      // finished-intermediate stock is not credited here — that's `canCraftNow`'s
+      // job). The row's own have/missing roll up from its raw leaves.
+      const batches = Math.max(1, Math.ceil(need / (sub.outputQty || 1)));
+      const nextPath = new Set(path).add(entry.id);
+      const children = sub.ingredients.map((ing) =>
+        this.buildNode(ing.name, ing.catalogId, ing.qty * batches, nextPath, depth + 1, pool),
+      );
+      const effShort = children.reduce((s, c) => s + c.effShort, 0);
+      const status: CostNode['status'] =
+        effShort === 0
+          ? 'covered'
+          : children.some((c) => c.status !== 'short')
+            ? 'craftable'
+            : 'short';
+      return {
+        key,
+        resKey,
+        name: entry.name ?? name,
+        icon: entry.icon,
+        grade: entry.grade ?? null,
+        category: entry.category ?? null,
+        need,
+        have: Math.max(0, need - effShort),
+        missing: effShort,
+        effShort,
+        status,
+        craftable,
+        children,
+      };
+    }
+
+    // Raw leaf — draw its stock from the shared pool, so a resource used in
+    // several branches is allocated once, not shown as fully available everywhere.
+    const have = this.drawFromPool(pool, entry, name, need);
+    const missing = Math.max(0, need - have);
+    return {
       key,
+      resKey,
       name: entry?.name ?? name,
       icon: entry?.icon,
       grade: entry?.grade ?? null,
@@ -196,26 +239,11 @@ export class CraftDetailComponent {
       need,
       have,
       missing,
-      producible,
-      effShort,
-      status,
+      effShort: missing,
+      status: missing === 0 ? 'covered' : 'short',
       craftable,
       children: [],
     };
-
-    // always resolve the sub-tree (so the summary / shopping list stay correct
-    // regardless of what is collapsed); the template just hides collapsed rows
-    if (entry && craftable && depth < MAX_DEPTH && !path.has(entry.id)) {
-      const sub = this.pickRecipe(entry);
-      if (sub) {
-        const batches = Math.max(1, Math.ceil((missing || need) / (sub.outputQty || 1)));
-        const nextPath = new Set(path).add(entry.id);
-        node.children = sub.ingredients.map((ing) =>
-          this.buildNode(ing.name, ing.catalogId, ing.qty * batches, nextPath, depth + 1),
-        );
-      }
-    }
-    return node;
   }
 
   readonly tree = computed<CostNode[]>(() => {
@@ -223,8 +251,9 @@ export class CraftDetailComponent {
     if (!r) return [];
     const qty = Math.max(1, Math.round(this.craftQty() || 1));
     const batches = Math.max(1, Math.ceil(qty / (r.outputQty || 1)));
+    const pool = this.makePool();
     return r.ingredients.map((ing) =>
-      this.buildNode(ing.name, ing.catalogId, ing.qty * batches, new Set(), 0),
+      this.buildNode(ing.name, ing.catalogId, ing.qty * batches, new Set(), 0, pool),
     );
   });
 
@@ -245,22 +274,53 @@ export class CraftDetailComponent {
     this.rowOpen.set(next);
   }
 
-  /** flat roll-up of the leaf resources (used for the summary + "shopping list") */
-  readonly rollup = computed(() => {
+  /** total clan stock of one resource (by catalogId, else normalized name) */
+  private stockFor(entry: CraftEntry | undefined, name: string): number {
+    const { byCat, byNm } = this.stockIndex();
+    if (entry && byCat.has(entry.id)) return byCat.get(entry.id) ?? 0;
+    return byNm.get(normName(name)) ?? 0;
+  }
+
+  /**
+   * Full bill of materials: recurse through EVERY craftable down to raw
+   * resources (intermediate-item stock is deliberately ignored here — that's
+   * what the tree view accounts for), sum each base resource across every place
+   * it appears, then subtract that resource's stock ONCE. So a resource used in
+   * several sub-recipes is fully counted, and never double-charged for stock.
+   * Drives both the "Полный список базовых ресурсов" table and the
+   * "Докупить / нафармить" chips.
+   */
+  readonly rollup = computed<CostNode[]>(() => {
     const r = this.recipe();
-    if (!r) return [] as CostNode[];
+    if (!r) return [];
     const qty = Math.max(1, Math.round(this.craftQty() || 1));
-    const batches = Math.max(1, Math.ceil(qty / (r.outputQty || 1)));
+    const rootBatches = Math.max(1, Math.ceil(qty / (r.outputQty || 1)));
+
     const acc = new Map<
       string,
-      { name: string; icon?: string; grade: string | null; category: string | null; need: number }
+      {
+        name: string;
+        icon?: string;
+        grade: string | null;
+        category: string | null;
+        need: number;
+        entry: CraftEntry | undefined;
+      }
     >();
 
-    const walk = (name: string, catalogId: string | null, need: number, path: Set<string>, depth: number) => {
+    const walk = (
+      name: string,
+      catalogId: string | null,
+      need: number,
+      path: Set<string>,
+      depth: number,
+    ) => {
+      if (need <= 0) return;
       const entry = this.resolve(name, catalogId);
-      const sub = entry && entry.craftable && depth < MAX_DEPTH && !path.has(entry.id)
-        ? this.pickRecipe(entry)
-        : null;
+      const sub =
+        entry && entry.craftable && depth < MAX_DEPTH && !path.has(entry.id)
+          ? this.pickRecipe(entry)
+          : null;
       if (entry && sub) {
         const b = Math.max(1, Math.ceil(need / (sub.outputQty || 1)));
         const nextPath = new Set(path).add(entry.id);
@@ -269,82 +329,121 @@ export class CraftDetailComponent {
         }
         return;
       }
-      const key = entry?.id ?? normName(name);
-      const cur = acc.get(key) ?? {
-        name: entry?.name ?? name,
-        icon: entry?.icon,
-        grade: entry?.grade ?? null,
-        category: entry?.category ?? null,
-        need: 0,
-      };
+      const k = entry?.id ?? normName(name);
+      const cur =
+        acc.get(k) ??
+        {
+          name: entry?.name ?? name,
+          icon: entry?.icon,
+          grade: entry?.grade ?? null,
+          category: entry?.category ?? null,
+          need: 0,
+          entry,
+        };
       cur.need += need;
-      acc.set(key, cur);
+      acc.set(k, cur);
     };
 
     for (const ing of r.ingredients) {
-      walk(ing.name, ing.catalogId, ing.qty * batches, new Set(), 0);
+      walk(ing.name, ing.catalogId, ing.qty * rootBatches, new Set(), 0);
     }
 
-    return [...acc.entries()].map(([key, v]) => {
-      const entry = this.byId().get(key);
-      const have = this.haveFor(entry, v.name);
-      const missing = Math.max(0, v.need - have);
-      return {
-        key,
-        name: v.name,
-        icon: v.icon,
-        grade: v.grade,
-        category: v.category,
-        need: v.need,
-        have,
-        missing,
-        producible: Math.min(v.need, have),
-        effShort: missing,
-        status: missing === 0 ? 'covered' : 'short',
-        craftable: false,
-        children: [] as CostNode[],
-      } satisfies CostNode;
-    }).sort((a, b) => Number(b.missing > 0) - Number(a.missing > 0) || a.name.localeCompare(b.name));
+    return [...acc.entries()]
+      .map(([k, v]) => {
+        const have = this.stockFor(v.entry, v.name);
+        const missing = Math.max(0, v.need - have);
+        return {
+          key: k,
+          resKey: k,
+          name: v.name,
+          icon: v.icon,
+          grade: v.grade,
+          category: v.category,
+          need: v.need,
+          have,
+          missing,
+          effShort: missing,
+          status: missing === 0 ? 'covered' : 'short',
+          craftable: false,
+          children: [] as CostNode[],
+        } satisfies CostNode;
+      })
+      .sort(
+        (a, b) => Number(b.missing > 0) - Number(a.missing > 0) || a.name.localeCompare(b.name),
+      );
   });
 
-  /** how many finished units we can make now — counting intermediate crafting from stock */
+  /** total shortfall (units) if we tried to make `units` finished items now */
+  private shortForUnits(units: number): number {
+    const r = this.recipe();
+    if (!r) return 0;
+    const pool = this.makePool();
+    const batches = Math.max(1, Math.ceil(units / (r.outputQty || 1)));
+    let short = 0;
+    const need = (
+      name: string,
+      catalogId: string | null,
+      qty: number,
+      path: Set<string>,
+      depth: number,
+    ) => {
+      if (qty <= 0) return;
+      const entry = this.resolve(name, catalogId);
+      const got = this.drawFromPool(pool, entry, name, qty);
+      const remaining = qty - got;
+      if (remaining <= 0) return;
+      const sub =
+        entry?.craftable && depth < MAX_DEPTH && !path.has(entry.id)
+          ? this.pickRecipe(entry)
+          : null;
+      if (entry && sub) {
+        const b = Math.max(1, Math.ceil(remaining / (sub.outputQty || 1)));
+        const nextPath = new Set(path).add(entry.id);
+        for (const ing of sub.ingredients) {
+          need(ing.name, ing.catalogId, ing.qty * b, nextPath, depth + 1);
+        }
+        return;
+      }
+      short += remaining;
+    };
+    for (const ing of r.ingredients) {
+      need(ing.name, ing.catalogId, ing.qty * batches, new Set(), 0);
+    }
+    return short;
+  }
+
+  /** how many finished units we can make right now — intermediate crafting included */
   readonly canCraftNow = computed(() => {
     const r = this.recipe();
     if (!r) return 0;
-    let min = Infinity;
-    for (const ing of r.ingredients) {
-      if (ing.qty <= 0) continue;
-      const entry = this.resolve(ing.name, ing.catalogId);
-      const got = this.producible(entry, ing.name, ing.qty * 1_000_000, new Set());
-      min = Math.min(min, Math.floor(got / ing.qty));
+    const out = r.outputQty || 1;
+    if (this.shortForUnits(out) > 0) return 0;
+    // exponential probe for an upper bound, then binary-search the exact max
+    let lo = out;
+    let hi = out;
+    const CAP = 1_000_000;
+    while (hi < CAP && this.shortForUnits(hi * 2) === 0) hi *= 2;
+    hi = Math.min(CAP, hi * 2);
+    while (lo < hi) {
+      const mid = Math.floor((lo + hi + 1) / 2);
+      if (this.shortForUnits(mid) === 0) lo = mid;
+      else hi = mid - 1;
     }
-    if (!Number.isFinite(min)) return 0;
-    return min * (r.outputQty || 1);
+    return lo;
   });
 
-  /** flatten the tree to the leaves that are genuinely short (base resources to buy/farm) */
-  readonly shortfall = computed<CostNode[]>(() => {
-    const acc = new Map<string, CostNode>();
-    const walk = (n: CostNode) => {
-      if (n.children.length) {
-        n.children.forEach(walk);
-        return;
-      }
-      if (n.effShort > 0) {
-        const cur = acc.get(n.name);
-        if (cur) cur.effShort += n.effShort;
-        else acc.set(n.name, { ...n, need: n.effShort });
-      }
-    };
-    this.tree().forEach(walk);
-    return [...acc.values()].sort((a, b) => a.name.localeCompare(b.name));
-  });
+  /** the base resources you still have to buy / farm — the shortfall rows of the
+   *  full BoM, name-sorted for the chip list */
+  readonly shortfall = computed<CostNode[]>(() =>
+    this.rollup()
+      .filter((n) => n.missing > 0)
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name)),
+  );
 
   readonly rollupShortages = computed(() => this.rollup().filter((n) => n.missing > 0));
 
-  readonly fullyStocked = computed(() =>
-    this.deep() ? this.rollupShortages().length === 0 : this.shortfall().length === 0,
-  );
+  readonly fullyStocked = computed(() => this.rollupShortages().length === 0);
 
   /** top-level ingredients that need an intermediate craft (have some, but coverable) */
   readonly needsSubcraft = computed(() =>
