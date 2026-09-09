@@ -1,0 +1,95 @@
+<div class="ct-bar" *ngIf="tree().length">
+  <span class="ct-legend"><i class="pi pi-sitemap"></i> составной ресурс — можно раскрыть</span>
+  <span class="ct-spacer"></span>
+  <button type="button" class="ct-mini" (click)="expandAll()">Раскрыть всё</button>
+  <button type="button" class="ct-mini" (click)="collapseAll()">Свернуть всё</button>
+</div>
+
+<div class="ct-table" *ngIf="tree().length; else empty">
+  <div class="ct-tr ct-tr--h">
+    <span class="ct-name">Ресурс</span>
+    <span class="ct-num" pTooltip="Сколько всего нужно ресурса по рецепту" tooltipPosition="top">Всего</span>
+    <span class="ct-num" pTooltip="Сколько нужно с учётом того, что некоторые составные ресурсы уже есть на складе" tooltipPosition="top">Нужно</span>
+    <span class="ct-num" pTooltip="Сколько этого ресурса сейчас на складе" tooltipPosition="top">Есть</span>
+    <span class="ct-num" pTooltip="Сколько ещё не хватает — это и надо докупить / нафармить" tooltipPosition="top">Не хватает</span>
+  </div>
+  <ng-container *ngFor="let n of tree(); trackBy: trackNode">
+    <ng-container *ngTemplateOutlet="row; context: { $implicit: n, depth: 0 }"></ng-container>
+  </ng-container>
+</div>
+
+<ng-template #empty>
+  <p class="ct-empty">Пусто — добавьте предметы, чтобы посчитать ресурсы.</p>
+</ng-template>
+
+<div class="ct-short" *ngIf="shortfall().length">
+  <div class="ct-short-h">Докупить / нафармить:</div>
+  <div class="ct-short-list">
+    <span class="ct-short-item" *ngFor="let n of shortfall(); trackBy: trackNode">
+      <img *ngIf="n.icon" [src]="n.icon" [alt]="n.name" (error)="imgError($event)" />
+      {{ n.name }} <b>×{{ n.effShort }}</b>
+    </span>
+  </div>
+</div>
+
+<!-- recursive row -->
+<ng-template #row let-n let-depth="depth">
+  <div
+    class="ct-tr"
+    [ngClass]="'st-' + n.status"
+    [class.ct-tr--composite]="isComposite(n)"
+    [style.--depth]="depth"
+  >
+    <span class="ct-name">
+      <button
+        *ngIf="isComposite(n)"
+        type="button"
+        class="ct-exp"
+        (click)="toggleRow(n)"
+        [attr.aria-expanded]="isExpanded(n)"
+      >
+        <i class="pi" [ngClass]="isExpanded(n) ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
+      </button>
+      <span class="ct-exp ct-exp--ghost" *ngIf="!isComposite(n)"></span>
+
+      <img *ngIf="n.icon" [src]="n.icon" [alt]="n.name" (error)="imgError($event)" />
+      <span
+        class="ct-name-txt"
+        [class.ct-name-txt--btn]="isComposite(n)"
+        (click)="isComposite(n) && toggleRow(n)"
+      >
+        {{ n.name }}
+      </span>
+      <app-grade-badge *ngIf="showGrade(n.category)" [grade]="n.grade" />
+
+      <span class="ct-tag ct-tag--composite" *ngIf="isComposite(n)">
+        <i class="pi pi-sitemap"></i> составной
+      </span>
+      <span class="ct-tag ct-tag--sub" *ngIf="n.status === 'craftable'">докрафт из ресурсов</span>
+    </span>
+    <span class="ct-num">{{ n.needFull }}</span>
+    <span class="ct-num">{{ n.need }}</span>
+    <span class="ct-num">{{ n.have }}</span>
+    <span class="ct-num ct-miss">
+      <ng-container [ngSwitch]="n.status">
+        <span *ngSwitchCase="'covered'">—</span>
+        <span
+          *ngSwitchCase="'craftable'"
+          class="ct-miss--sub"
+          pTooltip="Прямого ресурса нет, но хватает на докрафт"
+        >
+          {{ n.missing }}<i class="pi pi-sync"></i>
+        </span>
+        <span
+          *ngSwitchCase="'short'"
+          [pTooltip]="isComposite(n) ? 'На докрафт этих ' + n.missing + ' не хватает базовых ресурсов — раскрой' : ''"
+        >{{ n.missing }}</span>
+      </ng-container>
+    </span>
+  </div>
+  <ng-container *ngIf="isExpanded(n)">
+    <ng-container *ngFor="let c of n.children; trackBy: trackNode">
+      <ng-container *ngTemplateOutlet="row; context: { $implicit: c, depth: depth + 1 }"></ng-container>
+    </ng-container>
+  </ng-container>
+</ng-template>

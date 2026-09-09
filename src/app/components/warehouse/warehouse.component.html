@@ -25,6 +25,15 @@
         <i class="pi pi-hammer"></i> Каталог крафта
         <span class="wh-seg-count">{{ craftBaseCatalog().length }}</span>
       </button>
+      <button
+        type="button"
+        class="wh-seg-btn"
+        [class.active]="view() === 'plan'"
+        (click)="view.set('plan')"
+      >
+        <i class="pi pi-list-check"></i> Набор
+        <span class="wh-seg-count" *ngIf="planItems().length">{{ planItems().length }}</span>
+      </button>
     </div>
   </div>
 
@@ -330,6 +339,120 @@
       </select>
     </div>
   </section>
+
+  <!-- =============================================== CRAFT PLAN ========= -->
+  <section *ngIf="view() === 'plan'" class="wh-body wh-body--plan">
+    <div class="wh-toolbar">
+      <button
+        pButton
+        type="button"
+        label="Добавить предмет"
+        icon="pi pi-plus"
+        (click)="openPick()"
+      ></button>
+      <span class="wh-spacer"></span>
+      <button
+        pButton
+        type="button"
+        label="Очистить набор"
+        icon="pi pi-trash"
+        class="p-button-sm p-button-text"
+        [disabled]="!planItems().length"
+        (click)="clearPlan()"
+      ></button>
+    </div>
+
+    <p class="wh-hint">
+      Собери сюда любые предметы (оружие + броня + бижа — что угодно), выбери рецепт и количество —
+      посчитаем, сколько всего ресурсов нужно и чего не хватает по складу. Набор хранится только в этом браузере.
+    </p>
+
+    <div class="wh-plan-list" *ngIf="planRows().length; else planEmpty">
+      <div class="wh-plan-item" *ngFor="let row of planRows(); let i = index; trackBy: trackPlan">
+        <img
+          class="wh-plan-ic"
+          *ngIf="row.entry?.icon"
+          [src]="row.entry?.icon"
+          [alt]="row.entry?.name"
+          (error)="imgError($event)"
+        />
+        <div class="wh-plan-main">
+          <div class="wh-plan-name">
+            {{ row.entry?.name || row.pi.id }}
+            <app-grade-badge *ngIf="row.entry && showGrade(row.entry.category)" [grade]="row.entry.grade" />
+            <span class="wh-plan-missing" *ngIf="!row.entry">нет в каталоге</span>
+          </div>
+          <div class="wh-plan-recs" *ngIf="recipeOptionsFor(row.entry).length > 1">
+            <button
+              type="button"
+              class="wh-plan-rec"
+              *ngFor="let o of recipeOptionsFor(row.entry)"
+              [class.active]="o.value === row.recipeIdx"
+              (click)="setPlanRecipe(i, o.value)"
+            >
+              {{ o.label }}
+            </button>
+          </div>
+        </div>
+        <p-inputNumber
+          [ngModel]="row.pi.qty"
+          (ngModelChange)="setPlanQty(i, $event || 1)"
+          [min]="1"
+          [showButtons]="true"
+          buttonLayout="horizontal"
+          decrementButtonClass="p-button-secondary"
+          incrementButtonClass="p-button-secondary"
+          inputStyleClass="wh-plan-qty"
+        />
+        <button
+          pButton
+          type="button"
+          icon="pi pi-times"
+          class="p-button-sm p-button-text p-button-danger"
+          pTooltip="Убрать из набора"
+          tooltipPosition="left"
+          (click)="removeFromPlan(i)"
+        ></button>
+      </div>
+    </div>
+
+    <ng-template #planEmpty>
+      <div class="wh-plan-empty">
+        <i class="pi pi-list-check"></i>
+        <p>Набор пуст. Добавь предметы через поиск выше.</p>
+      </div>
+    </ng-template>
+
+    <div class="wh-plan-result" *ngIf="planRows().length">
+      <div class="wh-plan-result-h">
+        <h3>Сколько нужно ресурсов</h3>
+        <div class="wh-chips">
+          <button
+            type="button"
+            class="wh-chip"
+            [class.active]="!planFlat()"
+            (click)="planFlat.set(false)"
+          >
+            Составные
+          </button>
+          <button
+            type="button"
+            class="wh-chip"
+            [class.active]="planFlat()"
+            (click)="planFlat.set(true)"
+          >
+            Простой список
+          </button>
+        </div>
+      </div>
+      <app-cost-tree
+        *ngIf="!planFlat()"
+        [tree]="planCost().tree"
+        [shortfall]="planCost().shortfall"
+      />
+      <app-cost-table *ngIf="planFlat()" [rows]="planRollup()" />
+    </div>
+  </section>
 </div>
 
 <!-- =============================================== ADD DIALOG =========== -->
@@ -445,3 +568,102 @@
   [stock]="stock()"
   (requestClose)="closeDetail()"
 />
+
+<!-- =============================================== PLAN PICKER ========= -->
+<p-dialog
+  [visible]="pickOpen()"
+  (visibleChange)="$event || closePick()"
+  (onHide)="closePick()"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  header="Добавить предмет в набор"
+  [style]="{ width: 'min(760px, 96vw)' }"
+  styleClass="wh-pick-dialog"
+>
+  <div class="wh-pick-filters">
+    <div class="wh-chips">
+      <button
+        type="button"
+        class="wh-chip"
+        [class.active]="pickCat() === null"
+        (click)="pickCat.set(null)"
+      >
+        Всё
+      </button>
+      <button
+        type="button"
+        class="wh-chip"
+        *ngFor="let c of pickCategories"
+        [class.active]="pickCat() === c"
+        (click)="togglePickCat(c)"
+      >
+        {{ catLabel(c) }}
+      </button>
+    </div>
+    <div class="wh-chips">
+      <button
+        type="button"
+        class="wh-chip wh-chip--grade"
+        [ngClass]="'wh-chip--grade-' + g"
+        *ngFor="let g of craftGrades"
+        [class.active]="pickGrades().has(g)"
+        (click)="togglePickGrade(g)"
+      >
+        {{ g }}
+      </button>
+    </div>
+    <span class="wh-search">
+      <i class="pi pi-search"></i>
+      <input
+        pInputText
+        type="text"
+        [ngModel]="pickSearch()"
+        (ngModelChange)="pickSearch.set($event)"
+        placeholder="Поиск по названию…"
+      />
+    </span>
+  </div>
+
+  <div class="wh-pick-body">
+    <div class="wh-pick-group" *ngFor="let grp of pickGroups()">
+      <div class="wh-pick-group-h">
+        <app-grade-badge *ngIf="grp.grade !== '—'" [grade]="grp.grade" />
+        <span>{{ grp.label }}</span>
+        <span class="wh-pick-group-n">{{ grp.items.length }}</span>
+      </div>
+      <div class="wh-pick-grid">
+        <button
+          type="button"
+          class="wh-pick-card"
+          *ngFor="let e of grp.items; trackBy: trackEntry"
+          [class.in-plan]="planQtyOf(e.id) > 0"
+          (click)="addToPlan(e)"
+          [pTooltip]="planQtyOf(e.id) > 0 ? 'В наборе: ' + planQtyOf(e.id) + ' · клик = +1' : 'Добавить в набор'"
+          tooltipPosition="top"
+        >
+          <span class="wh-pick-badge" *ngIf="planQtyOf(e.id) > 0">{{ planQtyOf(e.id) }}</span>
+          <img *ngIf="e.icon" [src]="e.icon" [alt]="e.name" (error)="imgError($event)" />
+          <span class="wh-pick-name">{{ e.name }}</span>
+          <span class="wh-cat" [ngClass]="'wh-cat--' + e.category">{{ catLabel(e.category) }}</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="wh-pick-empty" *ngIf="!pickGroups().length">
+      <i class="pi pi-inbox"></i>
+      <p>Ничего не найдено по этим фильтрам.</p>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button
+      pButton
+      type="button"
+      label="Готово"
+      icon="pi pi-check"
+      class="p-button-sm"
+      (click)="closePick()"
+    ></button>
+  </ng-template>
+</p-dialog>

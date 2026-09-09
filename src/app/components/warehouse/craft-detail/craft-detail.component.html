@@ -60,7 +60,7 @@
 
       <label class="cd-toggle">
         <input type="checkbox" [checked]="deep()" (change)="deep.set(!deep())" />
-        <span>Полный список базовых ресурсов</span>
+        <span>Полный список ресурсов</span>
       </label>
     </div>
 
@@ -93,9 +93,10 @@
     <div class="cd-table" *ngIf="!deep()">
       <div class="cd-tr cd-tr--h">
         <span class="c-name">Ресурс</span>
-        <span class="c-num">Нужно</span>
-        <span class="c-num">Есть</span>
-        <span class="c-num">Не хватает</span>
+        <span class="c-num" pTooltip="Сколько всего нужно ресурса по рецепту" tooltipPosition="top">Всего</span>
+        <span class="c-num" pTooltip="Сколько нам нужно, с учётом того что некоторые составные ресурсы у нас могут уже быть" tooltipPosition="top">Нужно</span>
+        <span class="c-num" pTooltip="Сколько этого ресурса сейчас на складе" tooltipPosition="top">Есть</span>
+        <span class="c-num" pTooltip="Сколько ещё не хватает — это и надо докупить / нафармить" tooltipPosition="top">Не хватает</span>
       </div>
       <ng-container *ngFor="let n of tree(); trackBy: trackNode">
         <ng-container *ngTemplateOutlet="rowTpl; context: { $implicit: n, depth: 0 }"></ng-container>
@@ -116,10 +117,11 @@
     <!-- flat roll-up -->
     <div class="cd-table" *ngIf="deep()">
       <div class="cd-tr cd-tr--h">
-        <span class="c-name">Базовый ресурс</span>
-        <span class="c-num">Нужно</span>
-        <span class="c-num">Есть</span>
-        <span class="c-num">Не хватает</span>
+        <span class="c-name">Ресурс</span>
+        <span class="c-num" pTooltip="Сколько всего нужно ресурса по рецепту" tooltipPosition="top">Всего</span>
+        <span class="c-num" pTooltip="Сколько нам нужно, с учётом того что некоторые составные ресурсы у нас могут уже быть" tooltipPosition="top">Нужно</span>
+        <span class="c-num" pTooltip="Сколько этого ресурса сейчас на складе" tooltipPosition="top">Есть</span>
+        <span class="c-num" pTooltip="Сколько ещё не хватает — это и надо докупить / нафармить" tooltipPosition="top">Не хватает</span>
       </div>
       <div
         class="cd-tr"
@@ -131,7 +133,8 @@
           {{ n.name }}
           <app-grade-badge *ngIf="showGrade(n.category)" [grade]="n.grade" />
         </span>
-        <span class="c-num">{{ n.need }}</span>
+        <span class="c-num">{{ n.needFull }}</span>
+        <span class="c-num c-net">{{ n.need }}</span>
         <span class="c-num">{{ n.have }}</span>
         <span class="c-num c-miss">{{ n.missing || '—' }}</span>
       </div>
@@ -182,7 +185,11 @@
       <span class="cd-tag cd-tag--sub" *ngIf="n.status === 'craftable'">докрафт из ресурсов</span>
       <span class="cd-tag" *ngIf="n.status === 'covered' && n.craftable && !n.children.length">крафт</span>
     </span>
-    <span class="c-num">{{ n.need }}</span>
+    <span class="c-num">{{ n.needFull }}</span>
+    <span
+      class="c-num c-net"
+      [pTooltip]="n.effShort === 0 ? 'Хватает — докрафт покрыт складом' : 'Нужно с учётом того, что некоторые составные ресурсы у нас уже есть'"
+    >{{ n.need }}</span>
     <span class="c-num">{{ n.have }}</span>
     <span class="c-num c-miss">
       <ng-container [ngSwitch]="n.status">
@@ -190,7 +197,10 @@
         <span *ngSwitchCase="'craftable'" class="c-miss--sub" pTooltip="Прямого ресурса нет, но хватает на докрафт">
           {{ n.missing }}<i class="pi pi-sync"></i>
         </span>
-        <span *ngSwitchCase="'short'">{{ n.effShort }}</span>
+        <span
+          *ngSwitchCase="'short'"
+          [pTooltip]="isComposite(n) ? 'На докрафт этих ' + n.missing + ' не хватает базовых ресурсов — раскрой строку' : ''"
+        >{{ n.missing }}</span>
       </ng-container>
     </span>
   </div>

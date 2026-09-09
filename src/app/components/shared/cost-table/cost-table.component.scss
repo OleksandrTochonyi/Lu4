@@ -1,0 +1,125 @@
+:host {
+  display: block;
+  --line: #e2e8f0;
+  --ink: #0f172a;
+  --muted: #64748b;
+}
+
+.ct-table {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.ct-tr {
+  display: grid;
+  grid-template-columns: 1fr 58px 58px 50px 74px;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.85rem;
+  border-top: 1px solid var(--line);
+  transition: background-color 0.1s ease;
+}
+.ct-tr:first-child {
+  border-top: 0;
+}
+.ct-tr--h {
+  background: #f8fafc;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.ct-tr.st-short {
+  background: #fff7f7;
+}
+.ct-tr.st-craftable {
+  background: #fffbeb;
+}
+.ct-tr:not(.ct-tr--h):hover {
+  background: #dde5fb;
+}
+.ct-tr.st-short:not(.ct-tr--h):hover {
+  background: #ffdede;
+}
+.ct-tr.st-craftable:not(.ct-tr--h):hover {
+  background: #fbeab5;
+}
+.ct-tr.st-covered .ct-miss {
+  color: #94a3b8;
+}
+.ct-tr.st-short .ct-miss {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.ct-name {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  color: var(--ink);
+}
+.ct-name img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  flex: none;
+}
+.ct-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.ct-empty {
+  margin: 0;
+  padding: 1rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+}
+
+.ct-short {
+  margin-top: 0.8rem;
+}
+.ct-short-h {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.4rem;
+}
+.ct-short-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.ct-short-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.55rem;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  color: #9f1239;
+}
+.ct-short-item img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+.ct-ok {
+  margin-top: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #15803d;
+  font-size: 0.88rem;
+}

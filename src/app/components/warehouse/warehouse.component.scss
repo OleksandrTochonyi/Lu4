@@ -678,3 +678,220 @@
     grid-row: 1;
   }
 }
+
+/* ---------------------------------------------------------- craft plan */
+
+.wh-body--plan {
+  overflow: auto;
+}
+
+.wh-plan-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.wh-plan-item {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+.wh-plan-ic {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  flex: none;
+}
+.wh-plan-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.wh-plan-name {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.wh-plan-missing {
+  font-size: 0.72rem;
+  color: #dc2626;
+  font-weight: 500;
+}
+.wh-plan-recs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.wh-plan-rec {
+  border: 1px solid var(--line);
+  background: #f8fafc;
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+.wh-plan-rec.active {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #4338ca;
+  font-weight: 600;
+}
+:host ::ng-deep .wh-plan-qty {
+  width: 4rem;
+  text-align: center;
+}
+
+.wh-plan-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 2rem 1rem;
+  color: var(--muted);
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+}
+.wh-plan-empty .pi {
+  font-size: 1.6rem;
+}
+.wh-plan-empty p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.wh-plan-result {
+  margin-top: 0.4rem;
+}
+.wh-plan-result h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  color: var(--ink);
+}
+
+/* ---- craft-plan "Добавить предмет" picker dialog ---- */
+
+.wh-pick-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 0.7rem;
+}
+.wh-pick-body {
+  max-height: 60vh;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.wh-pick-group-h {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--ink);
+  margin-bottom: 0.5rem;
+}
+.wh-pick-group-n {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: #f1f5f9;
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+}
+.wh-pick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.5rem;
+}
+.wh-pick-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.6rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.12s, background 0.12s, transform 0.06s;
+}
+.wh-pick-card:hover {
+  border-color: #c7d2fe;
+  background: #f8faff;
+}
+.wh-pick-card:active {
+  transform: translateY(1px);
+}
+.wh-pick-card.in-plan {
+  border-color: #6366f1;
+  background: #eef2ff;
+}
+.wh-pick-card img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+}
+.wh-pick-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.2;
+}
+.wh-pick-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #6366f1;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.wh-pick-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 2rem 1rem;
+  color: var(--muted);
+}
+.wh-pick-empty .pi {
+  font-size: 1.6rem;
+}
+.wh-pick-empty p {
+  margin: 0;
+}
+
+.wh-plan-result-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+.wh-plan-result-h h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--ink);
+}

@@ -1,0 +1,42 @@
+<div class="ct-table" *ngIf="rows().length; else empty">
+  <div class="ct-tr ct-tr--h">
+    <span class="ct-name">Ресурс</span>
+    <span class="ct-num" pTooltip="Сколько всего нужно ресурса по рецепту" tooltipPosition="top">Всего</span>
+    <span class="ct-num" pTooltip="Сколько нужно с учётом того, что некоторые составные ресурсы уже есть на складе" tooltipPosition="top">Нужно</span>
+    <span class="ct-num" pTooltip="Сколько этого ресурса сейчас на складе" tooltipPosition="top">Есть</span>
+    <span class="ct-num" pTooltip="Сколько ещё не хватает — это и надо докупить / нафармить" tooltipPosition="top">Не хватает</span>
+  </div>
+  <div
+    class="ct-tr"
+    *ngFor="let n of rows(); trackBy: trackNode"
+    [ngClass]="'st-' + n.status"
+  >
+    <span class="ct-name">
+      <img *ngIf="n.icon" [src]="n.icon" [alt]="n.name" (error)="imgError($event)" />
+      {{ n.name }}
+      <app-grade-badge *ngIf="showGrade(n.category)" [grade]="n.grade" />
+    </span>
+    <span class="ct-num">{{ n.needFull }}</span>
+    <span class="ct-num">{{ n.need }}</span>
+    <span class="ct-num">{{ n.have }}</span>
+    <span class="ct-num ct-miss">{{ n.missing || '—' }}</span>
+  </div>
+</div>
+
+<ng-template #empty>
+  <p class="ct-empty">Пусто — добавьте предметы, чтобы посчитать ресурсы.</p>
+</ng-template>
+
+<div class="ct-short" *ngIf="shortfall().length">
+  <div class="ct-short-h">Докупить / нафармить:</div>
+  <div class="ct-short-list">
+    <span class="ct-short-item" *ngFor="let n of shortfall(); trackBy: trackNode">
+      <img *ngIf="n.icon" [src]="n.icon" [alt]="n.name" (error)="imgError($event)" />
+      {{ n.name }} <b>×{{ n.effShort }}</b>
+    </span>
+  </div>
+</div>
+
+<div class="ct-ok" *ngIf="rows().length && allCovered()">
+  <i class="pi pi-check-circle"></i> На складе всё есть — можно крафтить.
+</div>

@@ -41220,7 +41220,7 @@
                 "catalogId": "metal_hardener"
             },
             "Metallic Fiber": {
-                "outputQty": 1,
+                "outputQty": 20,
                 "ingredients": [
                     {
                         "name": "Silver Nugget",

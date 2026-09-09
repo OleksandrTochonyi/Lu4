@@ -12,6 +12,8 @@ import { TooltipModule } from 'primeng/tooltip';
 import { ConfirmationService, MessageService } from 'primeng/api';
 
 import { GradeBadgeComponent } from '../shared/grade-badge/grade-badge.component';
+import { CostTableComponent } from '../shared/cost-table/cost-table.component';
+import { CostTreeComponent } from '../shared/cost-tree/cost-tree.component';
 import { CraftDetailComponent } from './craft-detail/craft-detail.component';
 import {
   CRAFT_CATEGORY_LABEL,
@@ -23,6 +25,18 @@ import {
 } from '../../services/craft-catalog.service';
 import { StockItem, WarehouseService } from '../../services/warehouse.service';
 import { SiteUsersService, actorLabel } from '../../services/site-users.service';
+import { CraftCostCalc, recipeLabel } from '../../utils/craft-cost';
+
+/** one line of the craft plan (localStorage) */
+interface PlanItem {
+  /** catalog entry id */
+  id: string;
+  /** index into the entry's `recipes` (60% / 70% / 100% / material) */
+  recipeIdx: number;
+  qty: number;
+}
+
+const LS_PLAN = 'wh-craft-plan';
 
 interface CatalogSuggestion {
   id: string;
@@ -47,6 +61,8 @@ interface CatalogSuggestion {
     InputTextModule,
     TooltipModule,
     GradeBadgeComponent,
+    CostTableComponent,
+    CostTreeComponent,
     CraftDetailComponent,
   ],
   providers: [ConfirmationService],
@@ -77,7 +93,7 @@ export class WarehouseComponent {
   private readonly hiddenCraftGrades = new Set<CraftGrade>(['NG', 'D', 'S']);
   private readonly hiddenCraftCategories = new Set<CraftCategory>(['other']);
 
-  readonly view = signal<'stock' | 'craft'>('stock');
+  readonly view = signal<'stock' | 'craft' | 'plan'>('stock');
 
   /* ------------------------------------------------------------------ data */
 
@@ -451,6 +467,184 @@ export class WarehouseComponent {
   }
   closeDetail(): void {
     this.detailEntry.set(null);
+  }
+
+  /* ----------------------------------------------------------- craft plan --- */
+
+  readonly recipeLabel = recipeLabel;
+  readonly planItems = signal<PlanItem[]>(this.readStoredPlan());
+
+  private readStoredPlan(): PlanItem[] {
+    try {
+      const raw = localStorage.getItem(LS_PLAN);
+      const arr = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(arr)) return [];
+      return arr
+        .map((x: any) => ({
+          id: String(x?.id ?? ''),
+          recipeIdx: Math.max(0, Math.round(Number(x?.recipeIdx) || 0)),
+          qty: Math.max(1, Math.round(Number(x?.qty) || 1)),
+        }))
+        .filter((x: PlanItem) => x.id);
+    } catch {
+      return [];
+    }
+  }
+  private setPlan(items: PlanItem[]): void {
+    this.planItems.set(items);
+    try {
+      localStorage.setItem(LS_PLAN, JSON.stringify(items));
+    } catch {
+      /* private window / quota — plan just won't persist */
+    }
+  }
+
+  /** the plan joined to live catalogue entries + the chosen recipe */
+  readonly planRows = computed(() => {
+    const byId = this.catalogIndex().byId;
+    return this.planItems().map((pi) => {
+      const entry = byId.get(pi.id) ?? null;
+      const recipes = entry?.recipes ?? [];
+      const recipeIdx = recipes.length
+        ? Math.min(pi.recipeIdx, recipes.length - 1)
+        : 0;
+      return { pi, entry, recipe: recipes[recipeIdx] ?? null, recipeIdx };
+    });
+  });
+
+  readonly planCost = computed(() => {
+    const roots = this.planRows()
+      .filter((r) => r.recipe)
+      .map((r) => ({ recipe: r.recipe!, qty: r.pi.qty }));
+    return new CraftCostCalc(this.catalog(), this.stock()).computePlan(roots);
+  });
+  readonly planRollup = computed(() => this.planCost().rollup);
+  /** plan result view: composite tree (default) vs flat resource list */
+  readonly planFlat = signal(false);
+
+  recipeOptionsFor(entry: CraftEntry | null): { value: number; label: string }[] {
+    return (entry?.recipes ?? []).map((r, i) => ({ value: i, label: recipeLabel(r) }));
+  }
+
+  private defaultRecipeIdx(entry: CraftEntry): number {
+    const rs = entry.recipes ?? [];
+    if (rs.length <= 1) return 0;
+    let best = 0;
+    let bestChance = -1;
+    rs.forEach((r, i) => {
+      const c = parseInt(r.chance) || 0;
+      if (c > bestChance) {
+        bestChance = c;
+        best = i;
+      }
+    });
+    return best;
+  }
+
+  addToPlan(entry: CraftEntry): void {
+    if (!entry?.craftable) return;
+    const existing = this.planItems().findIndex((p) => p.id === entry.id);
+    if (existing >= 0) {
+      const next = this.planItems().map((p, i) =>
+        i === existing ? { ...p, qty: p.qty + 1 } : p,
+      );
+      this.setPlan(next);
+      this.toast('info', 'Уже в наборе', `${entry.name} — количество +1`);
+      return;
+    }
+    this.setPlan([
+      ...this.planItems(),
+      { id: entry.id, recipeIdx: this.defaultRecipeIdx(entry), qty: 1 },
+    ]);
+  }
+  removeFromPlan(idx: number): void {
+    this.setPlan(this.planItems().filter((_, i) => i !== idx));
+  }
+  setPlanQty(idx: number, qty: number): void {
+    const q = Math.max(1, Math.round(Number(qty) || 1));
+    this.setPlan(this.planItems().map((p, i) => (i === idx ? { ...p, qty: q } : p)));
+  }
+  setPlanRecipe(idx: number, recipeIdx: number): void {
+    this.setPlan(
+      this.planItems().map((p, i) => (i === idx ? { ...p, recipeIdx } : p)),
+    );
+  }
+  clearPlan(): void {
+    this.setPlan([]);
+  }
+
+  trackPlan = (_: number, r: { pi: PlanItem }) => r.pi.id;
+
+  /* ---- "Добавить предмет" picker dialog (own filter state, separate from the
+   *      "Каталог крафта" view) ---- */
+
+  readonly pickOpen = signal(false);
+  /** the picker only offers gear — weapon / armor / jewelry */
+  readonly pickCategories: CraftCategory[] = ['weapon', 'armor', 'jewelry'];
+  readonly pickCat = signal<CraftCategory | null>(null);
+  readonly pickGrades = signal<Set<CraftGrade>>(new Set());
+  readonly pickSearch = signal('');
+
+  openPick(): void {
+    this.pickCat.set(null);
+    this.pickGrades.set(new Set());
+    this.pickSearch.set('');
+    this.pickOpen.set(true);
+  }
+  closePick(): void {
+    this.pickOpen.set(false);
+  }
+  togglePickCat(c: CraftCategory): void {
+    this.pickCat.set(this.pickCat() === c ? null : c);
+  }
+  togglePickGrade(g: CraftGrade): void {
+    const next = new Set(this.pickGrades());
+    next.has(g) ? next.delete(g) : next.add(g);
+    this.pickGrades.set(next);
+  }
+
+  /** craftable gear rows the picker can show (before the chips) */
+  private readonly pickBase = computed(() =>
+    this.catalog().filter(
+      (e) =>
+        e.craftable &&
+        this.pickCategories.includes(e.category) &&
+        !(e.grade && this.hiddenCraftGrades.has(e.grade)),
+    ),
+  );
+
+  readonly pickFiltered = computed(() => {
+    const cat = this.pickCat();
+    const grades = this.pickGrades();
+    const q = normName(this.pickSearch());
+    return this.pickBase().filter((e) => {
+      if (cat && e.category !== cat) return false;
+      if (grades.size && (!e.grade || !grades.has(e.grade))) return false;
+      if (q && !normName(e.name).includes(q)) return false;
+      return true;
+    });
+  });
+
+  /** picker rows grouped by grade: A → B → C → (без грейда), each name-sorted */
+  readonly pickGroups = computed(() => {
+    const order: (CraftGrade | '—')[] = ['A', 'B', 'C', '—'];
+    const bucket = new Map<CraftGrade | '—', CraftEntry[]>();
+    for (const e of this.pickFiltered()) {
+      const k = (e.grade as CraftGrade) || '—';
+      (bucket.get(k) ?? bucket.set(k, []).get(k)!).push(e);
+    }
+    return order
+      .filter((g) => bucket.has(g))
+      .map((g) => ({
+        grade: g,
+        label: g === '—' ? 'Без грейда' : `${g}-грейд`,
+        items: bucket.get(g)!.sort((a, b) => a.name.localeCompare(b.name)),
+      }));
+  });
+
+  /** qty of this entry currently in the plan (0 = not added) */
+  planQtyOf(id: string): number {
+    return this.planItems().find((p) => p.id === id)?.qty ?? 0;
   }
 
   /* --------------------------------------------------------------- helpers */
