@@ -41014,7 +41014,7 @@
                 "catalogId": "compound_braid"
             },
             "Cord": {
-                "outputQty": 1,
+                "outputQty": 20,
                 "ingredients": [
                     {
                         "name": "Thread",
