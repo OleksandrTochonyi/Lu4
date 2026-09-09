@@ -276,8 +276,13 @@ export class RaidsComponent {
     });
   });
 
+  /** the boss dropped nothing at all */
+  isKillNoDrop(kill: RaidKill): boolean {
+    return !kill.drops.length;
+  }
+
   /** every drop line from this kill has been completely sold off — a kill with no drop
-   *  at all counts as "Распродано" straight away (nothing left to deal with) */
+   *  at all counts as "done" straight away (nothing left to deal with) */
   isKillFullySold(kill: RaidKill): boolean {
     if (!kill.drops.length) return true;
     const sold = this.soldByKey();

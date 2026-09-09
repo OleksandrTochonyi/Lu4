@@ -63,15 +63,20 @@
         <div class="rd-kill-head" role="button" tabindex="0" (click)="toggleKillExpanded(k.id)"
           (keydown.enter)="toggleKillExpanded(k.id)">
           <i class="pi rd-kill-chevron" [ngClass]="isKillExpanded(k.id) ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
-          <span class="rd-kill-badge" [class.is-soldout]="isKillFullySold(k)">
-            <i class="pi" [ngClass]="isKillFullySold(k) ? 'pi-check' : 'pi-flag-fill'"></i>
+          <span class="rd-kill-badge" [class.is-soldout]="isKillFullySold(k) && !isKillNoDrop(k)"
+            [class.is-nodrop]="isKillNoDrop(k)">
+            <i class="pi" [ngClass]="isKillNoDrop(k) ? 'pi-times' : (isKillFullySold(k) ? 'pi-check' : 'pi-flag-fill')"></i>
           </span>
           <span class="rd-kill-title">
             <b>{{ k.bossName }}</b>
             <span class="rd-kill-lvl" *ngIf="k.bossLevel">ур. {{ k.bossLevel }}</span>
           </span>
-          <span class="rd-kill-soldout-tag" *ngIf="isKillFullySold(k)" pTooltip="Весь дроп с этого убийства продан"
+          <span class="rd-kill-nodrop-tag" *ngIf="isKillNoDrop(k)" pTooltip="С этого убийства не выпало ничего"
             tooltipPosition="top">
+            <i class="pi pi-times-circle"></i> Нихуя не выпало
+          </span>
+          <span class="rd-kill-soldout-tag" *ngIf="isKillFullySold(k) && !isKillNoDrop(k)"
+            pTooltip="Весь дроп с этого убийства продан" tooltipPosition="top">
             <i class="pi pi-check-circle"></i> Распродано
           </span>
           <span class="rd-kill-date">{{ fmtDate(k.killedAt) }}</span>

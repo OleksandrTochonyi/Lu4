@@ -259,7 +259,12 @@
   background: #dcfce7;
   color: #16a34a;
 }
-.rd-kill-soldout-tag {
+.rd-kill-badge.is-nodrop {
+  background: #fee2e2;
+  color: #dc2626;
+}
+.rd-kill-soldout-tag,
+.rd-kill-nodrop-tag {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
@@ -272,6 +277,10 @@
   border-radius: 999px;
   padding: 0.15rem 0.55rem;
   flex: none;
+}
+.rd-kill-nodrop-tag {
+  color: #dc2626;
+  background: #fee2e2;
 }
 .rd-kill-title {
   display: flex;
