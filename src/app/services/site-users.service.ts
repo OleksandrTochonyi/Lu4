@@ -5,12 +5,11 @@ import {
   collectionData,
   deleteDoc,
   doc,
-  docData,
   setDoc,
   updateDoc,
 } from '@angular/fire/firestore';
 import { Observable, combineLatest, of } from 'rxjs';
-import { map, shareReplay, switchMap } from 'rxjs/operators';
+import { delay, map, shareReplay, switchMap } from 'rxjs/operators';
 
 import { AuthService } from './auth.service';
 
@@ -96,7 +95,7 @@ export class SiteUsersService {
   private auth = inject(AuthService);
   private col = collection(this.firestore, 'site-users');
 
-  readonly siteUsers$: Observable<SiteUser[]> = (
+  private readonly rawUsers$: Observable<SiteUser[]> = (
     collectionData(this.col, { idField: 'id' }) as Observable<any[]>
   ).pipe(
     map((list) =>
@@ -107,6 +106,31 @@ export class SiteUsersService {
             roleRank(a.role) - roleRank(b.role) || a.email.localeCompare(b.email),
         ),
     ),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
+  /** flips true the first time we actually see a populated list */
+  private sawUsers = false;
+
+  /**
+   * The access list — same as {@link rawUsers$}, except a **first-load empty
+   * result is held back** for a few seconds. `collectionData` emits `[]` before
+   * the real snapshot arrives, and trusting that momentary empty is dangerous:
+   * `isAdmin$` would briefly grant everyone admin (WH/Raids/Users menu flashes
+   * in) and the bootstrap seed could stamp the wrong account as admin. Once a
+   * non-empty list has been seen, later emissions (incl. a real empty) pass
+   * straight through.
+   */
+  readonly siteUsers$: Observable<SiteUser[]> = this.rawUsers$.pipe(
+    switchMap((list) => {
+      if (list.length > 0) {
+        this.sawUsers = true;
+        return of(list);
+      }
+      if (this.sawUsers) return of(list);
+      return of(list).pipe(delay(4000));
+    }),
+    shareReplay({ bufferSize: 1, refCount: true }),
   );
 
   /**
@@ -129,15 +153,18 @@ export class SiteUsersService {
 
   private readonly myEmail$ = this.auth.user$.pipe(map((u) => normEmail(u?.email)));
 
-  /** the current user's own access row (undefined until it loads / if none) */
-  readonly myRow$: Observable<SiteUser | null> = this.myEmail$.pipe(
-    switchMap((email) =>
-      email
-        ? (docData(doc(this.firestore, `site-users/${email}`)) as Observable<any>).pipe(
-            map((raw) => (raw ? normalize({ ...raw, email }) : null)),
-          )
-        : of(null),
-    ),
+  /**
+   * The current user's own access row (`null` if they're not on the list).
+   * Derived from the same settled snapshot as {@link siteUsers$} — NOT a separate
+   * `docData` listener — so `myRow` and `list` can never disagree (a lagging doc
+   * listener used to make `deniedReason$` briefly report `'not-listed'` and log a
+   * valid user straight out).
+   */
+  readonly myRow$: Observable<SiteUser | null> = combineLatest([
+    this.myEmail$,
+    this.siteUsers$,
+  ]).pipe(
+    map(([email, list]) => (email ? list.find((u) => u.email === email) ?? null : null)),
   );
 
   readonly isAdmin$: Observable<boolean> = combineLatest([

@@ -131,12 +131,14 @@ export class AppComponent {
     //   routerLink: '/rb-list',
     //   adminOnly: true,
     // },
-    {
-      label: 'Statistics',
-      icon: 'pi pi-chart-bar',
-      routerLink: '/startistics',
-      adminOnly: true,
-    },
+    // Statistics (/startistics) — hidden for everyone for now; route + component
+    // still exist, just not surfaced in the menu.
+    // {
+    //   label: 'Statistics',
+    //   icon: 'pi pi-chart-bar',
+    //   routerLink: '/startistics',
+    //   adminOnly: true,
+    // },
     {
       label: 'Users',
       icon: 'pi pi-user-edit',
