@@ -13,6 +13,28 @@
         <small class="pm-hint">Видна только админам и ПЛ этого пака.</small>
       </div>
 
+      <div class="pm-field pm-full pm-prem" *ngIf="canManage()">
+        <label>Премиум-аккаунт — дата окончания</label>
+        <div class="pm-prem-row">
+          <p-calendar formControlName="premiumUntil" appendTo="body" dateFormat="dd.mm.yy" [showIcon]="true"
+            [showButtonBar]="true" iconDisplay="input" placeholder="дд.мм.гггг" styleClass="pm-prem-cal"></p-calendar>
+          <span class="prem-badge" [ngClass]="'prem-badge--' + premiumPreview().state"
+            [pTooltip]="premiumPreview().tooltip" tooltipPosition="top">
+            {{ premiumPreview().label }}
+          </span>
+        </div>
+        <small class="pm-hint">Пусто — премиума нет. Зелёный — больше недели, оранжевый — меньше недели, красный —
+          истёк.</small>
+      </div>
+
+      <div class="pm-field pm-full pm-prem" *ngIf="!canManage() && user() as u">
+        <label>Премиум-аккаунт</label>
+        <span class="prem-badge" [ngClass]="'prem-badge--' + premiumStatus(u.premiumUntil).state"
+          [pTooltip]="premiumStatus(u.premiumUntil).tooltip" tooltipPosition="top">
+          {{ premiumStatus(u.premiumUntil).label }}
+        </span>
+      </div>
+
       <div class="pm-field">
         <label>Расса *</label>
         <p-dropdown [options]="raceOptions" optionLabel="label" optionValue="value" formControlName="race"

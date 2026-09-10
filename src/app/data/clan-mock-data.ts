@@ -125,6 +125,112 @@ export function roleColor(role: string | null | undefined): { bg: string; fg: st
   return (role && ROLE_COLORS[role]) || ROLE_COLOR_FALLBACK;
 }
 
+/* ----------------------------------------------------------- premium account --- */
+
+export type PremiumState = 'none' | 'expired' | 'soon' | 'ok';
+
+export interface PremiumStatus {
+  state: PremiumState;
+  /** normalized `YYYY-MM-DD`, or `''` when absent */
+  date: string;
+  /** whole days from today to the end date (negative = already expired) */
+  days: number;
+  /** short badge caption */
+  label: string;
+  /** longer hover text */
+  tooltip: string;
+}
+
+/** midnight-local `Date` for a `YYYY-MM-DD` (or ISO) string, or `null` */
+function parseDateOnly(value: string | null | undefined): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value ?? '').trim());
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function dateOnlyStr(d: Date): string {
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+/** normalize any date-ish input to a `YYYY-MM-DD` string (`''` when empty/invalid) */
+export function toDateOnly(value: string | number | Date | null | undefined): string {
+  if (value == null || value === '') return '';
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? '' : dateOnlyStr(value);
+  const iso = parseDateOnly(String(value));
+  if (iso) return dateOnlyStr(iso);
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? '' : dateOnlyStr(d);
+}
+
+/** `dd.MM.yyyy` for display, `''` when the input has no valid date */
+export function formatDateOnly(value: string | null | undefined): string {
+  const d = parseDateOnly(value);
+  if (!d) return '';
+  const day = String(d.getDate()).padStart(2, '0');
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return `${day}.${m}.${d.getFullYear()}`;
+}
+
+const DAY_MS = 86_400_000;
+
+/**
+ * Premium-account status by END DATE only — the time of day is ignored:
+ *  · `none`    — no date set                         → neutral badge
+ *  · `expired` — the end date is before today        → red
+ *  · `soon`    — a week or less left (0…7 days)       → orange
+ *  · `ok`      — more than a week left               → green
+ */
+export function premiumStatus(value: string | null | undefined): PremiumStatus {
+  const end = parseDateOnly(value);
+  if (!end) {
+    return {
+      state: 'none',
+      date: '',
+      days: NaN,
+      label: 'Без према',
+      tooltip: 'Премиум-аккаунт не указан',
+    };
+  }
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const days = Math.round((end.getTime() - today.getTime()) / DAY_MS);
+  const pretty = formatDateOnly(value);
+  const date = dateOnlyStr(end);
+
+  if (days < 0) {
+    return {
+      state: 'expired',
+      date,
+      days,
+      label: `Прем истёк ${pretty}`,
+      tooltip: `Премиум закончился ${pretty}`,
+    };
+  }
+  if (days <= 7) {
+    return {
+      state: 'soon',
+      date,
+      days,
+      label: `Прем до ${pretty}`,
+      tooltip:
+        days === 0
+          ? `Премиум заканчивается сегодня (${pretty})`
+          : `Премиум заканчивается через ${days} дн. (${pretty})`,
+    };
+  }
+  return {
+    state: 'ok',
+    date,
+    days,
+    label: `Прем до ${pretty}`,
+    tooltip: `Премиум активен ещё ${days} дн. (до ${pretty})`,
+  };
+}
+
 /* --------------------------------------------------------------- catalogue --- */
 
 export type ItemCategory =

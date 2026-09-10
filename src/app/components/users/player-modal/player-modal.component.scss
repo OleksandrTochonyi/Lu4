@@ -83,6 +83,52 @@
   color: var(--muted);
 }
 
+/* ---- premium account ---- */
+.pm-prem-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.pm-prem-row ::ng-deep .pm-prem-cal {
+  flex: 1 1 11rem;
+  min-width: 9rem;
+}
+
+.prem-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 0.16rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+.prem-badge--none {
+  background: #f1f5f9;
+  color: #64748b;
+  border-color: #e2e8f0;
+}
+.prem-badge--ok {
+  background: #dcfce7;
+  color: #15803d;
+  border-color: #bbf7d0;
+}
+.prem-badge--soon {
+  background: #ffedd5;
+  color: #c2410c;
+  border-color: #fed7aa;
+}
+.prem-badge--expired {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
 .pm-viewonly {
   display: flex;
   align-items: center;

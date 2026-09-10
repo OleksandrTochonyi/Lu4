@@ -29,6 +29,7 @@ import {
   GRADE_RANK,
   expandEquipment,
   levelGrade,
+  premiumStatus,
   raceName,
   readEnchant,
   readWeaponDual,
@@ -150,6 +151,7 @@ export class UsersComponent {
   raceName = raceName;
   roleColor = roleColor;
   levelGrade = levelGrade;
+  premiumStatus = premiumStatus;
 
   selectGroup(group: ConstPartyGroup): void {
     this.selectedGroupId.set(group.id);
@@ -161,6 +163,33 @@ export class UsersComponent {
 
   leaderOf(group: ConstPartyGroup): ConstPartyUser | null {
     return (group.users ?? []).find((u) => u.isPL) ?? null;
+  }
+
+  /** premium-account breakdown for every member of a pack */
+  premiumSummary(group: ConstPartyGroup): {
+    withPrem: number;
+    soon: number;
+    expired: number;
+    none: number;
+  } {
+    const acc = { withPrem: 0, soon: 0, expired: 0, none: 0 };
+    for (const u of group.users ?? []) {
+      switch (premiumStatus(u.premiumUntil).state) {
+        case 'ok':
+          acc.withPrem++;
+          break;
+        case 'soon':
+          acc.withPrem++;
+          acc.soon++;
+          break;
+        case 'expired':
+          acc.expired++;
+          break;
+        default:
+          acc.none++;
+      }
+    }
+    return acc;
   }
 
   private orderMembers(list: ConstPartyUser[]): ConstPartyUser[] {

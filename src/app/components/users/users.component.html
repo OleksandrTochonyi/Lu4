@@ -79,7 +79,14 @@
                 </span>
                 <span class="ml-twink-tag" *ngIf="twink">твинк</span>
               </span>
-              <span class="ml-email" *ngIf="canManageSelected() && user.email">{{ user.email }}</span>
+              <span class="ml-sub">
+                <span class="ml-email" *ngIf="canManageSelected() && user.email">{{ user.email }}</span>
+                <span class="prem-badge" [ngClass]="'prem-badge--' + premiumStatus(user.premiumUntil).state"
+                  (click)="$event.stopPropagation()" [pTooltip]="premiumStatus(user.premiumUntil).tooltip"
+                  tooltipPosition="top">
+                  {{ premiumStatus(user.premiumUntil).label }}
+                </span>
+              </span>
             </span>
           </span>
 
@@ -167,6 +174,19 @@
                 <i class="pi pi-star-fill"></i> ПЛ: {{ pl.name }}
               </span>
               <span class="chip chip-warn" *ngIf="!leaderOf(group)">ПЛ не назначен</span>
+
+              <ng-container *ngIf="premiumSummary(group) as ps">
+                <span class="chip chip-prem chip-prem--ok"
+                  [pTooltip]="'Игроков с активным премиумом' + (ps.soon ? ' · у ' + ps.soon + ' скоро закончится' : '')"
+                  tooltipPosition="top">💎 {{ ps.withPrem }} с премом</span>
+                <span class="chip chip-prem chip-prem--soon" *ngIf="ps.soon"
+                  [pTooltip]="'Премиум заканчивается в течение недели'" tooltipPosition="top">⏳ {{ ps.soon }} скоро</span>
+                <span class="chip chip-prem chip-prem--none"
+                  [pTooltip]="
+                    'Без премиума: ' + ps.none + (ps.expired ? ' · истёк ещё у ' + ps.expired : '')
+                  "
+                  tooltipPosition="top">🚫 {{ ps.none + ps.expired }} без према</span>
+              </ng-container>
             </div>
           </div>
 

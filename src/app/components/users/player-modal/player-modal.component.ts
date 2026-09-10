@@ -14,6 +14,7 @@ import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angu
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
+import { CalendarModule } from 'primeng/calendar';
 import { CheckboxModule } from 'primeng/checkbox';
 import { DialogModule } from 'primeng/dialog';
 import { DropdownModule } from 'primeng/dropdown';
@@ -57,10 +58,12 @@ import {
   isGrade,
   isShieldBlocked,
   parseTattoo,
+  premiumStatus,
   professionsForRace,
   raceName,
   readEnchant,
   readTattoo,
+  toDateOnly,
   readWeaponSa,
   readWeaponTwoH,
   readWeaponDual,
@@ -95,6 +98,7 @@ interface GearRow {
     FormsModule,
     ReactiveFormsModule,
     ButtonModule,
+    CalendarModule,
     CheckboxModule,
     DialogModule,
     DropdownModule,
@@ -152,7 +156,15 @@ export class PlayerModalComponent {
     role: ['', [Validators.required]],
     isPL: [false],
     isTwink: [false],
+    premiumUntil: [null as Date | null],
   });
+
+  /** live premium-account status for the value currently in the form */
+  readonly premiumStatus = premiumStatus;
+  readonly premiumUntilValue = signal<Date | null>(null);
+  readonly premiumPreview = computed(() =>
+    premiumStatus(toDateOnly(this.premiumUntilValue())),
+  );
 
   readonly selectedRaceId = signal('');
   readonly professionOptions = computed(() =>
@@ -410,6 +422,10 @@ export class PlayerModalComponent {
           this.form.controls.profession.setValue('');
         }
       });
+
+    this.form.controls.premiumUntil.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((d) => this.premiumUntilValue.set(d ?? null));
   }
 
   private resetForm(): void {
@@ -418,6 +434,7 @@ export class PlayerModalComponent {
     // just created: the live stream has not delivered the new user yet — keep
     // whatever is already in the form instead of blanking it
     if (id && !u) return;
+    const premiumUntil = u?.premiumUntil ? new Date(`${u.premiumUntil}T00:00:00`) : null;
     this.form.reset({
       name: u?.name ?? '',
       email: u?.email ?? '',
@@ -427,8 +444,10 @@ export class PlayerModalComponent {
       role: u?.role ?? '',
       isPL: !!u?.isPL,
       isTwink: !!u?.isTwink,
+      premiumUntil: premiumUntil && !Number.isNaN(premiumUntil.getTime()) ? premiumUntil : null,
     });
     this.selectedRaceId.set(u?.race ?? '');
+    this.premiumUntilValue.set(this.form.controls.premiumUntil.value ?? null);
   }
 
   trackBySlot = (_: number, s: EquipSlot) => s.id;
@@ -455,7 +474,8 @@ export class PlayerModalComponent {
     if (this.form.invalid) return;
 
     this.savingInfo.set(true);
-    const value = this.form.getRawValue();
+    const raw = this.form.getRawValue();
+    const value = { ...raw, premiumUntil: toDateOnly(raw.premiumUntil) };
     try {
       if (this.mode() === 'create' && this.canManage()) {
         const id = await this.constPartyService.addUser(this.group().id, value);
