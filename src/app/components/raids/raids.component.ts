@@ -989,19 +989,24 @@ export class RaidsComponent {
 
   private aggregateOutstanding(list: RaidSale[]) {
     const bank = { total: 0, unpaid: 0 };
-    const leaders = new Map<string, { name: string; total: number; unpaid: number }>();
-    const mercs = new Map<string, { name: string; total: number; unpaid: number }>();
+    const leaders = new Map<string, { id: string; name: string; total: number; unpaid: number }>();
+    const mercs = new Map<string, { id: string; name: string; total: number; unpaid: number }>();
     for (const s of list) {
       bank.total += s.payout.bank.amount;
       if (!s.payout.bank.paid) bank.unpaid += s.payout.bank.amount;
 
-      const l = leaders.get(s.payout.leaderId) ?? { name: s.payout.leaderName, total: 0, unpaid: 0 };
+      const l = leaders.get(s.payout.leaderId) ?? {
+        id: s.payout.leaderId,
+        name: s.payout.leaderName,
+        total: 0,
+        unpaid: 0,
+      };
       l.total += s.payout.leader.amount;
       if (!s.payout.leader.paid) l.unpaid += s.payout.leader.amount;
       leaders.set(s.payout.leaderId, l);
 
       for (const [uid, m] of Object.entries(s.payout.mercenaries)) {
-        const e = mercs.get(uid) ?? { name: m.name, total: 0, unpaid: 0 };
+        const e = mercs.get(uid) ?? { id: uid, name: m.name, total: 0, unpaid: 0 };
         e.total += m.amount;
         if (!m.paid) e.unpaid += m.amount;
         mercs.set(uid, e);
@@ -1010,7 +1015,7 @@ export class RaidsComponent {
     return {
       bank,
       leaders: [...leaders.values()],
-      mercs: [...mercs.values()].sort((a, b) => b.unpaid - a.unpaid),
+      mercs: [...mercs.values()].sort((a, b) => b.total - a.total),
     };
   }
 
@@ -1066,6 +1071,57 @@ export class RaidsComponent {
       this.toast('error', 'Ошибка', this.msg(e));
     } finally {
       this.settlingAll.set(false);
+    }
+  }
+
+  /** key of the outstanding-badge group currently being toggled, if any */
+  readonly settlingGroupKey = signal<string | null>(null);
+  isSettlingGroup(kind: 'bank' | 'leader' | 'merc', id: string | null): boolean {
+    return this.settlingGroupKey() === this.groupKey(kind, id);
+  }
+  private groupKey(kind: 'bank' | 'leader' | 'merc', id: string | null): string {
+    return kind === 'bank' ? 'bank' : `${kind}:${id}`;
+  }
+  private targetForKind(kind: 'bank' | 'leader' | 'merc', id: string | null): PayoutTarget {
+    return kind === 'merc' ? { kind: 'merc', userId: id! } : { kind };
+  }
+
+  /** click a "В процессе" summary badge — pays out (or, if already fully paid,
+   *  un-pays) every open-sale share belonging to that one bank/leader/mercenary */
+  async toggleGroupPaid(kind: 'bank' | 'leader' | 'merc', id: string | null): Promise<void> {
+    if (this.settlingGroupKey()) return;
+    const relevant: RaidSale[] = [];
+    let anyUnpaid = false;
+    for (const s of this.openSales()) {
+      if (s.locked) continue;
+      if (kind === 'bank') {
+        relevant.push(s);
+        if (!s.payout.bank.paid) anyUnpaid = true;
+      } else if (kind === 'leader') {
+        if (s.payout.leaderId !== id) continue;
+        relevant.push(s);
+        if (!s.payout.leader.paid) anyUnpaid = true;
+      } else {
+        const m = s.payout.mercenaries[id!];
+        if (!m) continue;
+        relevant.push(s);
+        if (!m.paid) anyUnpaid = true;
+      }
+    }
+    if (!relevant.length) return;
+    const nextPaid = anyUnpaid;
+    const target = this.targetForKind(kind, id);
+    this.settlingGroupKey.set(this.groupKey(kind, id));
+    try {
+      await Promise.all(relevant.map((s) => this.raidLoot.setSharePaid(s.id, target, nextPaid)));
+      if (nextPaid) {
+        const toLock = relevant.filter((s) => this.wouldBeSettledAfter(s, target, true));
+        await Promise.all(toLock.map((s) => this.raidLoot.setSaleLocked(s.id, true)));
+      }
+    } catch (e) {
+      this.toast('error', 'Ошибка', this.msg(e));
+    } finally {
+      this.settlingGroupKey.set(null);
     }
   }
 

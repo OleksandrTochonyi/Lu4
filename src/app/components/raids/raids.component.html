@@ -243,15 +243,24 @@
         к выдаче <b>{{ fmtMoney(totalUnpaid()) }}</b>
       </div>
       <div class="rd-out-list">
-        <span class="rd-out-chip" [class.is-zero]="outstanding().bank.unpaid === 0">
+        <button type="button" class="rd-out-chip" [class.is-zero]="outstanding().bank.unpaid === 0"
+          [class.is-busy]="isSettlingGroup('bank', null)" [disabled]="isSettlingGroup('bank', null)"
+          (click)="toggleGroupPaid('bank', null)">
+          <i class="pi pi-check rd-check" [class.rd-check-show]="outstanding().bank.unpaid === 0"></i>
           Банк: {{ fmtMoney(outstanding().bank.unpaid) }} / {{ fmtMoney(outstanding().bank.total) }}
-        </span>
-        <span class="rd-out-chip" *ngFor="let l of outstanding().leaders" [class.is-zero]="l.unpaid === 0">
+        </button>
+        <button type="button" class="rd-out-chip" *ngFor="let l of outstanding().leaders"
+          [class.is-zero]="l.unpaid === 0" [class.is-busy]="isSettlingGroup('leader', l.id)"
+          [disabled]="isSettlingGroup('leader', l.id)" (click)="toggleGroupPaid('leader', l.id)">
+          <i class="pi pi-check rd-check" [class.rd-check-show]="l.unpaid === 0"></i>
           {{ l.name }} (лидер): {{ fmtMoney(l.unpaid) }} / {{ fmtMoney(l.total) }}
-        </span>
-        <span class="rd-out-chip" *ngFor="let m of outstanding().mercs" [class.is-zero]="m.unpaid === 0">
+        </button>
+        <button type="button" class="rd-out-chip" *ngFor="let m of outstanding().mercs"
+          [class.is-zero]="m.unpaid === 0" [class.is-busy]="isSettlingGroup('merc', m.id)"
+          [disabled]="isSettlingGroup('merc', m.id)" (click)="toggleGroupPaid('merc', m.id)">
+          <i class="pi pi-check rd-check" [class.rd-check-show]="m.unpaid === 0"></i>
           {{ m.name }}: {{ fmtMoney(m.unpaid) }} / {{ fmtMoney(m.total) }}
-        </span>
+        </button>
       </div>
       <button pButton type="button" label="Всем выдано" icon="pi pi-check-double" class="p-button-sm"
         [disabled]="settlingAll() || totalUnpaid() === 0" (click)="confirmSettleAll()"></button>
