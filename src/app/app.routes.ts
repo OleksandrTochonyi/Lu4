@@ -10,6 +10,7 @@ import { RbMapComponent } from './components/rb-map/rb-map.component';
 import { BookmarksComponent } from './components/bookmarks/bookmarks.component';
 import { HomeNewComponent } from './components/home-new/home-new.component';
 import { BookmarksNewComponent } from './components/bookmarks-new/bookmarks-new.component';
+import { BookmarksNgComponent } from './components/bookmarks-ng/bookmarks-ng.component';
 import { RbListNewComponent } from './components/rb-list-new/rb-list-new.component';
 import { RbMapNewComponent } from './components/rb-map-new/rb-map-new.component';
 import { AdminUsersComponent } from './components/admin-users/admin-users.component';
@@ -29,6 +30,7 @@ export const routes: Routes = [
 	{ path: 'startistics', component: StatisticsComponent, canActivate: [authGuard, adminGuard] },
 	{ path: 'home-new', component: HomeNewComponent, canActivate: [authGuard] },
 	{ path: 'bookmarks-new', component: BookmarksNewComponent, canActivate: [authGuard] },
+	{ path: 'bookmarks-ng', component: BookmarksNgComponent, canActivate: [authGuard] },
 	{ path: 'rb-list-new', component: RbListNewComponent, canActivate: [authGuard, adminGuard] },
 	{ path: 'rb-map-new', component: RbMapNewComponent, canActivate: [authGuard] },
 	{ path: 'admin/users', component: AdminUsersComponent, canActivate: [authGuard, adminGuard] },

@@ -121,6 +121,16 @@ export class RbJsonDataService {
   private jsonMapService = inject(RbJsonMapService);
   private jsonRespService = inject(RbJsonRespService);
 
+  private catalog$ = this.http.get<DbFile>('assets/data/db.json').pipe(
+    map((db) => (db?.monsters ?? []).map((monster) => this.mapMonster(monster))),
+    shareReplay({ bufferSize: 1, refCount: false })
+  );
+
+  /** Bare db.json catalog — no kill times, no map points — for pages that bring their own store. */
+  getCatalog(): Observable<JsonRb[]> {
+    return this.catalog$;
+  }
+
   private raidBosses$ = combineLatest([
     this.http.get<DbFile>('assets/data/db.json'),
     this.raidBossService.getRaidBosses(),

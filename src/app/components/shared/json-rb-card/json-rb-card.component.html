@@ -81,7 +81,7 @@
 	</div>
 
 	<div class="actions flex flex-row gap-0.5 shrink-0" data-tour="bm-row-actions">
-		@if (hasMapPoint()) {
+		@if (showMapButton() && hasMapPoint()) {
 			<p-button
 				icon="pi pi-map-marker"
 				[text]="true"

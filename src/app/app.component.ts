@@ -25,6 +25,7 @@ const PAGE_NAMES: Record<string, string> = {
   '/': 'Букмарки',
   '/bookmarks': 'Букмарки',
   '/bookmarks-new': 'Букмарки',
+  '/bookmarks-ng': 'Букмарки NoGrade',
   '/home-new': 'Главная',
   '/users': 'Клан',
   '/const-party': 'Клан',
@@ -96,6 +97,12 @@ export class AppComponent {
       label: 'Bookmarks',
       icon: 'pi pi-bookmark',
       routerLink: '/',
+    },
+    {
+      label: 'Bookmarks',
+      badge: 'NG',
+      icon: 'pi pi-bookmark',
+      routerLink: '/bookmarks-ng',
     },
     {
       label: 'RB Map',

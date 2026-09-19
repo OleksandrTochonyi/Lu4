@@ -52,6 +52,10 @@ export class JsonRbCardComponent implements OnInit {
 
   rb = input<(JsonRb & { hidden?: boolean; deadTime?: Date | null; minResp?: Date | null; maxResp?: Date | null; secondMinResp?: Date | null; secondMaxResp?: Date | null; status?: RbStatus }) | null>(null);
   showDeleteButton = input(false);
+  /** off for pages whose data isn't on our map (the NoGrade bookmarks) */
+  showMapButton = input(true);
+  /** off where the Telegram "entered resp" ping would be about someone else's data */
+  notifyResp = input(true);
 
   toggleHidden = output<any>();
   removeFromList = output<any>();
@@ -337,6 +341,7 @@ export class JsonRbCardComponent implements OnInit {
   }
 
   private sendRespStartNotification(): void {
+    if (!this.notifyResp()) return;
     const rb = this.rb();
     const rbName = String(rb?.displayName ?? rb?.name ?? '').trim() || '???';
     const rbLvl = rb?.lvl;
