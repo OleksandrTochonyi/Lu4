@@ -349,7 +349,9 @@ export class JsonRbCardComponent implements OnInit {
     const text =
       `РБ ${rbName}${rbLvl != null ? `[${rbLvl}]` : ''} вошел в респ! Хули сидишь? Пиздуй чекать!!\n\n` +
       `<a href="${mapUrl}">Посмотреть на карте</a>`;
-    void this.tgService.sendMessageToTg(text).catch(() => null);
+    // Telegram sending is switched off for now
+    // void this.tgService.sendMessageToTg(text).catch(() => null);
+    void text;
   }
 
   // ---------- Kill-time editing ----------

@@ -420,7 +420,9 @@ export class RbItemComponent implements OnInit {
     const voiceText = `РБ - ${rbName || '???'} вошел в респ! Хули сидишь? Пиздуй Чекать!`;
 
     const tgText = `РБ ${rbName || '???'} ${rb.status === RbStatus.SoonResp ? 'зашел в респ!': 'зашел во второй респ! Чуть менее внимательно, но -'} Пиздуй чекать!`
-    void this.tgService.sendMessageToTg(tgText).catch(() => null);
+    // Telegram sending is switched off for now
+    // void this.tgService.sendMessageToTg(tgText).catch(() => null);
+    void tgText;
 
     // Best-effort TTS (may require prior user interaction in the browser).
     try {
