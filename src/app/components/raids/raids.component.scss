@@ -1143,6 +1143,13 @@
   font-size: 0.82rem;
   color: var(--ink);
   flex-wrap: wrap;
+  padding: 0.25rem 0.5rem;
+  margin: 0 -0.5rem;
+  border-radius: 6px;
+  transition: background 0.12s;
+}
+.rd-listing-line:hover {
+  background: #f1f5f9;
 }
 .rd-listing-icon {
   width: 22px;
