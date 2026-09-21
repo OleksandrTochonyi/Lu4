@@ -312,7 +312,7 @@ export class RaidsComponent {
   readonly killNote = signal('');
   /** also push this boss's kill time to the shared resp tracker (rb-resp-time,
    *  same store the Bookmarks page uses) using the "Дата и время" above */
-  readonly killMarkAsDead = signal(false);
+  readonly killMarkAsDead = signal(true);
   readonly killPackIds = signal<Set<string>>(new Set());
   /** `${groupId}:${userId}` -> selected */
   readonly killParticipants = signal<Set<string>>(new Set());
@@ -335,7 +335,7 @@ export class RaidsComponent {
     this.killBossId.set(null);
     this.killDate.set(this.nowLocalInput());
     this.killNote.set('');
-    this.killMarkAsDead.set(false);
+    this.killMarkAsDead.set(true);
     this.killPackIds.set(new Set());
     this.killParticipants.set(new Set());
     this.killLootRows.set([]);
@@ -368,7 +368,7 @@ export class RaidsComponent {
     this.killDialogOpen.set(false);
     this.editingKillId.set(null);
     this.editingOriginalDrops = [];
-    this.killMarkAsDead.set(false);
+    this.killMarkAsDead.set(true);
   }
 
   /** re-populate the loot checklist from the newly picked boss's own drop table */
