@@ -41,6 +41,7 @@ import {
   SalePayout,
 } from '../../services/raid-loot.service';
 import { GradeBadgeComponent } from '../shared/grade-badge/grade-badge.component';
+import { OverflowTipDirective } from './overflow-tip.directive';
 import { SiteUsersService, actorLabel } from '../../services/site-users.service';
 
 /** one row of the selected boss's own drop table, checkable + quantity */
@@ -108,6 +109,8 @@ interface PlayerRef {
   name: string;
 }
 
+type StatsPeriod = 'today' | '7d' | '30d' | '90d' | 'all' | 'custom';
+
 type PayoutRole = 'bank' | 'leader' | 'merc' | 'mixed';
 
 /** one payout share of one sale, flattened for the "Статистика" tab */
@@ -119,6 +122,7 @@ interface PayoutEvent {
   amount: number;
   paid: boolean;
   paidAt: number | null;
+  soldAt: number;
   itemName: string;
   bossName: string;
 }
@@ -161,6 +165,7 @@ function newLocalId(): string {
     ToggleSwitchModule,
     GradeBadgeComponent,
     GuidedTourComponent,
+    OverflowTipDirective,
   ],
   providers: [ConfirmationService],
   templateUrl: './raids.component.html',
@@ -1541,6 +1546,7 @@ export class RaidsComponent {
         paid: s.payout.bank.paid,
         paidAt: s.payout.bank.paidAt,
         itemName: s.itemName,
+        soldAt: s.soldAt,
         bossName: s.bossName,
       });
       events.push({
@@ -1552,6 +1558,7 @@ export class RaidsComponent {
         paid: s.payout.leader.paid,
         paidAt: s.payout.leader.paidAt,
         itemName: s.itemName,
+        soldAt: s.soldAt,
         bossName: s.bossName,
       });
       for (const [uid, m] of Object.entries(s.payout.mercenaries)) {
@@ -1564,28 +1571,119 @@ export class RaidsComponent {
           paid: m.paid,
           paidAt: m.paidAt,
           itemName: s.itemName,
-          bossName: s.bossName,
+          soldAt: s.soldAt,
+        bossName: s.bossName,
         });
       }
     }
     return events;
   });
 
+  /* ---- period filter — everything below is scoped to it ---- */
+
+  readonly statsPeriodOptions: { id: StatsPeriod; label: string }[] = [
+    { id: 'today', label: 'Сегодня' },
+    { id: '7d', label: '7 дней' },
+    { id: '30d', label: '30 дней' },
+    { id: '90d', label: '90 дней' },
+    { id: 'all', label: 'Всё время' },
+    { id: 'custom', label: 'Свой период' },
+  ];
+  readonly statsPeriod = signal<StatsPeriod>('all');
+  /** yyyy-mm-dd, as produced by <input type="date"> */
+  readonly statsFrom = signal('');
+  readonly statsTo = signal('');
+
+  setStatsPeriod(p: StatsPeriod): void {
+    this.statsPeriod.set(p);
+    this.recentPage.set(0);
+  }
+  setStatsFrom(v: string): void {
+    this.statsFrom.set(v || '');
+    this.recentPage.set(0);
+  }
+  setStatsTo(v: string): void {
+    this.statsTo.set(v || '');
+    this.recentPage.set(0);
+  }
+
+  private startOfDay(ts: number): number {
+    const d = new Date(ts);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  }
+  private parseDay(v: string, endOfDay: boolean): number | null {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+    if (!m) return null;
+    return endOfDay
+      ? new Date(+m[1], +m[2] - 1, +m[3], 23, 59, 59, 999).getTime()
+      : new Date(+m[1], +m[2] - 1, +m[3]).getTime();
+  }
+
+  /** inclusive [from, to] in ms; open ends are 0 / Infinity */
+  readonly statsRange = computed<{ from: number; to: number }>(() => {
+    const p = this.statsPeriod();
+    if (p === 'all') return { from: 0, to: Infinity };
+    if (p === 'custom') {
+      const f = this.statsFrom();
+      const t = this.statsTo();
+      let from = this.parseDay(f, false) ?? 0;
+      let to = this.parseDay(t, true) ?? Infinity;
+      if (from > to) {
+        from = this.parseDay(t, false)!;
+        to = this.parseDay(f, true)!;
+      }
+      return { from, to };
+    }
+    const days = p === 'today' ? 1 : p === '7d' ? 7 : p === '30d' ? 30 : 90;
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - (days - 1));
+    return { from: d.getTime(), to: Infinity };
+  });
+
+  readonly statsRangeLabel = computed(() => {
+    const { from, to } = this.statsRange();
+    if (from === 0 && to === Infinity) return 'за всё время';
+    const day = (ts: number) => this.fmtDate(ts).slice(0, 10);
+    if (this.statsPeriod() === 'today') return day(from);
+    return `${from ? day(from) : '…'} — ${to === Infinity ? 'сегодня' : day(to)}`;
+  });
+
+  /** kills by the date they happened, sales (and their payout shares) by the date sold */
+  readonly periodKills = computed(() => {
+    const { from, to } = this.statsRange();
+    return this.kills().filter((k) => k.killedAt >= from && k.killedAt <= to);
+  });
+  readonly periodSales = computed(() => {
+    const { from, to } = this.statsRange();
+    return this.sales().filter((s) => s.soldAt >= from && s.soldAt <= to);
+  });
+  private readonly periodEvents = computed(() => {
+    const { from, to } = this.statsRange();
+    return this.payoutEvents().filter((e) => e.soldAt >= from && e.soldAt <= to);
+  });
+
   readonly statsSummary = computed(() => {
-    const totalKills = this.kills().length;
-    const totalSales = this.sales().length;
-    const events = this.payoutEvents();
-    const totalPaid = events.filter((e) => e.paid).reduce((sum, e) => sum + e.amount, 0);
-    const bankTotal = events
-      .filter((e) => e.role === 'bank' && e.paid)
-      .reduce((sum, e) => sum + e.amount, 0);
-    return { totalKills, totalSales, totalPaid, bankTotal };
+    const kills = this.periodKills();
+    const sales = this.periodSales();
+    const events = this.periodEvents();
+    const sum = (list: PayoutEvent[]) => list.reduce((acc, e) => acc + e.amount, 0);
+    const revenue = round2(sales.reduce((acc, s) => acc + s.price, 0));
+    return {
+      totalKills: kills.length,
+      totalSales: sales.length,
+      revenue,
+      totalPaid: sum(events.filter((e) => e.paid)),
+      bankTotal: sum(events.filter((e) => e.role === 'bank' && e.paid)),
+      emptyKills: kills.filter((k) => this.isKillNoDrop(k)).length,
+    };
   });
 
   /** who got (or still needs to get) paid, how much, how often, and when last */
   readonly personStats = computed<PersonStat[]>(() => {
     const map = new Map<string, PersonStat & { roles: Set<PayoutRole> }>();
-    for (const e of this.payoutEvents()) {
+    for (const e of this.periodEvents()) {
       const cur = map.get(e.recipientKey) ?? {
         key: e.recipientKey,
         name: e.recipientName,
@@ -1613,7 +1711,7 @@ export class RaidsComponent {
 
   /** every payout actually handed out, newest first — "кому сколько и когда" */
   readonly allRecentPayouts = computed(() =>
-    this.payoutEvents()
+    this.periodEvents()
       .filter((e) => e.paid && e.paidAt)
       .sort((a, b) => (b.paidAt ?? 0) - (a.paidAt ?? 0)),
   );
@@ -1653,7 +1751,7 @@ export class RaidsComponent {
       string,
       { name: string; icon: string | null; grade: string | null; qty: number; revenue: number; count: number }
     >();
-    for (const s of this.sales()) {
+    for (const s of this.periodSales()) {
       const key = s.itemName.trim().toLowerCase();
       const cur = map.get(key) ?? { name: s.itemName, icon: s.icon, grade: s.grade, qty: 0, revenue: 0, count: 0 };
       cur.qty += s.qty;
@@ -1666,19 +1764,44 @@ export class RaidsComponent {
 
   readonly bossStats = computed(() => {
     const map = new Map<string, { name: string; kills: number; sales: number; revenue: number }>();
-    for (const k of this.kills()) {
+    for (const k of this.periodKills()) {
       const cur = map.get(k.bossName) ?? { name: k.bossName, kills: 0, sales: 0, revenue: 0 };
       cur.kills++;
       map.set(k.bossName, cur);
     }
-    for (const s of this.sales()) {
+    for (const s of this.periodSales()) {
       const cur = map.get(s.bossName) ?? { name: s.bossName, kills: 0, sales: 0, revenue: 0 };
       cur.sales++;
       cur.revenue += s.price;
       map.set(s.bossName, cur);
     }
-    return [...map.values()].sort((a, b) => b.revenue - a.revenue);
+    return [...map.values()]
+      .map((b) => ({ ...b, avg: b.kills ? b.revenue / b.kills : 0 }))
+      .sort((a, b) => b.revenue - a.revenue);
   });
+
+  /** who showed up to the period's kills, most present first */
+  readonly attendanceStats = computed(() => {
+    const kills = this.periodKills();
+    const map = new Map<string, { key: string; name: string; group: string; kills: number }>();
+    for (const k of kills) {
+      const seen = new Set<string>();
+      for (const p of k.participants) {
+        if (seen.has(p.userId)) continue;
+        seen.add(p.userId);
+        const cur = map.get(p.userId) ?? { key: p.userId, name: p.name, group: p.groupName, kills: 0 };
+        cur.kills++;
+        map.set(p.userId, cur);
+      }
+    }
+    return [...map.values()]
+      .map((p) => ({ ...p, pct: kills.length ? Math.round((p.kills / kills.length) * 100) : 0 }))
+      .sort((a, b) => b.kills - a.kills || a.name.localeCompare(b.name));
+  });
+  readonly attendanceExpanded = signal(false);
+  readonly attendanceShown = computed(() =>
+    this.attendanceExpanded() ? this.attendanceStats() : this.attendanceStats().slice(0, 10),
+  );
 
   roleLabel(role: PayoutRole): string {
     switch (role) {
@@ -2022,7 +2145,10 @@ export class RaidsComponent {
     },
     {
       title: 'Вкладка «Статистика» — карточки',
-      paragraphs: ['Сверху четыре цифры: сколько всего боссов убито, сколько продаж, сколько всего заработали и сколько получил банк.'],
+      paragraphs: [
+        'Над карточками — выбор периода: сегодня, 7/30/90 дней, всё время или свои даты. Всё ниже пересчитывается под него.',
+        'В карточках: сколько убито боссов (и сколько убийств были пустыми), продаж, выручка, сколько уже выдано и сколько получил банк.',
+      ],
       onEnter: () => this.view.set('stats'),
       target: '.rd-stat-tiles',
     },
@@ -2040,7 +2166,7 @@ export class RaidsComponent {
     },
     {
       title: 'Статистика по боссам',
-      paragraphs: ['То же самое, но по каждому боссу: сколько раз убит и сколько принёс выручки.'],
+      paragraphs: ['То же самое, но по каждому боссу: сколько раз убит, сколько продаж, сколько принёс выручки и сколько это в среднем на одно убийство.'],
       onEnter: () => this.view.set('stats'),
       target: '.rd-stat-table--bosses',
     },

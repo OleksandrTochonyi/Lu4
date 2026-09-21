@@ -1269,6 +1269,78 @@
 .rd-stat-tile--good .rd-stat-value {
   color: #16a34a;
 }
+
+/* period picker */
+.rd-period {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem 0.9rem;
+}
+.rd-period-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.rd-period-custom {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--muted);
+}
+.rd-date {
+  width: 9.5rem;
+}
+.rd-period-note {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+/* attendance */
+.rd-att {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.rd-att-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+.rd-att-fill {
+  display: block;
+  height: 100%;
+  background: #2563eb;
+  border-radius: 999px;
+}
+.rd-att-pct {
+  width: 2.6rem;
+  text-align: right;
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.rd-att-more {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  color: #1d4ed8;
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 0.2rem 0.1rem;
+  margin: -0.5rem 0 0.6rem;
+}
+.rd-att-more:hover {
+  text-decoration: underline;
+}
 /* One CSS Grid per whole table (not per row!) — every row is `display: contents`
    so its cells become direct grid items sharing ONE set of column tracks. Two
    independent per-row grids (the previous approach) each size their `fr`
@@ -1295,9 +1367,14 @@
   border-bottom: 0;
   margin-bottom: 0;
 }
-.rd-stat-table--items,
-.rd-stat-table--bosses {
+.rd-stat-table--items {
   grid-template-columns: 2fr 0.8fr 0.9fr;
+}
+.rd-stat-table--bosses {
+  grid-template-columns: 2fr 0.7fr 0.7fr 0.9fr 0.9fr;
+}
+.rd-stat-table--attendance {
+  grid-template-columns: 1.4fr 1.1fr 0.9fr 1.4fr;
 }
 
 .rd-stat-row {
@@ -1329,6 +1406,12 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--ink);
+}
+.rd-stat-txt {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .rd-stat-icon {
   width: 20px;
@@ -1385,8 +1468,13 @@
   .rd-stat-table--people,
   .rd-stat-table--payouts,
   .rd-stat-table--items,
-  .rd-stat-table--bosses {
+  .rd-stat-table--bosses,
+  .rd-stat-table--attendance {
     grid-template-columns: 1fr;
+  }
+  .rd-period-note {
+    margin-left: 0;
+    flex: 1 0 100%;
   }
   .rd-stat-num {
     justify-content: flex-start;

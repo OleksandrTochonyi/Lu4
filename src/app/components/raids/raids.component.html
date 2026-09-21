@@ -424,16 +424,42 @@
 
   <!-- ============================================================= STATS === -->
   <section *ngIf="view() === 'stats'" class="rd-body">
+    <div class="rd-period">
+      <span class="rd-period-label"><i class="pi pi-calendar"></i> Период</span>
+      <div class="rd-chips">
+        <button type="button" class="rd-toggle-chip" *ngFor="let p of statsPeriodOptions"
+          [class.active]="statsPeriod() === p.id" (click)="setStatsPeriod(p.id)">{{ p.label }}</button>
+      </div>
+      <span class="rd-period-custom" *ngIf="statsPeriod() === 'custom'">
+        <input pInputText type="date" class="rd-date" [ngModel]="statsFrom()" (ngModelChange)="setStatsFrom($event)"
+          aria-label="С даты" />
+        <span>—</span>
+        <input pInputText type="date" class="rd-date" [ngModel]="statsTo()" (ngModelChange)="setStatsTo($event)"
+          aria-label="По дату" />
+      </span>
+      <span class="rd-period-note"
+        pTooltip="Убийства считаются по дате убийства, продажи и выплаты по ним — по дате продажи"
+        tooltipPosition="top">{{ statsRangeLabel() }}</span>
+    </div>
+
     <div class="rd-stat-tiles">
       <div class="rd-stat-tile">
         <span class="rd-stat-label">Убито РБ</span>
         <span class="rd-stat-value">{{ statsSummary().totalKills }}</span>
       </div>
+      <div class="rd-stat-tile" pTooltip="Убийства, с которых ничего не выпало" tooltipPosition="top">
+        <span class="rd-stat-label">Пустых убийств</span>
+        <span class="rd-stat-value">{{ statsSummary().emptyKills }}</span>
+      </div>
       <div class="rd-stat-tile">
         <span class="rd-stat-label">Продаж</span>
         <span class="rd-stat-value">{{ statsSummary().totalSales }}</span>
       </div>
-      <div class="rd-stat-tile rd-stat-tile--good">
+      <div class="rd-stat-tile">
+        <span class="rd-stat-label">Выручка</span>
+        <span class="rd-stat-value">{{ fmtMoney(statsSummary().revenue) }}</span>
+      </div>
+      <div class="rd-stat-tile rd-stat-tile--good" pTooltip="Доли по продажам периода, которые уже выданы" tooltipPosition="top">
         <span class="rd-stat-label">Заработали</span>
         <span class="rd-stat-value">{{ fmtMoney(statsSummary().totalPaid) }}</span>
       </div>
@@ -443,7 +469,7 @@
       </div>
     </div>
 
-    <ng-container *ngIf="sales().length; else emptyStats">
+    <ng-container *ngIf="periodSales().length">
       <div class="rd-sales-h">По людям</div>
       <div class="rd-stat-table rd-stat-table--people">
         <div class="rd-stat-row rd-stat-row--h">
@@ -452,7 +478,7 @@
           <span class="rd-stat-num">Последняя</span>
         </div>
         <div class="rd-stat-row" *ngFor="let p of personStats()">
-          <span class="rd-stat-name">{{ p.name }}</span>
+          <span class="rd-stat-name" rdOverflowTip>{{ p.name }}</span>
           <span><span class="rd-role-tag" [ngClass]="'rd-role-tag--' + p.role">{{ roleLabel(p.role) }}</span></span>
           <span class="rd-stat-num rd-stat-num--good">{{ fmtMoney(p.paidTotal) }}</span>
           <span class="rd-stat-num" [class.rd-stat-num--warn]="p.pendingTotal > 0">{{ fmtMoney(p.pendingTotal) }}</span>
@@ -470,27 +496,58 @@
         <div class="rd-stat-row" *ngFor="let it of topItems()">
           <span class="rd-stat-name">
             <img *ngIf="it.icon" [src]="it.icon" (error)="imgError($event)" alt="" class="rd-stat-icon" />
-            {{ it.name }}
+            <span class="rd-stat-txt" [rdOverflowTip]="it.name">{{ it.name }}</span>
             <app-grade-badge [grade]="it.grade" />
           </span>
           <span class="rd-stat-num">{{ it.qty }}</span>
           <span class="rd-stat-num rd-stat-num--good">{{ fmtMoney(it.revenue) }}</span>
         </div>
       </div>
+    </ng-container>
 
+    <ng-container *ngIf="bossStats().length">
       <div class="rd-sales-h">По боссам</div>
       <div class="rd-stat-table rd-stat-table--bosses">
         <div class="rd-stat-row rd-stat-row--h">
-          <span>Босс</span><span class="rd-stat-num">Убийств</span>
-          <span class="rd-stat-num">Выручка</span>
+          <span>Босс</span><span class="rd-stat-num">Убийств</span><span class="rd-stat-num">Продаж</span>
+          <span class="rd-stat-num">Выручка</span><span class="rd-stat-num">На убийство</span>
         </div>
         <div class="rd-stat-row" *ngFor="let b of bossStats()">
-          <span class="rd-stat-name">{{ b.name }}</span>
+          <span class="rd-stat-name" rdOverflowTip>{{ b.name }}</span>
           <span class="rd-stat-num">{{ b.kills }}</span>
+          <span class="rd-stat-num">{{ b.sales }}</span>
           <span class="rd-stat-num rd-stat-num--good">{{ fmtMoney(b.revenue) }}</span>
+          <span class="rd-stat-num">{{ b.kills ? fmtMoney(b.avg) : '—' }}</span>
         </div>
       </div>
+    </ng-container>
 
+    <ng-container *ngIf="attendanceStats().length">
+      <div class="rd-sales-h">
+        Участие в убийствах
+        <span class="rd-sales-h-n">{{ attendanceStats().length }}</span>
+      </div>
+      <div class="rd-stat-table rd-stat-table--attendance">
+        <div class="rd-stat-row rd-stat-row--h">
+          <span>Игрок</span><span>Пак</span><span class="rd-stat-num">Убийств</span><span>Участие</span>
+        </div>
+        <div class="rd-stat-row" *ngFor="let a of attendanceShown()">
+          <span class="rd-stat-name" rdOverflowTip>{{ a.name }}</span>
+          <span class="rd-stat-name rd-muted" rdOverflowTip>{{ a.group }}</span>
+          <span class="rd-stat-num">{{ a.kills }} из {{ statsSummary().totalKills }}</span>
+          <span class="rd-att">
+            <span class="rd-att-track"><span class="rd-att-fill" [style.width.%]="a.pct"></span></span>
+            <span class="rd-att-pct">{{ a.pct }}%</span>
+          </span>
+        </div>
+      </div>
+      <button type="button" class="rd-att-more" *ngIf="attendanceStats().length > 10"
+        (click)="attendanceExpanded.set(!attendanceExpanded())">
+        {{ attendanceExpanded() ? 'Свернуть' : 'Показать всех (' + attendanceStats().length + ')' }}
+      </button>
+    </ng-container>
+
+    <ng-container *ngIf="periodSales().length">
       <div class="rd-sales-h">Последние выплаты</div>
       <div class="rd-stat-table rd-stat-table--payouts" *ngIf="recentPayouts().length; else noPayouts">
         <div class="rd-stat-row rd-stat-row--h">
@@ -498,10 +555,10 @@
           <span>За что</span><span class="rd-stat-num">Когда</span>
         </div>
         <div class="rd-stat-row" *ngFor="let e of recentPayouts()">
-          <span class="rd-stat-name">{{ e.recipientName }}</span>
+          <span class="rd-stat-name" rdOverflowTip>{{ e.recipientName }}</span>
           <span><span class="rd-role-tag" [ngClass]="'rd-role-tag--' + e.role">{{ roleLabel(e.role) }}</span></span>
           <span class="rd-stat-num rd-stat-num--good">{{ fmtMoney(e.amount) }}</span>
-          <span class="rd-stat-item">{{ e.itemName }} <span class="rd-muted">· {{ e.bossName }}</span></span>
+          <span class="rd-stat-item" rdOverflowTip>{{ e.itemName }} <span class="rd-muted">· {{ e.bossName }}</span></span>
           <span class="rd-stat-num">{{ fmtDate(e.paidAt!) }}</span>
         </div>
       </div>
@@ -528,13 +585,13 @@
       </ng-template>
     </ng-container>
 
-    <ng-template #emptyStats>
-      <div class="rd-empty">
-        <div class="rd-empty-ic"><i class="pi pi-chart-bar"></i></div>
-        <p class="rd-empty-title">Статистики пока нет</p>
-        <p class="rd-empty-sub">Появится после первых продаж</p>
-      </div>
-    </ng-template>
+    <div class="rd-empty" *ngIf="!periodSales().length && !periodKills().length">
+      <div class="rd-empty-ic"><i class="pi pi-chart-bar"></i></div>
+      <p class="rd-empty-title">{{ sales().length || kills().length ? 'За этот период данных нет' : 'Статистики пока нет' }}</p>
+      <p class="rd-empty-sub">
+        {{ sales().length || kills().length ? 'Выберите другой период' : 'Появится после первых продаж' }}
+      </p>
+    </div>
   </section>
   </div>
 </div>
@@ -683,7 +740,7 @@
             <i class="pi" [ngClass]="r.checked ? 'pi-check-square' : 'pi-stop'"></i>
           </button>
           <img *ngIf="r.loot.imgUrl" [src]="r.loot.imgUrl" (error)="imgError($event)" alt="" class="rd-loot-icon" />
-          <span class="rd-loot-name">{{ r.loot.displayName }}</span>
+          <span class="rd-loot-name" rdOverflowTip>{{ r.loot.displayName }}</span>
           <app-grade-badge [grade]="r.loot.grade" />
           <span class="rd-loot-chance" *ngIf="r.loot.chance">{{ r.loot.chance }}%</span>
           <p-inputNumber *ngIf="r.checked" [ngModel]="r.qty" (ngModelChange)="setLootRowQty(r.key, $event)"
@@ -837,7 +894,7 @@
             <i class="pi" [ngClass]="r.checked ? 'pi-check-square' : 'pi-stop'"></i>
           </button>
           <img *ngIf="r.icon" [src]="r.icon" (error)="imgError($event)" alt="" class="rd-loot-icon" />
-          <span class="rd-loot-name">{{ r.name }}</span>
+          <span class="rd-loot-name" rdOverflowTip>{{ r.name }}</span>
           <app-grade-badge [grade]="r.grade" />
           <span class="rd-loot-chance">
             свободно {{ r.available }}
@@ -881,7 +938,7 @@
 
 <!-- ==================================================== SELL & SPLIT DIALOG === -->
 <p-dialog [visible]="!!sellSplitListing()" (visibleChange)="$event || closeSellSplit()" [modal]="true"
-  [draggable]="false" [dismissableMask]="true" [style]="{ width: 'min(680px, 96vw)' }" header="Продать и попилить">
+  [draggable]="false" [dismissableMask]="true" [style]="{ width: 'min(960px, 96vw)' }" header="Продать и попилить">
   <div class="rd-form" *ngIf="sellSplitListing() as sl">
     <p class="rd-hint">
       Укажи, сколько по каждой позиции реально продано. Остальное останется на складе.
@@ -890,7 +947,7 @@
     <div class="rd-loot-list rd-loot-list--listing">
       <div class="rd-loot-row" *ngFor="let ln of sl.lines; trackBy: trackByListingLine">
         <img *ngIf="ln.icon" [src]="ln.icon" (error)="imgError($event)" alt="" class="rd-loot-icon" />
-        <span class="rd-loot-name">{{ ln.name }}</span>
+        <span class="rd-loot-name" [rdOverflowTip]="ln.name">{{ ln.name }}</span>
         <app-grade-badge [grade]="ln.grade" />
         <span class="rd-loot-chance">в продаже {{ ln.listedQty }} × {{ fmtMoney(ln.unitPrice) }}</span>
         <span class="rd-listing-field">
