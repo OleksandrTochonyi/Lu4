@@ -532,6 +532,49 @@
   flex-wrap: wrap;
   gap: 0.4rem;
 }
+/* copy button lives inside the pill's reserved right padding, so showing it on hover never shifts anything */
+.rd-out-item {
+  position: relative;
+  display: inline-flex;
+}
+.rd-out-copy {
+  position: absolute;
+  right: 0.3rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.15rem;
+  height: 1.15rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #92400e;
+  font-size: 0.7rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s, background 0.12s;
+}
+.rd-out-item:hover .rd-out-copy,
+.rd-out-copy:focus-visible {
+  opacity: 1;
+}
+.rd-out-copy:hover {
+  background: rgba(146, 64, 14, 0.12);
+}
+.rd-out-item:has(.is-zero) .rd-out-copy {
+  color: #047857;
+}
+.rd-out-item:has(.is-zero) .rd-out-copy:hover {
+  background: rgba(4, 120, 87, 0.12);
+}
+@media (hover: none) {
+  .rd-out-copy {
+    opacity: 1;
+  }
+}
 .rd-out-chip {
   display: inline-flex;
   align-items: center;
@@ -539,7 +582,7 @@
   background: #fff;
   border: 1px solid #fde68a;
   border-radius: 999px;
-  padding: 0.15rem 0.6rem;
+  padding: 0.15rem 1.6rem 0.15rem 0.6rem;
   font-size: 0.75rem;
   font-family: inherit;
   color: #92400e;

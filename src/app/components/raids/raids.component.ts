@@ -1079,6 +1079,17 @@ export class RaidsComponent {
     }
   }
 
+  /** copies the amount as a bare number (no thousands separators) */
+  async copyAmount(amount: number): Promise<void> {
+    const text = String(round2(amount));
+    try {
+      await navigator.clipboard.writeText(text);
+      this.toast('success', 'Скопировано', text);
+    } catch {
+      this.toast('error', 'Не удалось скопировать', text);
+    }
+  }
+
   /** key of the outstanding-badge group currently being toggled, if any */
   readonly settlingGroupKey = signal<string | null>(null);
   isSettlingGroup(kind: 'bank' | 'leader' | 'merc', id: string | null): boolean {

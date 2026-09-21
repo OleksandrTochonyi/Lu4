@@ -243,24 +243,42 @@
         к выдаче <b>{{ fmtMoney(totalUnpaid()) }}</b>
       </div>
       <div class="rd-out-list">
-        <button type="button" class="rd-out-chip" [class.is-zero]="outstanding().bank.unpaid === 0"
-          [class.is-busy]="isSettlingGroup('bank', null)" [disabled]="isSettlingGroup('bank', null)"
-          (click)="toggleGroupPaid('bank', null)">
-          <i class="pi pi-check rd-check" [class.rd-check-show]="outstanding().bank.unpaid === 0"></i>
-          Банк: {{ fmtMoney(outstanding().bank.unpaid) }} / {{ fmtMoney(outstanding().bank.total) }}
-        </button>
-        <button type="button" class="rd-out-chip" *ngFor="let l of outstanding().leaders"
-          [class.is-zero]="l.unpaid === 0" [class.is-busy]="isSettlingGroup('leader', l.id)"
-          [disabled]="isSettlingGroup('leader', l.id)" (click)="toggleGroupPaid('leader', l.id)">
-          <i class="pi pi-check rd-check" [class.rd-check-show]="l.unpaid === 0"></i>
-          {{ l.name }} (лидер): {{ fmtMoney(l.unpaid) }} / {{ fmtMoney(l.total) }}
-        </button>
-        <button type="button" class="rd-out-chip" *ngFor="let m of outstanding().mercs"
-          [class.is-zero]="m.unpaid === 0" [class.is-busy]="isSettlingGroup('merc', m.id)"
-          [disabled]="isSettlingGroup('merc', m.id)" (click)="toggleGroupPaid('merc', m.id)">
-          <i class="pi pi-check rd-check" [class.rd-check-show]="m.unpaid === 0"></i>
-          {{ m.name }}: {{ fmtMoney(m.unpaid) }} / {{ fmtMoney(m.total) }}
-        </button>
+        <span class="rd-out-item">
+          <button type="button" class="rd-out-chip" [class.is-zero]="outstanding().bank.unpaid === 0"
+            [class.is-busy]="isSettlingGroup('bank', null)" [disabled]="isSettlingGroup('bank', null)"
+            (click)="toggleGroupPaid('bank', null)">
+            <i class="pi pi-check rd-check" [class.rd-check-show]="outstanding().bank.unpaid === 0"></i>
+            Банк: {{ fmtMoney(outstanding().bank.unpaid) }} / {{ fmtMoney(outstanding().bank.total) }}
+          </button>
+          <button type="button" class="rd-out-copy" pTooltip="Копировать сумму" tooltipPosition="top"
+            (click)="copyAmount(outstanding().bank.unpaid || outstanding().bank.total)">
+            <i class="pi pi-copy"></i>
+          </button>
+        </span>
+        <span class="rd-out-item" *ngFor="let l of outstanding().leaders">
+          <button type="button" class="rd-out-chip" [class.is-zero]="l.unpaid === 0"
+            [class.is-busy]="isSettlingGroup('leader', l.id)" [disabled]="isSettlingGroup('leader', l.id)"
+            (click)="toggleGroupPaid('leader', l.id)">
+            <i class="pi pi-check rd-check" [class.rd-check-show]="l.unpaid === 0"></i>
+            {{ l.name }} (лидер): {{ fmtMoney(l.unpaid) }} / {{ fmtMoney(l.total) }}
+          </button>
+          <button type="button" class="rd-out-copy" pTooltip="Копировать сумму" tooltipPosition="top"
+            (click)="copyAmount(l.unpaid || l.total)">
+            <i class="pi pi-copy"></i>
+          </button>
+        </span>
+        <span class="rd-out-item" *ngFor="let m of outstanding().mercs">
+          <button type="button" class="rd-out-chip" [class.is-zero]="m.unpaid === 0"
+            [class.is-busy]="isSettlingGroup('merc', m.id)" [disabled]="isSettlingGroup('merc', m.id)"
+            (click)="toggleGroupPaid('merc', m.id)">
+            <i class="pi pi-check rd-check" [class.rd-check-show]="m.unpaid === 0"></i>
+            {{ m.name }}: {{ fmtMoney(m.unpaid) }} / {{ fmtMoney(m.total) }}
+          </button>
+          <button type="button" class="rd-out-copy" pTooltip="Копировать сумму" tooltipPosition="top"
+            (click)="copyAmount(m.unpaid || m.total)">
+            <i class="pi pi-copy"></i>
+          </button>
+        </span>
       </div>
       <button pButton type="button" label="Всем выдано" icon="pi pi-check-double" class="p-button-sm"
         [disabled]="settlingAll() || totalUnpaid() === 0" (click)="confirmSettleAll()"></button>
