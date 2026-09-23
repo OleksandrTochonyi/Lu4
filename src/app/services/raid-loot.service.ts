@@ -162,7 +162,22 @@ export interface PayoutConfig {
 /** a payout recipient path, used to target one nested `paid` flag */
 export type PayoutTarget = { kind: 'bank' | 'leader' } | { kind: 'merc'; userId: string };
 
+export interface RosterPresetPlayer {
+  groupId: string;
+  userId: string;
+  name: string;
+}
+
+/** the "who usually shows up" default roster — pre-fills a new kill's pack/participant
+ *  pickers, but every kill can still add/remove people freely on top of it */
+export interface RosterPreset {
+  players: RosterPresetPlayer[];
+  updatedAt: number;
+  updatedBy: string;
+}
+
 const CONFIG_DOC_ID = 'default';
+const ROSTER_PRESET_DOC_ID = 'default';
 
 function toInt(v: unknown): number {
   const n = Math.round(Number(v));
@@ -338,6 +353,35 @@ export class RaidLootService {
         : null,
     ),
   );
+
+  readonly rosterPreset$: Observable<RosterPreset | null> = (
+    docData(doc(this.firestore, `raid-roster-preset/${ROSTER_PRESET_DOC_ID}`)) as Observable<any>
+  ).pipe(
+    map((raw) =>
+      raw
+        ? {
+            players: Array.isArray(raw.players)
+              ? raw.players.map((p: any) => ({
+                  groupId: String(p?.groupId ?? ''),
+                  userId: String(p?.userId ?? ''),
+                  name: String(p?.name ?? ''),
+                }))
+              : [],
+            updatedAt: toNum(raw.updatedAt),
+            updatedBy: String(raw.updatedBy ?? ''),
+          }
+        : null,
+    ),
+  );
+
+  async saveRosterPreset(players: RosterPresetPlayer[], actorEmail: string): Promise<void> {
+    await setDoc(doc(this.firestore, `raid-roster-preset/${ROSTER_PRESET_DOC_ID}`), {
+      players,
+      updatedAt: Date.now(),
+      updatedBy: actorEmail || 'неизвестно',
+    });
+    this.activityLog.log('Изменил состав пака по умолчанию');
+  }
 
   async addKill(data: NewRaidKill, actorEmail: string): Promise<string> {
     if (!data.bossId) throw new Error('Не выбран рейд-босс');

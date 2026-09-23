@@ -8,8 +8,12 @@
       <h1>Рейд-боссы</h1>
       <p>Убийства, дроп на складе, продажи и выплаты</p>
     </div>
-    <button pButton type="button" icon="pi pi-cog" label="Выплаты" class="p-button-sm p-button-outlined"
-      data-tour="rd-tour-payout-btn" (click)="openConfig()"></button>
+    <div class="rd-head-actions">
+      <button pButton type="button" icon="pi pi-users" label="Текущий состав" class="p-button-sm p-button-outlined"
+        data-tour="rd-tour-roster-btn" (click)="openRosterConfig()"></button>
+      <button pButton type="button" icon="pi pi-cog" label="Выплаты" class="p-button-sm p-button-outlined"
+        data-tour="rd-tour-payout-btn" (click)="openConfig()"></button>
+    </div>
   </div>
 
   <div class="rd-seg">
@@ -889,6 +893,49 @@
     <button pButton type="button" label="Отмена" class="p-button-sm p-button-text" (click)="closeConfig()"></button>
     <button pButton type="button" label="Сохранить" class="p-button-sm" [disabled]="savingConfig()"
       (click)="saveConfig()"></button>
+  </ng-template>
+</p-dialog>
+
+<!-- =================================================== ROSTER PRESET DIALOG === -->
+<p-dialog [visible]="rosterConfigOpen()" (visibleChange)="$event || closeRosterConfig()" [modal]="true"
+  [draggable]="false" [dismissableMask]="true" [style]="{ width: 'min(680px, 96vw)' }" header="Текущий состав">
+  <div class="rd-form">
+    <p class="rd-hint">
+      Отметь, кто обычно ходит на РБ — при добавлении нового убийства паки и участники будут
+      предзаполнены этим составом. Наёмники (из настроек выплат) подсвечены отдельно. Для
+      конкретного убийства состав всегда можно доправить вручную — тут задаётся только заготовка.
+    </p>
+
+    <div class="rd-field">
+      <span>Обычный состав (выбрано {{ rosterCfgCount() }})</span>
+      <div class="rd-participants">
+        <div class="rd-part-group" *ngFor="let g of allGroupsForRoster(); trackBy: trackByGroup">
+          <div class="rd-part-group-h">
+            {{ g.displayName }}
+            <span class="rd-part-group-n">{{ rosterCfgGroupCount(g) }}/{{ mainUsers(g).length }}</span>
+            <span class="rd-spacer"></span>
+            <button type="button" class="rd-mini-link" (click)="selectAllInGroupRosterCfg(g)">все</button>
+            <button type="button" class="rd-mini-link" (click)="clearGroupRosterCfg(g)">никого</button>
+          </div>
+          <div class="rd-part-grid">
+            <button type="button" class="rd-part-pill" *ngFor="let u of mainUsers(g); trackBy: trackByUser"
+              [class.active]="isRosterCfgUser(g.id, u.id)" [class.is-merc]="isMercRosterMember(u.id)"
+              [pTooltip]="isMercRosterMember(u.id) ? 'Наёмник' : ''" tooltipPosition="top"
+              (click)="toggleRosterCfgUser(g.id, u.id)">
+              <i class="pi" [ngClass]="isRosterCfgUser(g.id, u.id) ? 'pi-check-circle' : 'pi-circle'"></i>
+              {{ u.name }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button pButton type="button" label="Отмена" class="p-button-sm p-button-text"
+      (click)="closeRosterConfig()"></button>
+    <button pButton type="button" label="Сохранить" class="p-button-sm" [disabled]="savingRosterConfig()"
+      (click)="saveRosterConfig()"></button>
   </ng-template>
 </p-dialog>
 

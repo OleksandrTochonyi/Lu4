@@ -38,6 +38,7 @@ import {
   RaidLootService,
   RaidParticipant,
   RaidSale,
+  RosterPreset,
   SalePayout,
 } from '../../services/raid-loot.service';
 import { GradeBadgeComponent } from '../shared/grade-badge/grade-badge.component';
@@ -336,8 +337,10 @@ export class RaidsComponent {
     this.killDate.set(this.nowLocalInput());
     this.killNote.set('');
     this.killMarkAsDead.set(true);
-    this.killPackIds.set(new Set());
-    this.killParticipants.set(new Set());
+    // pre-fill from the "Текущий состав" preset — still fully editable from here
+    const preset = this.rosterPreset()?.players ?? [];
+    this.killPackIds.set(new Set(preset.map((p) => p.groupId)));
+    this.killParticipants.set(new Set(preset.map((p) => `${p.groupId}:${p.userId}`)));
     this.killLootRows.set([]);
     this.killDialogOpen.set(true);
   }
@@ -1903,6 +1906,70 @@ export class RaidsComponent {
       this.toast('error', 'Ошибка', this.msg(e));
     } finally {
       this.savingConfig.set(false);
+    }
+  }
+
+  /* ======================================================= ROSTER PRESET === */
+
+  readonly rosterPreset = toSignal(this.raidLoot.rosterPreset$, { initialValue: null as RosterPreset | null });
+
+  readonly rosterConfigOpen = signal(false);
+  readonly savingRosterConfig = signal(false);
+  /** `${groupId}:${userId}` -> selected as "usually attends" */
+  readonly rosterCfgKeys = signal<Set<string>>(new Set());
+
+  openRosterConfig(): void {
+    this.rosterCfgKeys.set(new Set((this.rosterPreset()?.players ?? []).map((p) => `${p.groupId}:${p.userId}`)));
+    this.rosterConfigOpen.set(true);
+  }
+  closeRosterConfig(): void {
+    this.rosterConfigOpen.set(false);
+  }
+
+  toggleRosterCfgUser(groupId: string, userId: string): void {
+    const key = `${groupId}:${userId}`;
+    const next = new Set(this.rosterCfgKeys());
+    next.has(key) ? next.delete(key) : next.add(key);
+    this.rosterCfgKeys.set(next);
+  }
+  isRosterCfgUser(groupId: string, userId: string): boolean {
+    return this.rosterCfgKeys().has(`${groupId}:${userId}`);
+  }
+  readonly rosterCfgCount = computed(() => this.rosterCfgKeys().size);
+
+  rosterCfgGroupCount(g: ConstPartyGroup): number {
+    return this.mainUsers(g).filter((u) => this.isRosterCfgUser(g.id, u.id)).length;
+  }
+  selectAllInGroupRosterCfg(g: ConstPartyGroup): void {
+    const next = new Set(this.rosterCfgKeys());
+    for (const u of this.mainUsers(g)) next.add(`${g.id}:${u.id}`);
+    this.rosterCfgKeys.set(next);
+  }
+  clearGroupRosterCfg(g: ConstPartyGroup): void {
+    const next = new Set(this.rosterCfgKeys());
+    for (const u of this.mainUsers(g)) next.delete(`${g.id}:${u.id}`);
+    this.rosterCfgKeys.set(next);
+  }
+
+  async saveRosterConfig(): Promise<void> {
+    if (this.savingRosterConfig()) return;
+    const players = [...this.rosterCfgKeys()]
+      .map((k) => {
+        const [gId, uId] = k.split(':');
+        return this.allPlayers().find((p) => p.groupId === gId && p.userId === uId);
+      })
+      .filter((p): p is PlayerRef => !!p)
+      .map((p) => ({ groupId: p.groupId, userId: p.userId, name: p.name }));
+
+    this.savingRosterConfig.set(true);
+    try {
+      await this.raidLoot.saveRosterPreset(players, this.myEmail());
+      this.toast('success', 'Текущий состав сохранён', '');
+      this.closeRosterConfig();
+    } catch (e) {
+      this.toast('error', 'Ошибка', this.msg(e));
+    } finally {
+      this.savingRosterConfig.set(false);
     }
   }
 
