@@ -142,6 +142,20 @@
           </ng-container>
         </ng-container>
       </ng-container>
+
+      <!-- Кристаллы и самоцветы — always the last group -->
+      <ng-container *ngIf="stockCrystals().length">
+        <button type="button" class="wh-group-head" (click)="crystalsOpen.set(!crystalsOpen())">
+          <i class="pi" [ngClass]="crystalsOpen() ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
+          <span class="wh-cat wh-cat--crystal">Кристаллы и самоцветы</span>
+          <span class="wh-group-count">{{ stockCrystals().length }}</span>
+        </button>
+        <ng-container *ngIf="crystalsOpen()">
+          <ng-container *ngFor="let item of stockCrystals(); trackBy: trackStock">
+            <ng-container *ngTemplateOutlet="stockRow; context: { $implicit: item }"></ng-container>
+          </ng-container>
+        </ng-container>
+      </ng-container>
     </div>
 
     <ng-template #emptyStock>

@@ -48,6 +48,13 @@ const LS_PLAN = 'wh-craft-plan';
 /** last picked warehouse (per browser) */
 const LS_ACTIVE_WH = 'wh-active';
 
+/** 1 = crystal, 2 = gemstone, 0 = anything else */
+function crystalRank(name: string): number {
+  if (/gemstone|самоцвет|гемстоун/i.test(name)) return 2;
+  if (/crystal|кристалл/i.test(name)) return 1;
+  return 0;
+}
+
 function readLS(key: string): string | null {
   try {
     return localStorage.getItem(key);
@@ -255,12 +262,21 @@ export class WarehouseComponent {
   readonly stockParts = computed(() =>
     this.filteredStock().filter((i) => i.category === 'part'),
   );
-  readonly stockResources = computed(() =>
+  private readonly stockPlainRes = computed(() =>
     this.filteredStock().filter((i) => i.category !== 'part' && i.category !== 'recipe'),
+  );
+  /** plain resources minus crystals / gemstones — those get their own group below */
+  readonly stockResources = computed(() => this.stockPlainRes().filter((i) => !crystalRank(i.name)));
+  /** crystals first, then gemstones, each by name */
+  readonly stockCrystals = computed(() =>
+    this.stockPlainRes()
+      .filter((i) => crystalRank(i.name))
+      .sort((a, b) => crystalRank(a.name) - crystalRank(b.name) || a.name.localeCompare(b.name)),
   );
   readonly recipesOpen = signal(true);
   readonly partsOpen = signal(true);
   readonly resOpen = signal(true);
+  readonly crystalsOpen = signal(true);
 
   /** inline quantity edit */
   readonly editId = signal<string | null>(null);
@@ -381,14 +397,19 @@ export class WarehouseComponent {
         if (cat === 'recipe' && grades.size && (!e.grade || !grades.has(e.grade))) return false;
         return true;
       })
-      .sort((a, b) => this.addRank(a) - this.addRank(b) || a.name.localeCompare(b.name));
+      .sort(
+        (a, b) =>
+          // what's already on this warehouse first, then crystals / gemstones last
+          Number(!this.addOwned(a.id)) - Number(!this.addOwned(b.id)) ||
+          this.addRank(a) - this.addRank(b) ||
+          a.name.localeCompare(b.name),
+      );
   });
 
-  /** crystals then gemstones always sort last */
+  /** crystals then gemstones always sort last — only among plain resources, so
+   *  "… Gemstone" parts/recipes keep their normal place */
   private addRank(e: CraftEntry): number {
-    if (/gemstone|самоцвет|гемстоун/i.test(e.name)) return 2;
-    if (/crystal|кристалл/i.test(e.name)) return 1;
-    return 0;
+    return e.category === 'resource' ? crystalRank(e.name) : 0;
   }
 
   setAddCat(c: 'all' | 'resource' | 'part' | 'recipe'): void {
