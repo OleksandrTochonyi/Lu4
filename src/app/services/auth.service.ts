@@ -48,8 +48,14 @@ export class AuthService {
         typeof parsed?.password === 'string' ? parsed.password : null;
       if (!email || !password) return null;
 
-      const storedAt = Number(parsed?.storedAt);
-      if (!Number.isFinite(storedAt) || Date.now() - storedAt > this.ttlMs) {
+      let storedAt = Number(parsed?.storedAt);
+      // rows saved before the TTL existed have no stamp — start their week now
+      // instead of treating them as already expired
+      if (!parsed?.storedAt || !Number.isFinite(storedAt)) {
+        storedAt = Date.now();
+        localStorage.setItem(this.storageKey, JSON.stringify({ email, password, storedAt }));
+      }
+      if (Date.now() - storedAt > this.ttlMs) {
         this.clearStoredCredentials();
         return null;
       }
@@ -79,6 +85,15 @@ export class AuthService {
       this.clearStoredCredentials();
       return false;
     }
+  }
+
+  /**
+   * True when a Firebase user is still signed in but the stored credentials are
+   * gone or past their week — i.e. the session should end now. Firebase's own
+   * session never expires on its own, so this is what enforces the 1-week limit.
+   */
+  isSessionExpired(): boolean {
+    return !!this.auth.currentUser && this.getStoredCredentials() == null;
   }
 
   logout() {

@@ -1,8 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { AutoCompleteModule } from 'primeng/autocomplete';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { of } from 'rxjs';
+import { distinctUntilChanged, map, switchMap } from 'rxjs/operators';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
@@ -23,8 +24,15 @@ import {
   CraftGrade,
   normName,
 } from '../../services/craft-catalog.service';
-import { StockItem, WarehouseService } from '../../services/warehouse.service';
-import { SiteUsersService, actorLabel } from '../../services/site-users.service';
+import {
+  CLAN_WAREHOUSE,
+  CLAN_WAREHOUSE_ID,
+  StockItem,
+  Warehouse,
+  WarehouseService,
+} from '../../services/warehouse.service';
+import { SiteUser, SiteUsersService, actorLabel } from '../../services/site-users.service';
+import { AuthService } from '../../services/auth.service';
 import { CraftCostCalc, recipeLabel } from '../../utils/craft-cost';
 
 /** one line of the craft plan (localStorage) */
@@ -37,14 +45,22 @@ interface PlanItem {
 }
 
 const LS_PLAN = 'wh-craft-plan';
+/** last picked warehouse (per browser) */
+const LS_ACTIVE_WH = 'wh-active';
 
-interface CatalogSuggestion {
-  id: string;
-  name: string;
-  icon?: string;
-  grade: string | null;
-  category: string;
-  label: string;
+function readLS(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+function writeLS(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* ignore */
+  }
 }
 
 @Component({
@@ -53,7 +69,6 @@ interface CatalogSuggestion {
   imports: [
     CommonModule,
     FormsModule,
-    AutoCompleteModule,
     ButtonModule,
     ConfirmDialogModule,
     DialogModule,
@@ -75,6 +90,7 @@ export class WarehouseComponent {
   private siteUsers = inject(SiteUsersService);
   private messageService = inject(MessageService);
   private confirmationService = inject(ConfirmationService);
+  private auth = inject(AuthService);
 
   /** email -> name from the site-users list, for the history dialog captions */
   private readonly actorNames = toSignal(this.siteUsers.namesByEmail$, {
@@ -97,7 +113,94 @@ export class WarehouseComponent {
 
   /* ------------------------------------------------------------------ data */
 
-  readonly stock = toSignal(this.warehouse.stock$, { initialValue: [] as StockItem[] });
+  /* ------------------------------------------------------------ warehouses */
+
+  readonly myEmail = toSignal(
+    this.auth.user$.pipe(
+      map((u) => String(u?.email ?? '').trim().toLowerCase()),
+      distinctUntilChanged(),
+    ),
+    { initialValue: '' },
+  );
+  private readonly canClan = toSignal(this.siteUsers.canClanWarehouse$, { initialValue: false });
+  private readonly allUsers = toSignal(this.siteUsers.siteUsers$, { initialValue: [] as SiteUser[] });
+  private readonly siteUsersLoaded = computed(() => this.allUsers().length > 0);
+
+  /** personal + shared ones I'm a member of, straight from Firestore */
+  private readonly myWarehouses = toSignal(
+    toObservable(this.myEmail).pipe(
+      switchMap((e) => (e ? this.warehouse.myWarehouses$(e) : of([] as Warehouse[]))),
+    ),
+    { initialValue: [] as Warehouse[] },
+  );
+
+  /** the switcher list: Мой склад → Склад клана (if allowed) → shared ones by name */
+  readonly warehouses = computed<Warehouse[]>(() => {
+    const mine = this.myWarehouses();
+    const personal = mine.filter((w) => w.type === 'personal');
+    const shared = mine
+      .filter((w) => w.type === 'shared')
+      .sort((a, b) => a.name.localeCompare(b.name));
+    return [...personal, ...(this.canClan() ? [CLAN_WAREHOUSE] : []), ...shared];
+  });
+
+  readonly activeWarehouseId = signal<string | null>(readLS(LS_ACTIVE_WH));
+  readonly activeWarehouse = computed<Warehouse | null>(() => {
+    const list = this.warehouses();
+    return list.find((w) => w.id === this.activeWarehouseId()) ?? null;
+  });
+
+  selectWarehouse(id: string): void {
+    if (id === this.activeWarehouseId()) return;
+    this.cancelEdit();
+    this.activeWarehouseId.set(id);
+    writeLS(LS_ACTIVE_WH, id);
+  }
+
+  warehouseLabel(w: Warehouse): string {
+    return w.type === 'personal' ? 'Мой склад' : w.name;
+  }
+  warehouseIcon(w: Warehouse): string {
+    return w.type === 'personal' ? 'pi-user' : w.type === 'clan' ? 'pi-shield' : 'pi-users';
+  }
+  /** only a shared warehouse's creator may rename it, change members or delete it */
+  canManage(w: Warehouse | null): boolean {
+    return !!w && w.type === 'shared' && w.ownerEmail === this.myEmail();
+  }
+
+  constructor() {
+    // every signed-in user always has exactly one personal warehouse
+    effect(() => {
+      const e = this.myEmail();
+      if (e) this.warehouse.ensurePersonal(e).catch(() => null);
+    });
+
+    // keep the selection valid: fall back to the personal warehouse when the
+    // remembered one is gone (deleted, removed from members, clan access revoked)
+    effect(
+      () => {
+        const list = this.warehouses();
+        if (!list.length) return;
+        const cur = this.activeWarehouseId();
+        if (cur && list.some((w) => w.id === cur)) return;
+        // the clan entry shows up only once the access list has loaded — don't
+        // drop a remembered clan pick before that
+        if (cur === CLAN_WAREHOUSE_ID && !this.siteUsersLoaded()) return;
+        const next = (list.find((w) => w.type === 'personal') ?? list[0]).id;
+        this.activeWarehouseId.set(next);
+        writeLS(LS_ACTIVE_WH, next);
+      },
+      { allowSignalWrites: true },
+    );
+  }
+
+  readonly stock = toSignal(
+    toObservable(computed(() => this.activeWarehouse()?.id ?? '')).pipe(
+      distinctUntilChanged(),
+      switchMap((id) => (id ? this.warehouse.stockOf$(id) : of([] as StockItem[]))),
+    ),
+    { initialValue: [] as StockItem[] },
+  );
   readonly catalog = toSignal(this.craftCatalog.catalog$, { initialValue: [] as CraftEntry[] });
 
   /** catalogue lookup for re-deriving a stock row's icon/grade from the live data */
@@ -180,7 +283,9 @@ export class WarehouseComponent {
     }
     this.savingQty.set(true);
     try {
-      await this.warehouse.setQty(item.id, next);
+      const w = this.activeWarehouse();
+      if (!w) throw new Error('Склад не выбран');
+      await this.warehouse.setQty(w, item.id, next);
       this.toast('success', 'Количество обновлено', `${item.name}: ${item.qty} → ${next}`);
       this.cancelEdit();
     } catch (e) {
@@ -189,14 +294,16 @@ export class WarehouseComponent {
       this.savingQty.set(false);
     }
   }
-  async bump(item: StockItem, delta: number): Promise<void> {
-    const next = Math.max(0, item.qty + delta);
-    if (next === item.qty) return;
-    try {
-      await this.warehouse.setQty(item.id, next);
-    } catch (e) {
-      this.toast('error', 'Ошибка', this.msg(e));
-    }
+  /**
+   * +/- only stage a pending change locally (same draft as clicking the number
+   * itself) — nothing is sent to Firestore until ✓ (saveEdit), and ✕ (cancelEdit)
+   * discards it. Avoids a write + history entry per click when someone is just
+   * nudging a value up/down a few times.
+   */
+  bump(item: StockItem, delta: number): void {
+    const base = this.editId() === item.id ? this.editVal() : item.qty;
+    this.editId.set(item.id);
+    this.editVal.set(Math.max(0, Math.round(Number(base) || 0) + delta));
   }
 
   /* history dialog */
@@ -208,99 +315,153 @@ export class WarehouseComponent {
     this.historyItem.set(null);
   }
 
-  /* add dialog */
+  /** the warehouse only ever holds raw resources, crafting parts ("кучки") and
+   *  gear recipes (weapon / armor / jewelry, grade C and up) — no finished gear */
+  private isStockable(e: CraftEntry): boolean {
+    if (e.category === 'recipe') return /^(?:weapon|armor|jewelry)-recipes-(?:C|B|A|S)$/i.test(e.section);
+    return e.category === 'resource' || e.category === 'part';
+  }
+
+  /* ------------------------------------------------------ bulk add dialog */
+
   readonly addOpen = signal(false);
+  readonly addSearch = signal('');
+  readonly addCat = signal<'all' | 'resource' | 'part' | 'recipe'>('all');
+  readonly addComplexity = signal<'all' | 'simple' | 'composite'>('all');
+  readonly addGrades = signal<Set<CraftGrade>>(new Set());
+  /** catalog id → qty to add */
+  readonly addSelected = signal<Map<string, number>>(new Map());
   readonly adding = signal(false);
-  readonly addName = signal('');
-  readonly addQty = signal(0);
-  readonly addPick = signal<CatalogSuggestion | null>(null);
-  readonly addSuggestions = signal<CatalogSuggestion[]>([]);
 
   openAdd(): void {
-    this.addName.set('');
-    this.addQty.set(0);
-    this.addPick.set(null);
-    this.addSuggestions.set([]);
+    this.addSearch.set('');
+    this.addCat.set('all');
+    this.addComplexity.set('all');
+    this.addGrades.set(new Set());
+    this.addSelected.set(new Map());
     this.addOpen.set(true);
   }
   closeAdd(): void {
     this.addOpen.set(false);
   }
 
-  searchCatalog(ev: { query: string }): void {
-    const q = normName(ev.query);
-    if (!q) {
-      this.addSuggestions.set([]);
-      return;
-    }
-    const hits: CatalogSuggestion[] = [];
-    for (const e of this.catalog()) {
-      // the warehouse holds raw resources, crafting parts ("кучки") and
-      // gear recipes (weapon / armor / jewelry, grade C and up) — no gear itself
-      if (e.category === 'recipe') {
-        if (!/^(?:weapon|armor|jewelry)-recipes-(?:C|B|A|S)$/i.test(e.section)) continue;
-      } else if (e.category !== 'resource' && e.category !== 'part') {
-        continue;
-      }
-      if (normName(e.name).includes(q)) {
-        hits.push({
-          id: e.id,
-          name: e.name,
-          icon: e.icon,
-          grade: e.grade,
-          category: e.category,
-          label: `${e.name} · ${this.categoryLabel[e.category]}`,
-        });
-        if (hits.length >= 25) break;
-      }
-    }
-    this.addSuggestions.set(hits);
-  }
+  private readonly addBase = computed(() => this.catalog().filter((e) => this.isStockable(e)));
 
-  onPick(ev: any): void {
-    const s: CatalogSuggestion | null = ev?.value ?? ev ?? null;
-    this.addPick.set(s && typeof s === 'object' ? s : null);
-    if (s && typeof s === 'object') this.addName.set(s.name);
-  }
-
-  onAddNameInput(v: string | CatalogSuggestion): void {
-    if (typeof v === 'string') {
-      this.addName.set(v);
-      this.addPick.set(null);
-    }
-  }
-
-  readonly addDuplicate = computed(() => {
-    const pick = this.addPick();
-    const name = normName(this.addName());
-    return this.stock().find((s) =>
-      pick?.id && s.catalogId ? s.catalogId === pick.id : normName(s.name) === name,
-    );
+  /** already-on-stock rows keyed by catalogId — the picker marks them "на складе: N" */
+  private readonly stockByCatalogId = computed(() => {
+    const m = new Map<string, StockItem>();
+    for (const s of this.stock()) if (s.catalogId) m.set(s.catalogId, s);
+    return m;
   });
+  addOwned(id: string): StockItem | undefined {
+    return this.stockByCatalogId().get(id);
+  }
+
+  /** grade only varies meaningfully for recipes — resources/parts don't carry a useful one */
+  readonly addGradesAvail = computed<CraftGrade[]>(() => {
+    const set = new Set<CraftGrade>();
+    for (const e of this.addBase()) if (e.category === 'recipe' && e.grade) set.add(e.grade);
+    return this.craftGrades.filter((g) => set.has(g));
+  });
+
+  readonly addFiltered = computed(() => {
+    const q = normName(this.addSearch());
+    const cat = this.addCat();
+    const complexity = this.addComplexity();
+    const grades = this.addGrades();
+    return this.addBase()
+      .filter((e) => {
+        if (q && !normName(e.name).includes(q)) return false;
+        if (cat !== 'all' && e.category !== cat) return false;
+        // "простые/составные" only makes sense for plain resources
+        if (cat === 'resource') {
+          if (complexity === 'simple' && e.craftable) return false;
+          if (complexity === 'composite' && !e.craftable) return false;
+        }
+        if (cat === 'recipe' && grades.size && (!e.grade || !grades.has(e.grade))) return false;
+        return true;
+      })
+      .sort((a, b) => this.addRank(a) - this.addRank(b) || a.name.localeCompare(b.name));
+  });
+
+  /** crystals then gemstones always sort last */
+  private addRank(e: CraftEntry): number {
+    if (/gemstone|самоцвет|гемстоун/i.test(e.name)) return 2;
+    if (/crystal|кристалл/i.test(e.name)) return 1;
+    return 0;
+  }
+
+  setAddCat(c: 'all' | 'resource' | 'part' | 'recipe'): void {
+    this.addCat.set(c);
+  }
+  toggleAddGrade(g: CraftGrade): void {
+    const next = new Set(this.addGrades());
+    next.has(g) ? next.delete(g) : next.add(g);
+    this.addGrades.set(next);
+  }
+
+  isAddPicked(id: string): boolean {
+    return this.addSelected().has(id);
+  }
+  addQtyOf(id: string): number {
+    return this.addSelected().get(id) ?? 1;
+  }
+  /**
+   * Picking an already-owned entry logs a NEW drop on top of what's on the shelf
+   * (this dialog is "log what you just picked up", not "correct the shelf count"),
+   * so submitAdd() adds the picked qty onto the existing row instead of making a
+   * duplicate. Absolute corrections still happen in the stock table's qty editor.
+   */
+  toggleAddPick(e: CraftEntry): void {
+    const next = new Map(this.addSelected());
+    if (next.has(e.id)) next.delete(e.id);
+    else next.set(e.id, 1);
+    this.addSelected.set(next);
+  }
+  setAddQty(id: string, qty: number): void {
+    if (!this.addSelected().has(id)) return;
+    const next = new Map(this.addSelected());
+    next.set(id, Math.max(1, Math.round(Number(qty) || 1)));
+    this.addSelected.set(next);
+  }
+  bumpAddQty(id: string, delta: number, ev: Event): void {
+    ev.stopPropagation();
+    this.setAddQty(id, this.addQtyOf(id) + delta);
+  }
+  clearAddPicks(): void {
+    this.addSelected.set(new Map());
+  }
+  readonly addSelectedCount = computed(() => this.addSelected().size);
 
   async submitAdd(): Promise<void> {
     if (this.adding()) return;
-    const name = this.addName().trim();
-    if (!name) {
-      this.toast('warn', 'Укажите название', '');
-      return;
-    }
-    if (this.addDuplicate()) {
-      this.toast('warn', 'Уже на складе', 'Измените количество в таблице');
-      return;
-    }
-    const pick = this.addPick();
+    const picks = [...this.addSelected().entries()];
+    const w = this.activeWarehouse();
+    if (!picks.length || !w) return;
+    const byId = this.catalogIndex().byId;
     this.adding.set(true);
     try {
-      await this.warehouse.addItem({
-        name,
-        catalogId: pick?.id ?? null,
-        icon: pick?.icon ?? null,
-        grade: pick?.grade ?? null,
-        category: pick ? this.catalog().find((e) => e.id === pick.id)?.category ?? null : null,
-        qty: Math.max(0, Math.round(Number(this.addQty()) || 0)),
-      });
-      this.toast('success', 'Добавлено на склад', name);
+      await Promise.all(
+        picks.map(([id, qty]) => {
+          const e = byId.get(id);
+          if (!e) return Promise.resolve();
+          const owned = this.addOwned(id);
+          if (owned) return this.warehouse.setQty(w, owned.id, owned.qty + qty);
+          return this.warehouse.addItem(w, {
+            name: e.name,
+            catalogId: e.id,
+            icon: e.icon ?? null,
+            grade: e.grade,
+            category: e.category,
+            qty,
+          });
+        }),
+      );
+      this.toast(
+        'success',
+        'Добавлено на склад',
+        `${picks.length} ${picks.length === 1 ? 'позиция' : 'позиций'}`,
+      );
       this.addOpen.set(false);
     } catch (e) {
       this.toast('error', 'Ошибка', this.msg(e));
@@ -319,7 +480,9 @@ export class WarehouseComponent {
       acceptButtonStyleClass: 'p-button-danger',
       accept: async () => {
         try {
-          await this.warehouse.remove(item.id);
+          const w = this.activeWarehouse();
+          if (!w) throw new Error('Склад не выбран');
+          await this.warehouse.remove(w, item);
           this.toast('success', 'Удалено', item.name);
         } catch (e) {
           this.toast('error', 'Ошибка', this.msg(e));
@@ -647,6 +810,98 @@ export class WarehouseComponent {
     return this.planItems().find((p) => p.id === id)?.qty ?? 0;
   }
 
+  /* ------------------------------------- create / manage shared warehouse */
+
+  /** 'create' = new shared warehouse, a Warehouse = editing that one */
+  readonly whDialog = signal<'create' | Warehouse | null>(null);
+  readonly whName = signal('');
+  readonly whMembers = signal<Set<string>>(new Set());
+  readonly whMemberSearch = signal('');
+  readonly savingWh = signal(false);
+
+  readonly whDialogEditing = computed(() => {
+    const d = this.whDialog();
+    return d && d !== 'create' ? d : null;
+  });
+
+  /** anyone on the access list (not blocked, not me) can be invited */
+  readonly inviteCandidates = computed(() => {
+    const me = this.myEmail();
+    const q = this.whMemberSearch().trim().toLowerCase();
+    return this.allUsers()
+      .filter((u) => !u.blocked && u.email !== me)
+      .filter((u) => !q || u.email.includes(q) || u.name.toLowerCase().includes(q))
+      .sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email));
+  });
+
+  openCreateWh(): void {
+    this.whName.set('');
+    this.whMembers.set(new Set());
+    this.whMemberSearch.set('');
+    this.whDialog.set('create');
+  }
+  openManageWh(w: Warehouse): void {
+    this.whName.set(w.name);
+    this.whMembers.set(new Set(w.members.filter((m) => m !== w.ownerEmail)));
+    this.whMemberSearch.set('');
+    this.whDialog.set(w);
+  }
+  closeWhDialog(): void {
+    this.whDialog.set(null);
+  }
+  toggleWhMember(email: string): void {
+    const next = new Set(this.whMembers());
+    next.has(email) ? next.delete(email) : next.add(email);
+    this.whMembers.set(next);
+  }
+
+  async saveWhDialog(): Promise<void> {
+    const d = this.whDialog();
+    if (!d || this.savingWh()) return;
+    const name = this.whName().trim();
+    if (!name) {
+      this.toast('warn', 'Укажите название', '');
+      return;
+    }
+    this.savingWh.set(true);
+    try {
+      if (d === 'create') {
+        const id = await this.warehouse.createShared(name, this.myEmail(), [...this.whMembers()]);
+        this.selectWarehouse(id);
+        this.toast('success', 'Склад создан', name);
+      } else {
+        if (name !== d.name) await this.warehouse.renameShared(d.id, name);
+        await this.warehouse.setMembers(d, [...this.whMembers()]);
+        this.toast('success', 'Сохранено', name);
+      }
+      this.closeWhDialog();
+    } catch (e) {
+      this.toast('error', 'Ошибка', this.msg(e));
+    } finally {
+      this.savingWh.set(false);
+    }
+  }
+
+  confirmDeleteWh(w: Warehouse): void {
+    this.confirmationService.confirm({
+      header: 'Удалить склад',
+      message: `Удалить склад «${w.name}»? Все его ресурсы будут стёрты без возможности восстановления.`,
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Удалить',
+      rejectLabel: 'Отмена',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: async () => {
+        try {
+          await this.warehouse.deleteShared(w);
+          this.closeWhDialog();
+          this.toast('success', 'Склад удалён', w.name);
+        } catch (e) {
+          this.toast('error', 'Ошибка', this.msg(e));
+        }
+      },
+    });
+  }
+
   /* --------------------------------------------------------------- helpers */
 
   /** does this catalog row already sit on the stock, and how much */
@@ -692,6 +947,8 @@ export class WarehouseComponent {
 
   trackStock = (_: number, i: StockItem) => i.id;
   trackEntry = (_: number, e: CraftEntry) => e.id;
+  trackWh = (_: number, w: Warehouse) => w.id;
+  trackUser = (_: number, u: SiteUser) => u.email;
 
   private toast(
     severity: 'success' | 'error' | 'info' | 'warn',

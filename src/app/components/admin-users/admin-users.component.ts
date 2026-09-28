@@ -87,6 +87,39 @@ export class AdminUsersComponent {
   }
   trackByUser = (_: number, u: SiteUser) => u.email;
 
+  /**
+   * email → every IP that account was seen on, most recent first. Merges the IPs
+   * stored on the site-users row (written on login / hourly) with the ones stamped
+   * on recent activity-log rows, so IPs from before the row tracking existed
+   * still show up.
+   */
+  private readonly ipsByEmail = computed(() => {
+    const out = new Map<string, Map<string, { ip: string; firstAt: number; lastAt: number }>>();
+    const add = (email: string, ip: string, firstAt: number, lastAt: number) => {
+      if (!email || !ip) return;
+      let m = out.get(email);
+      if (!m) out.set(email, (m = new Map()));
+      const cur = m.get(ip);
+      if (!cur) m.set(ip, { ip, firstAt, lastAt });
+      else {
+        cur.firstAt = Math.min(cur.firstAt || firstAt, firstAt || cur.firstAt);
+        cur.lastAt = Math.max(cur.lastAt, lastAt);
+      }
+    };
+    for (const u of this.users()) for (const e of u.ips) add(u.email, e.ip, e.firstAt, e.lastAt);
+    for (const e of this.activity()) add(e.actor, e.ip, e.at, e.at);
+    for (const e of this.activityNav()) add(e.actor, e.ip, e.at, e.at);
+    const sorted = new Map<string, { ip: string; firstAt: number; lastAt: number }[]>();
+    for (const [email, m] of out) sorted.set(email, [...m.values()].sort((a, b) => b.lastAt - a.lastAt));
+    return sorted;
+  });
+  ipsOf(u: SiteUser): { ip: string; firstAt: number; lastAt: number }[] {
+    return this.ipsByEmail().get(u.email) ?? [];
+  }
+  ipTooltip(e: { firstAt: number; lastAt: number }): string {
+    return `Впервые: ${this.fmtDate(e.firstAt)}\nПоследний раз: ${this.fmtDate(e.lastAt)}`;
+  }
+
   private toast(severity: 'success' | 'error' | 'warn', summary: string, detail = ''): void {
     this.messageService.add({ severity, summary, detail, life: severity === 'error' ? 5000 : 2600 });
   }
@@ -198,6 +231,7 @@ export class AdminUsersComponent {
   readonly editName = signal('');
   readonly editNote = signal('');
   readonly editRole = signal<SiteRole>('kp');
+  readonly editClanWh = signal(false);
 
   /** editing your own row — role is locked to admin, email is locked (tied to the Firebase account) */
   readonly editIsSelf = computed(() => this.editOrigEmail() === this.myEmail());
@@ -209,6 +243,7 @@ export class AdminUsersComponent {
     this.editName.set(u.name);
     this.editNote.set(u.note);
     this.editRole.set(u.role);
+    this.editClanWh.set(u.clanWarehouse);
     this.editOpen.set(true);
   }
   closeEdit(): void {
@@ -241,6 +276,9 @@ export class AdminUsersComponent {
       role: newRole,
       name: this.editName(),
       note: this.editNote(),
+      // only meaningful for admins — cleared on demotion so a later re-promotion
+      // doesn't silently bring the access back
+      clanWarehouse: newRole === 'admin' && this.editClanWh(),
     };
 
     const run = async () => {

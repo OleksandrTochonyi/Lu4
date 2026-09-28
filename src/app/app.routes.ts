@@ -22,7 +22,7 @@ export const routes: Routes = [
 	{ path: '', component: BookmarksNewComponent, canActivate: [authGuard] },
 	{ path: 'users', component: UsersComponent, canActivate: [authGuard] },
 	{ path: 'const-party', component: UsersComponent, canActivate: [authGuard] },
-	{ path: 'warehouse', component: WarehouseComponent, canActivate: [authGuard, adminGuard] },
+	{ path: 'warehouse', component: WarehouseComponent, canActivate: [authGuard] },
 	{ path: 'raids', component: RaidsComponent, canActivate: [authGuard, adminGuard] },
 	{ path: 'rb-list', component: RaidBossListComponent, canActivate: [authGuard, adminGuard] },
 	{ path: 'rb-map', component: RbMapComponent, canActivate: [authGuard] },

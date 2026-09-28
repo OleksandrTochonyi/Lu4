@@ -52,6 +52,13 @@ export class LoginComponent implements OnInit {
         detail: 'Этого аккаунта нет в списке доступа. Обратитесь к администратору.',
         life: 6000,
       });
+    } else if (qp.get('expired')) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Сессия истекла',
+        detail: 'Войдите заново.',
+        life: 6000,
+      });
     }
   }
 

@@ -13,6 +13,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { AuthService } from './auth.service';
+import { IpService } from './ip.service';
 
 /** a page visit vs. a data change (add / edit / delete / …) */
 export type ActivityKind = 'nav' | 'action';
@@ -28,6 +29,8 @@ export interface ActivityEntry {
   /** 'nav' = opened a tab, 'action' = changed something */
   kind: ActivityKind;
   at: number;
+  /** public IP the browser was on when it wrote the row ('' if unknown / old row) */
+  ip: string;
 }
 
 /**
@@ -61,6 +64,7 @@ function normalize(raw: any): ActivityEntry {
     detail: String(raw?.detail ?? ''),
     kind,
     at: Number(raw?.at) || 0,
+    ip: String(raw?.ip ?? ''),
   };
 }
 
@@ -81,6 +85,7 @@ export class ActivityLogService {
   private auth = inject(AuthService);
   private actionsCol = collection(this.firestore, 'activity-log');
   private navCol = collection(this.firestore, 'activity-nav');
+  private ip = inject(IpService);
   private myEmail = '';
 
   /** recent data changes (add / edit / delete / …), newest first */
@@ -114,12 +119,17 @@ export class ActivityLogService {
     const actor = this.myEmail;
     if (!actor) return;
     const col = kind === 'nav' ? this.navCol : this.actionsCol;
-    void addDoc(col, {
+    // stamp the time now, not after the IP lookup
+    const row = {
       actor,
       action: String(action).slice(0, 80),
       detail: String(detail ?? '').slice(0, 200),
       kind: kind === 'nav' ? 'nav' : 'action',
       at: Date.now(),
-    }).catch(() => null);
+    };
+    void this.ip
+      .get()
+      .then((ip) => addDoc(col, { ...row, ip }))
+      .catch(() => null);
   }
 }

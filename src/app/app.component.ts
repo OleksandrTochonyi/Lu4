@@ -124,7 +124,6 @@ export class AppComponent {
       label: 'WH',
       icon: 'pi pi-box',
       routerLink: '/warehouse',
-      adminOnly: true,
     },
     {
       label: 'Raids',
@@ -155,7 +154,30 @@ export class AppComponent {
   ];
 
   ngOnInit() {
-    this.authService.tryAutoLoginFromStorage();
+    void this.authService.tryAutoLoginFromStorage().then((ok) => {
+      if (!ok) this.kickToLogin();
+    });
+
+    // signed out from anywhere (another tab, token revoked, …) → leave the page
+    this.authService.user$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((user) => {
+        // stored creds present + no user = auto-login still in flight; the promise
+        // above handles the failure case
+        if (!user && this.authService.getStoredCredentials() == null) this.kickToLogin();
+      });
+
+    // the 1-week limit can run out while the tab sits open — check periodically
+    // and whenever the tab comes back into view
+    const checkExpiry = () => {
+      if (this.authService.isSessionExpired()) this.kickToLogin('expired');
+    };
+    const timer = setInterval(checkExpiry, 60 * 1000);
+    document.addEventListener('visibilitychange', checkExpiry);
+    this.destroyRef.onDestroy(() => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', checkExpiry);
+    });
 
     this.router.events
       .pipe(
@@ -164,6 +186,7 @@ export class AppComponent {
       )
       .subscribe((e) => {
         this.currentUrl = e.urlAfterRedirects;
+        checkExpiry();
         const path = e.urlAfterRedirects.split('?')[0].split('#')[0];
         if (path === '/login') return;
         const now = Date.now();
@@ -210,11 +233,29 @@ export class AppComponent {
     }
   }
 
+  private kicking = false;
+
+  /** full sign-out + redirect to /login (no-op when already there) */
+  private kickToLogin(reason?: 'expired'): void {
+    if (this.isLoginPage || this.kicking) return;
+    this.kicking = true;
+    void this.authService
+      .logout()
+      .catch(() => null)
+      .finally(() => {
+        this.kicking = false;
+        void this.router.navigate(['/login'], reason ? { queryParams: { [reason]: 1 } } : {});
+      });
+  }
+
   async logout(): Promise<void> {
+    // the user$ watcher would otherwise race us with a second sign-out + redirect
+    this.kicking = true;
     try {
       await this.authService.logout();
     } finally {
       await this.router.navigateByUrl('/login');
+      this.kicking = false;
     }
   }
 }

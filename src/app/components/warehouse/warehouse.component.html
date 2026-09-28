@@ -37,6 +37,45 @@
     </div>
   </div>
 
+  <!-- =============================================== WAREHOUSE SWITCHER == -->
+  <!-- the picked warehouse feeds every tab: stock, craft "есть на складе", набор -->
+  <div class="wh-switch">
+    <button
+      type="button"
+      class="wh-switch-btn"
+      *ngFor="let w of warehouses(); trackBy: trackWh"
+      [class.active]="activeWarehouse()?.id === w.id"
+      [class.is-clan]="w.type === 'clan'"
+      (click)="selectWarehouse(w.id)"
+    >
+      <i class="pi" [ngClass]="warehouseIcon(w)"></i>
+      <span class="wh-switch-name">{{ warehouseLabel(w) }}</span>
+      <span class="wh-switch-n" *ngIf="w.type === 'shared'" [pTooltip]="'Участников: ' + w.members.length" tooltipPosition="top">
+        {{ w.members.length }}
+      </span>
+    </button>
+    <button type="button" class="wh-switch-add" (click)="openCreateWh()">
+      <i class="pi pi-plus"></i> Создать склад
+    </button>
+
+    <div class="wh-switch-info" *ngIf="activeWarehouse() as aw">
+      <ng-container *ngIf="aw.type === 'shared'">
+        <span class="wh-switch-owner">создатель: {{ who(aw.ownerEmail) }}</span>
+        <button
+          *ngIf="canManage(aw)"
+          pButton
+          type="button"
+          icon="pi pi-cog"
+          label="Настроить"
+          class="p-button-sm p-button-text"
+          (click)="openManageWh(aw)"
+        ></button>
+      </ng-container>
+      <span class="wh-switch-owner" *ngIf="aw.type === 'personal'">виден только вам</span>
+      <span class="wh-switch-owner" *ngIf="aw.type === 'clan'">общий склад клана</span>
+    </div>
+  </div>
+
   <!-- =============================================== STOCK =============== -->
   <section *ngIf="view() === 'stock'" class="wh-body">
     <div class="wh-toolbar">
@@ -52,7 +91,7 @@
       </span>
       <div class="wh-spacer"></div>
       <span class="wh-total">Всего единиц: <b>{{ stockTotal() }}</b></span>
-      <button pButton type="button" icon="pi pi-plus" label="Добавить" (click)="openAdd()"></button>
+      <button pButton type="button" icon="pi pi-plus" label="Добавить" [disabled]="!activeWarehouse()" (click)="openAdd()"></button>
     </div>
 
     <div class="wh-table" *ngIf="filteredStock().length; else emptyStock">
@@ -135,22 +174,32 @@
       </span>
 
       <span class="c-qty">
-        <ng-container *ngIf="editId() === item.id; else showQty">
-          <p-inputNumber
-            [ngModel]="editVal()"
-            (ngModelChange)="editVal.set($event || 0)"
-            [min]="0"
-            [showButtons]="true"
-            buttonLayout="horizontal"
-            inputStyleClass="wh-qty-input"
-            decrementButtonClass="p-button-secondary"
-            incrementButtonClass="p-button-secondary"
-          />
+        <!-- −/+ and typing only stage a draft; nothing is saved until ✓ -->
+        <button pButton type="button" icon="pi pi-minus" class="p-button-sm p-button-text wh-bump" (click)="bump(item, -1)"></button>
+        <input
+          *ngIf="editId() === item.id; else showQty"
+          class="wh-qty-draft"
+          type="number"
+          min="0"
+          [class.changed]="editVal() !== item.qty"
+          [ngModel]="editVal()"
+          (ngModelChange)="editVal.set($event || 0)"
+          (keydown.enter)="saveEdit(item)"
+          (keydown.escape)="cancelEdit()"
+        />
+        <ng-template #showQty>
+          <button class="wh-qty-val" type="button" (click)="startEdit(item)" pTooltip="Изменить количество">
+            {{ item.qty }}
+          </button>
+        </ng-template>
+        <button pButton type="button" icon="pi pi-plus" class="p-button-sm p-button-text wh-bump" (click)="bump(item, 1)"></button>
+        <ng-container *ngIf="editId() === item.id">
           <button
             pButton
             type="button"
             icon="pi pi-check"
-            class="p-button-sm p-button-success"
+            class="p-button-sm p-button-success wh-qty-btn"
+            pTooltip="Сохранить (Enter)"
             [disabled]="savingQty()"
             (click)="saveEdit(item)"
           ></button>
@@ -158,17 +207,11 @@
             pButton
             type="button"
             icon="pi pi-times"
-            class="p-button-sm p-button-text"
+            class="p-button-sm p-button-text wh-qty-btn"
+            pTooltip="Отмена (Esc)"
             (click)="cancelEdit()"
           ></button>
         </ng-container>
-        <ng-template #showQty>
-          <button pButton type="button" icon="pi pi-minus" class="p-button-sm p-button-text wh-bump" (click)="bump(item, -1)"></button>
-          <button class="wh-qty-val" type="button" (click)="startEdit(item)" pTooltip="Изменить количество">
-            {{ item.qty }}
-          </button>
-          <button pButton type="button" icon="pi pi-plus" class="p-button-sm p-button-text wh-bump" (click)="bump(item, 1)"></button>
-        </ng-template>
       </span>
 
       <span class="c-act">
@@ -456,6 +499,8 @@
 </div>
 
 <!-- =============================================== ADD DIALOG =========== -->
+<!-- pick any number of catalogue entries, set a qty on each, add them all at
+     once; an already-owned entry gets the qty added on top of its stock -->
 <p-dialog
   [visible]="addOpen()"
   (visibleChange)="$event || closeAdd()"
@@ -463,52 +508,134 @@
   [modal]="true"
   [draggable]="false"
   [resizable]="false"
-  header="Добавить ресурс"
-  [style]="{ width: 'min(460px, 96vw)' }"
+  [header]="'Добавить: ' + (activeWarehouse() ? warehouseLabel(activeWarehouse()!) : '')"
+  [style]="{ width: 'min(1100px, 96vw)' }"
 >
-  <div class="wh-add">
-    <label class="wh-add-field">
-      <span>Ресурс, часть или рецепт</span>
-      <p-autoComplete
-        [ngModel]="addPick() ?? addName()"
-        (ngModelChange)="onAddNameInput($event)"
-        [suggestions]="addSuggestions()"
-        (completeMethod)="searchCatalog($event)"
-        (onSelect)="onPick($event)"
-        field="label"
-        [dropdown]="true"
-        [forceSelection]="false"
-        placeholder="Начните вводить название…"
-        appendTo="body"
-        styleClass="wh-ac"
-      >
-        <ng-template let-s pTemplate="item">
-          <div class="wh-sugg">
-            <img *ngIf="s.icon" [src]="s.icon" [alt]="s.name" (error)="imgError($event)" />
-            <span class="wh-cat" [ngClass]="'wh-cat--' + s.category">{{ catLabel(s.category) }}</span>
-            <span>{{ s.name }}<ng-container *ngIf="showGrade(s.category) && s.grade"> · {{ s.grade }}</ng-container></span>
-          </div>
-        </ng-template>
-      </p-autoComplete>
-      <small class="wh-hint">
-        Ресурсы, части («кучки») и рецепты (оружие/броня/бижа, грейд C+).
-      </small>
-    </label>
-
-    <label class="wh-add-field">
-      <span>Начальное количество</span>
-      <p-inputNumber
-        [ngModel]="addQty()"
-        (ngModelChange)="addQty.set($event || 0)"
-        [min]="0"
-        [showButtons]="true"
-      />
-    </label>
-
-    <div class="wh-add-dup" *ngIf="addDuplicate() as dup">
-      <i class="pi pi-exclamation-triangle"></i>
-      «{{ dup.name }}» уже на складе ({{ dup.qty }} шт).
+  <div class="wh-pick-filters">
+    <div class="wh-add-toolbar">
+      <span class="wh-search">
+        <i class="pi pi-search"></i>
+        <input
+          pInputText
+          type="text"
+          [ngModel]="addSearch()"
+          (ngModelChange)="addSearch.set($event)"
+          placeholder="Поиск по названию…"
+        />
+      </span>
+      <ng-container *ngIf="addSelectedCount()">
+        <span class="wh-add-count">Выбрано: {{ addSelectedCount() }}</span>
+        <button pButton type="button" label="Сбросить выбор" class="p-button-sm p-button-text" (click)="clearAddPicks()"></button>
+      </ng-container>
     </div>
+    <div class="wh-chips">
+      <button type="button" class="wh-chip" [class.active]="addCat() === 'all'" (click)="setAddCat('all')">Все</button>
+      <button type="button" class="wh-chip" [class.active]="addCat() === 'resource'" (click)="setAddCat('resource')">Ресурсы</button>
+      <button type="button" class="wh-chip" [class.active]="addCat() === 'part'" (click)="setAddCat('part')">Части</button>
+      <button type="button" class="wh-chip" [class.active]="addCat() === 'recipe'" (click)="setAddCat('recipe')">Рецепты</button>
+    </div>
+    <div class="wh-chips" *ngIf="addCat() === 'resource'">
+      <button type="button" class="wh-chip" [class.active]="addComplexity() === 'all'" (click)="addComplexity.set('all')">Все</button>
+      <button
+        type="button"
+        class="wh-chip"
+        [class.active]="addComplexity() === 'simple'"
+        (click)="addComplexity.set('simple')"
+        pTooltip="Обычные ресурсы, у которых нет своего рецепта"
+        tooltipPosition="top"
+      >
+        Простые
+      </button>
+      <button
+        type="button"
+        class="wh-chip"
+        [class.active]="addComplexity() === 'composite'"
+        (click)="addComplexity.set('composite')"
+        pTooltip="Ресурсы, которые сами крафтятся из других"
+        tooltipPosition="top"
+      >
+        Составные
+      </button>
+    </div>
+    <div class="wh-chips" *ngIf="addCat() === 'recipe' && addGradesAvail().length">
+      <button
+        type="button"
+        class="wh-chip wh-chip--grade"
+        [ngClass]="'wh-chip--grade-' + g"
+        *ngFor="let g of addGradesAvail()"
+        [class.active]="addGrades().has(g)"
+        (click)="toggleAddGrade(g)"
+      >
+        {{ g }}
+      </button>
+    </div>
+  </div>
+
+  <div class="wh-pick-body">
+    <!-- every card has the same fixed slots (icon / 2-line name / meta / qty
+         footer), so picking one or changing its qty never resizes anything -->
+    <div class="wh-add-grid" *ngIf="addFiltered().length; else addEmpty">
+      <div
+        role="button"
+        tabindex="0"
+        class="wh-add-card"
+        *ngFor="let e of addFiltered(); trackBy: trackEntry"
+        [class.picked]="isAddPicked(e.id)"
+        [class.owned]="addOwned(e.id)"
+        (click)="toggleAddPick(e)"
+        (keydown.enter)="toggleAddPick(e)"
+        (keydown.space)="$event.preventDefault(); toggleAddPick(e)"
+      >
+        <span class="wh-add-check"><i class="pi pi-check"></i></span>
+        <button
+          *ngIf="addOwned(e.id) as owned"
+          type="button"
+          class="wh-add-owned-del"
+          pTooltip="Удалить со склада"
+          tooltipPosition="top"
+          (click)="$event.stopPropagation(); confirmDelete(owned)"
+        >
+          <i class="pi pi-trash"></i>
+        </button>
+
+        <span class="wh-add-icon">
+          <img *ngIf="e.icon" [src]="e.icon" [alt]="e.name" (error)="imgError($event)" />
+        </span>
+        <span class="wh-add-name" [title]="e.name">{{ e.name }}</span>
+        <span class="wh-add-meta">
+          <app-grade-badge *ngIf="showGrade(e.category) && e.grade" [grade]="e.grade" />
+          <span class="wh-add-owned" *ngIf="addOwned(e.id) as owned">на складе: {{ owned.qty }}</span>
+        </span>
+
+        <span class="wh-add-foot" (click)="isAddPicked(e.id) && $event.stopPropagation()">
+          <ng-container *ngIf="isAddPicked(e.id); else pickHint">
+            <button type="button" class="wh-add-bump" (click)="bumpAddQty(e.id, -1, $event)" [disabled]="addQtyOf(e.id) <= 1">
+              <i class="pi pi-minus"></i>
+            </button>
+            <input
+              type="number"
+              min="1"
+              class="wh-add-qty-input"
+              [ngModel]="addQtyOf(e.id)"
+              (ngModelChange)="setAddQty(e.id, $event)"
+              (keydown)="$event.stopPropagation()"
+            />
+            <button type="button" class="wh-add-bump" (click)="bumpAddQty(e.id, 1, $event)">
+              <i class="pi pi-plus"></i>
+            </button>
+          </ng-container>
+          <ng-template #pickHint>
+            <span class="wh-add-hint">{{ addOwned(e.id) ? '+ добавить ещё' : 'выбрать' }}</span>
+          </ng-template>
+        </span>
+      </div>
+    </div>
+    <ng-template #addEmpty>
+      <div class="wh-pick-empty">
+        <i class="pi pi-inbox"></i>
+        <p>Ничего не найдено по этим фильтрам.</p>
+      </div>
+    </ng-template>
   </div>
 
   <ng-template pTemplate="footer">
@@ -516,9 +643,9 @@
     <button
       pButton
       type="button"
-      label="Добавить"
       icon="pi pi-plus"
-      [disabled]="adding() || !addName().trim() || !!addDuplicate()"
+      [label]="adding() ? 'Добавляем…' : 'Добавить (' + addSelectedCount() + ')'"
+      [disabled]="adding() || !addSelectedCount()"
       (click)="submitAdd()"
     ></button>
   </ng-template>
@@ -664,6 +791,79 @@
       icon="pi pi-check"
       class="p-button-sm"
       (click)="closePick()"
+    ></button>
+  </ng-template>
+</p-dialog>
+
+
+<!-- =============================================== CREATE / MANAGE WH === -->
+<p-dialog
+  [visible]="!!whDialog()"
+  (visibleChange)="$event || closeWhDialog()"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [header]="whDialogEditing() ? 'Настройки склада' : 'Новый склад'"
+  [style]="{ width: 'min(520px, 96vw)' }"
+>
+  <div class="wh-whd">
+    <label class="wh-whd-field">
+      <span>Название</span>
+      <input
+        pInputText
+        type="text"
+        [ngModel]="whName()"
+        (ngModelChange)="whName.set($event)"
+        placeholder="Например: Склад пати"
+        (keydown.enter)="saveWhDialog()"
+      />
+    </label>
+
+    <div class="wh-whd-field">
+      <span>
+        Участники
+        <b class="wh-whd-n">{{ whMembers().size + 1 }}</b>
+      </span>
+      <small class="wh-hint">Вы — создатель, вы всегда в складе. Отметьте, кого добавить.</small>
+      <span class="wh-search wh-whd-search">
+        <i class="pi pi-search"></i>
+        <input
+          pInputText
+          type="text"
+          [ngModel]="whMemberSearch()"
+          (ngModelChange)="whMemberSearch.set($event)"
+          placeholder="Поиск по имени или email…"
+        />
+      </span>
+      <div class="wh-whd-list">
+        <label class="wh-whd-user" *ngFor="let u of inviteCandidates(); trackBy: trackUser" [class.on]="whMembers().has(u.email)">
+          <input type="checkbox" [checked]="whMembers().has(u.email)" (change)="toggleWhMember(u.email)" />
+          <span class="wh-whd-user-name">{{ u.name || u.email }}</span>
+          <span class="wh-whd-user-mail" *ngIf="u.name">{{ u.email }}</span>
+        </label>
+        <p class="wh-whd-empty" *ngIf="!inviteCandidates().length">Никого не найдено</p>
+      </div>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button
+      *ngIf="whDialogEditing() as w"
+      pButton
+      type="button"
+      label="Удалить склад"
+      icon="pi pi-trash"
+      class="p-button-text p-button-danger wh-whd-del"
+      (click)="confirmDeleteWh(w)"
+    ></button>
+    <button pButton type="button" label="Отмена" class="p-button-text" (click)="closeWhDialog()"></button>
+    <button
+      pButton
+      type="button"
+      [label]="whDialogEditing() ? 'Сохранить' : 'Создать'"
+      [icon]="whDialogEditing() ? 'pi pi-check' : 'pi pi-plus'"
+      [disabled]="savingWh() || !whName().trim()"
+      (click)="saveWhDialog()"
     ></button>
   </ng-template>
 </p-dialog>

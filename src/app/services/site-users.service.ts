@@ -12,6 +12,7 @@ import { Observable, combineLatest, of } from 'rxjs';
 import { delay, map, shareReplay, switchMap } from 'rxjs/operators';
 
 import { AuthService } from './auth.service';
+import { IpService } from './ip.service';
 
 /**
  * `admin` = full access. `kp` and `merc` (Наёмник) are both plain members with
@@ -43,6 +44,39 @@ export interface SiteUser {
   createdBy: string;
   /** last time this account was seen logging in / using the app */
   lastSeenAt: number;
+  /** every public IP this account was seen on, most recently used first */
+  ips: SiteUserIp[];
+  /**
+   * may open the "Склад клана" (the legacy clan stock). Only honoured for
+   * admins — see {@link canClanWarehouse}; an admin still needs it switched on.
+   */
+  clanWarehouse: boolean;
+}
+
+/** "Склад клана" access = role admin AND the per-user switch turned on */
+export function canClanWarehouse(u: SiteUser | null | undefined): boolean {
+  return !!u && !u.blocked && u.role === 'admin' && u.clanWarehouse;
+}
+
+export interface SiteUserIp {
+  ip: string;
+  firstAt: number;
+  lastAt: number;
+}
+
+/** distinct IPs kept per user — oldest-used ones drop off past this */
+const IP_LIMIT = 50;
+
+function normalizeIps(raw: unknown): SiteUserIp[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((e: any) => ({
+      ip: String(e?.ip ?? '').trim(),
+      firstAt: Number(e?.firstAt) || 0,
+      lastAt: Number(e?.lastAt) || 0,
+    }))
+    .filter((e) => e.ip)
+    .sort((a, b) => b.lastAt - a.lastAt);
 }
 
 function normEmail(v: unknown): string {
@@ -73,6 +107,8 @@ function normalize(raw: any): SiteUser {
     createdAt: Number(raw?.createdAt) || 0,
     createdBy: String(raw?.createdBy ?? ''),
     lastSeenAt: Number(raw?.lastSeenAt) || 0,
+    ips: normalizeIps(raw?.ips),
+    clanWarehouse: raw?.clanWarehouse === true,
   };
 }
 
@@ -93,6 +129,7 @@ function normalize(raw: any): SiteUser {
 export class SiteUsersService {
   private firestore = inject(Firestore);
   private auth = inject(AuthService);
+  private ipService = inject(IpService);
   private col = collection(this.firestore, 'site-users');
 
   private readonly rawUsers$: Observable<SiteUser[]> = (
@@ -183,6 +220,9 @@ export class SiteUsersService {
     }),
   );
 
+  /** current user may open the "Склад клана" */
+  readonly canClanWarehouse$: Observable<boolean> = this.myRow$.pipe(map((row) => canClanWarehouse(row)));
+
   readonly isBlocked$: Observable<boolean> = this.myRow$.pipe(
     map((row) => row?.blocked === true),
   );
@@ -210,6 +250,7 @@ export class SiteUsersService {
 
   constructor() {
     combineLatest([this.auth.user$, this.siteUsers$]).subscribe(([user, list]) => {
+      this.rowsByEmail = new Map(list.map((u) => [u.email, u]));
       const email = normEmail(user?.email);
       if (!email || this.seeding) return;
 
@@ -238,11 +279,30 @@ export class SiteUsersService {
       // touch lastSeenAt at most once an hour to avoid write spam
       if (mine && !mine.blocked && Date.now() - this.lastSeenWrittenAt > 60 * 60 * 1000) {
         this.lastSeenWrittenAt = Date.now();
-        void updateDoc(doc(this.firestore, `site-users/${email}`), {
-          lastSeenAt: Date.now(),
-        }).catch(() => null);
+        void this.touch(mine);
       }
     });
+  }
+
+  /** latest known row per email — lets touch() merge into the stored IP list */
+  private rowsByEmail = new Map<string, SiteUser>();
+
+  /**
+   * Stamp lastSeenAt and fold the current IP into the row's `ips` list (new IP →
+   * appended, known IP → its lastAt bumped). Read-modify-write on the array is
+   * fine here: only the account itself ever writes its own IPs.
+   */
+  private async touch(row: SiteUser): Promise<void> {
+    const now = Date.now();
+    const ip = await this.ipService.get();
+    const patch: { lastSeenAt: number; ips?: SiteUserIp[] } = { lastSeenAt: now };
+    if (ip) {
+      const current = this.rowsByEmail.get(row.email) ?? row;
+      const others = current.ips.filter((e) => e.ip !== ip);
+      const known = current.ips.find((e) => e.ip === ip);
+      patch.ips = [{ ip, firstAt: known?.firstAt || now, lastAt: now }, ...others].slice(0, IP_LIMIT);
+    }
+    await updateDoc(doc(this.firestore, `site-users/${row.email}`), patch).catch(() => null);
   }
 
   /* -------------------------------------------------- admin actions -------- */
@@ -282,6 +342,11 @@ export class SiteUsersService {
     const id = normEmail(email);
     if (!id) return;
     this.lastSeenWrittenAt = Date.now();
+    const row = this.rowsByEmail.get(id);
+    if (row) {
+      await this.touch(row);
+      return;
+    }
     await updateDoc(doc(this.firestore, `site-users/${id}`), { lastSeenAt: Date.now() }).catch(
       () => null,
     );
@@ -302,6 +367,7 @@ export class SiteUsersService {
         role: next.role,
         name: next.name.trim(),
         note: next.note.trim(),
+        clanWarehouse: !!next.clanWarehouse,
       });
       return;
     }
@@ -315,6 +381,8 @@ export class SiteUsersService {
       createdAt: next.createdAt || Date.now(),
       createdBy: next.createdBy || 'admin',
       lastSeenAt: 0,
+      ips: next.ips ?? [],
+      clanWarehouse: !!next.clanWarehouse,
     });
     await deleteDoc(doc(this.firestore, `site-users/${oldId}`));
   }

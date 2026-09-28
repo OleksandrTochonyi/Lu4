@@ -103,7 +103,7 @@
 
 .au-table {
   display: grid;
-  grid-template-columns: minmax(14rem, 2fr) minmax(9rem, 1.4fr) 7rem 8rem minmax(9rem, 1fr) 8rem;
+  grid-template-columns: minmax(14rem, 2fr) minmax(9rem, 1.4fr) 7rem 8rem minmax(9rem, 1fr) minmax(9rem, 1.3fr) 8rem;
   align-content: start;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -168,6 +168,27 @@
 .au-date {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+}
+.au-row > .au-ips {
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+.au-ip {
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  background: #f1f5f9;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.05rem 0.4rem;
+  white-space: nowrap;
+  cursor: default;
+}
+/* the most recently used one */
+.au-ip--last {
+  color: var(--ink);
+  background: #eef2ff;
+  border-color: #c7d2fe;
 }
 
 .au-role {
@@ -249,6 +270,30 @@
   color: #94a3b8;
   line-height: 1.35;
 }
+.au-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  font-size: 0.85rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+.au-check > span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.au-check input {
+  margin-top: 0.2rem;
+}
+.au-check.is-disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.au-wh-flag {
+  color: #0369a1;
+  font-size: 0.8rem;
+}
 .au-form-hint {
   margin: 0;
   font-size: 0.76rem;
@@ -327,6 +372,14 @@
 .au-hist-detail {
   color: var(--muted);
 }
+.au-hist-ip {
+  margin-left: auto;
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .au-hist-empty {
   margin: 0;
   padding: 1rem;
@@ -342,6 +395,9 @@
   .au-hist-row {
     flex-direction: column;
     gap: 0.15rem;
+  }
+  .au-hist-ip {
+    margin-left: 0;
   }
   .au-row > * {
     border-top: 0;

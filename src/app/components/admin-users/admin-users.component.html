@@ -39,7 +39,7 @@
   <div class="au-table" *ngIf="filtered().length; else empty">
     <div class="au-row au-row--h">
       <span>Email</span><span>Имя</span><span>Роль</span><span>Статус</span>
-      <span>Последний вход</span><span class="au-actions-h">Действия</span>
+      <span>Последний вход</span><span>IP</span><span class="au-actions-h">Действия</span>
     </div>
     <div class="au-row" *ngFor="let u of filtered(); trackBy: trackByUser" [class.au-row--blocked]="u.blocked">
       <span class="au-email">
@@ -54,6 +54,8 @@
       </span>
       <span>
         <span class="au-role" [ngClass]="'au-role--' + u.role">{{ roleLabel(u.role) }}</span>
+        <i class="pi pi-box au-wh-flag" *ngIf="u.role === 'admin' && u.clanWarehouse"
+          pTooltip="Есть доступ к «Складу клана»" tooltipPosition="top"></i>
       </span>
       <span>
         <span class="au-status" [class.au-status--blocked]="u.blocked">
@@ -61,6 +63,11 @@
         </span>
       </span>
       <span class="au-date">{{ fmtDate(u.lastSeenAt) }}</span>
+      <span class="au-ips">
+        <span class="au-ip" *ngFor="let e of ipsOf(u); let first = first" [class.au-ip--last]="first"
+          [pTooltip]="ipTooltip(e)" tooltipPosition="top">{{ e.ip }}</span>
+        <span class="au-date" *ngIf="!ipsOf(u).length">—</span>
+      </span>
       <span class="au-actions">
         <button pButton type="button" icon="pi pi-pencil" class="p-button-sm p-button-text"
           pTooltip="Редактировать" tooltipPosition="top" (click)="openEdit(u)"></button>
@@ -141,6 +148,14 @@
         (ngModelChange)="editRole.set($event)" [disabled]="editIsSelf()" appendTo="body"></p-dropdown>
       <small class="au-field-hint" *ngIf="editIsSelf()">Нельзя снять роль администратора с самого себя.</small>
     </label>
+    <label class="au-check" [class.is-disabled]="editRole() !== 'admin' && !editIsSelf()">
+      <input type="checkbox" [ngModel]="editClanWh()" (ngModelChange)="editClanWh.set($event)"
+        [disabled]="editRole() !== 'admin' && !editIsSelf()" />
+      <span>
+        Доступ к «Складу клана»
+        <small class="au-field-hint">Только для роли «Администратор».</small>
+      </span>
+    </label>
     <label class="au-field">
       <span>Имя</span>
       <input pInputText type="text" [ngModel]="editName()" (ngModelChange)="editName.set($event)" />
@@ -159,7 +174,7 @@
 
 <!-- ============================================================ HISTORY === -->
 <p-dialog [visible]="historyOpen()" (visibleChange)="$event || closeHistory()" [modal]="true" [draggable]="false"
-  [dismissableMask]="true" [style]="{ width: 'min(520px, 96vw)' }"
+  [dismissableMask]="true" [style]="{ width: 'min(860px, 96vw)' }"
   [header]="'История: ' + (historyUser()?.name || historyUser()?.email || '')">
   <div class="au-hist">
     <p class="au-hist-meta" *ngIf="historyUser() as hu">
@@ -181,6 +196,7 @@
         <span class="au-hist-action">
           {{ e.action }}<span class="au-hist-detail" *ngIf="e.detail"> — {{ e.detail }}</span>
         </span>
+        <span class="au-hist-ip" *ngIf="e.ip" title="IP">{{ e.ip }}</span>
       </li>
     </ul>
     <ng-template #noHist>
