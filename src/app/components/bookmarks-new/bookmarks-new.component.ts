@@ -1,7 +1,7 @@
 import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { timer } from 'rxjs';
+import { firstValueFrom, timer } from 'rxjs';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
@@ -16,6 +16,8 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 
 import { RbJsonDataService } from '../../services/rb-json-data.service';
 import { RbJsonRespService } from '../../services/rb-json-resp.service';
+import { NoGradeRbService } from '../../services/nograde-rb.service';
+import { SiteUsersService } from '../../services/site-users.service';
 import { ActivityLogService } from '../../services/activity-log.service';
 import { AuthService } from '../../services/auth.service';
 import { OnboardingService } from '../../services/onboarding.service';
@@ -162,6 +164,8 @@ export class BookmarksNewComponent {
   private auth = inject(AuthService);
   private onboarding = inject(OnboardingService);
   private rbJsonResp = inject(RbJsonRespService);
+  private noGrade = inject(NoGradeRbService);
+  readonly isAdmin = toSignal(inject(SiteUsersService).isAdmin$, { initialValue: false });
   private activityLog = inject(ActivityLogService);
   private confirmationService = inject(ConfirmationService);
   private messageService = inject(MessageService);
@@ -621,6 +625,129 @@ export class BookmarksNewComponent {
         this.messageService.add({ severity: 'success', summary: 'Респы очищены', life: 2500 });
       }
     });
+  }
+
+  /* ------------------------------------------------ sync with Bookmarks NG */
+
+  readonly syncingNg = signal(false);
+  /** first step: own dialog (it carries the "перезатереть" checkbox) */
+  readonly syncDialogTab = signal<CustomBossTab | null>(null);
+  readonly syncOverwrite = signal(false);
+
+  // Admin-only, shared-data bulk write → two confirms in a row: our own dialog
+  // with the overwrite switch, then the p-confirmDialog "точно?".
+  openSyncWithNg(tab: CustomBossTab, event: Event): void {
+    event.stopPropagation();
+    if (!tab.rbIds?.length || this.syncingNg()) return;
+    this.syncOverwrite.set(false);
+    this.syncDialogTab.set(tab);
+  }
+  closeSyncDialog(): void {
+    this.syncDialogTab.set(null);
+  }
+  acceptSyncDialog(): void {
+    const tab = this.syncDialogTab();
+    if (!tab) return;
+    const overwrite = this.syncOverwrite();
+    this.syncDialogTab.set(null);
+    setTimeout(
+      () =>
+        this.confirmationService.confirm({
+          header: 'Точно?',
+          message: 'Ты блять точно все продумал, умник ебаный?',
+          icon: 'pi pi-exclamation-triangle',
+          acceptLabel: 'Да, погнали',
+          rejectLabel: 'Нет, я ссыкло',
+          acceptButtonStyleClass: 'p-button-danger',
+          rejectButtonStyleClass: 'p-button-text',
+          accept: () => void this.syncWithNg(tab, overwrite),
+        }),
+      250,
+    );
+  }
+
+  /**
+   * Reads NoGrade, writes ONLY our rb-resp-time. An NG time is a candidate only
+   * when it's still "alive" there (anything but «проебан» / no time). Then:
+   * - ours empty or «проебан» → always take NG;
+   * - `overwrite` on  → take NG when it's newer than ours;
+   * - `overwrite` off → keep ours as is, even if it's older.
+   */
+  private async syncWithNg(tab: CustomBossTab, overwrite: boolean): Promise<void> {
+    if (this.syncingNg()) return;
+    this.syncingNg.set(true);
+    try {
+      const ngBosses = await firstValueFrom(this.noGrade.getRaidBosses());
+      if (!ngBosses.length) throw new Error('Не удалось загрузить данные Bookmarks NG');
+      const ngById = new Map(ngBosses.map((b) => [b.id, enrichJsonRb(b)]));
+      const oursById = new Map(this.items().map((i) => [i.id as string, i]));
+      const now = Date.now();
+
+      const updates: { id: string; name: string; time: Date }[] = [];
+      let oursKept = 0;
+      let ngUseless = 0;
+      for (const id of tab.rbIds) {
+        const ng = ngById.get(id);
+        const ngTime: Date | null = ng?.deadTime instanceof Date ? ng.deadTime : null;
+        const ngStatus = ng
+          ? calculateStatus(ng.minResp ?? null, ng.maxResp ?? null, ng.secondMinResp ?? null, ng.secondMaxResp ?? null, now)
+          : RbStatus.Unknown;
+        if (!ngTime || ngStatus === RbStatus.Missed || ngStatus === RbStatus.Unknown) {
+          ngUseless++;
+          continue;
+        }
+        const ours = oursById.get(id);
+        const ourTime: Date | null = ours?.deadTime instanceof Date ? ours.deadTime : null;
+        const ourMissed =
+          !!ourTime &&
+          calculateStatus(ours.minResp ?? null, ours.maxResp ?? null, ours.secondMinResp ?? null, ours.secondMaxResp ?? null, now) ===
+            RbStatus.Missed;
+        if (ourTime && !ourMissed && (!overwrite || ourTime.getTime() >= ngTime.getTime())) {
+          oursKept++;
+          continue;
+        }
+        updates.push({ id, name: ours?.displayName || ours?.name || id, time: ngTime });
+      }
+
+      if (!updates.length) {
+        this.messageService.add({
+          severity: 'info',
+          summary: 'Нечего переносить',
+          detail: `Оставили наше: ${oursKept}, в NG нет времени или проебан: ${ngUseless}`,
+          life: 4000,
+        });
+        return;
+      }
+
+      const byId = new Map(updates.map((u) => [u.id, u.time]));
+      this.items.update((items) =>
+        (items ?? []).map((item) =>
+          byId.has(item?.id) ? enrichJsonRb({ ...item, lastDeadTime: byId.get(item.id) as any }) : item,
+        ),
+      );
+
+      const results = await Promise.allSettled(
+        updates.map((u) => this.rbJsonResp.setKillTime(u.id, u.time, { bossName: u.name, silent: true })),
+      );
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      const done = updates.length - failed;
+      if (done > 0) this.activityLog.log('Синхронизировал респы с NG', `${tab.name}: ${done}`);
+      this.messageService.add({
+        severity: failed ? 'warn' : 'success',
+        summary: failed ? `Перенесено ${done}, ошибок: ${failed}` : `Перенесено из NG: ${done}`,
+        detail: `Оставили наше: ${oursKept}, в NG нет времени или проебан: ${ngUseless}`,
+        life: 5000,
+      });
+    } catch (e) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Ошибка синхронизации',
+        detail: e instanceof Error ? e.message : '',
+        life: 5000,
+      });
+    } finally {
+      this.syncingNg.set(false);
+    }
   }
 
   private deleteTab(tabId: string): void {

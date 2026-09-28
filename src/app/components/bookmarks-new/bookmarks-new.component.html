@@ -1,5 +1,40 @@
 <p-confirmDialog></p-confirmDialog>
 
+<!-- step 1 of «Синхронизировать с NG» (step 2 is the p-confirmDialog above) -->
+<p-dialog
+	[visible]="!!syncDialogTab()"
+	(visibleChange)="$event || closeSyncDialog()"
+	[modal]="true"
+	[draggable]="false"
+	[resizable]="false"
+	header="Синхронизировать с NG"
+	[style]="{ width: 'min(420px, 96vw)' }"
+>
+	<div class="sync-ng">
+		<div>
+			<p class="sync-ng-q">Вы уверены, что хотите перенести респы?</p>
+			<small class="sync-ng-hint">
+				Время убийства боссов этой закладки возьмётся из Bookmarks NG и запишется к нам. NG при этом не меняется.
+				«Проебанные» в NG не переносятся, а наши «проебанные» и пустые заполнятся из NG.
+			</small>
+		</div>
+		<div class="sync-ng-opt">
+			<p-checkbox inputId="sync-ng-overwrite" [binary]="true" [ngModel]="syncOverwrite()" (ngModelChange)="syncOverwrite.set($event)"></p-checkbox>
+			<div>
+				<label for="sync-ng-overwrite">Перезатереть данные</label>
+				<small class="sync-ng-hint">
+					Включено — если в NG время свежее нашего, заменим наше.
+					Выключено — наше время оставляем, даже если оно старее.
+				</small>
+			</div>
+		</div>
+	</div>
+	<ng-template pTemplate="footer">
+		<p-button label="Отмена" [text]="true" (onClick)="closeSyncDialog()"></p-button>
+		<p-button label="Да" icon="pi pi-sync" (onClick)="acceptSyncDialog()"></p-button>
+	</ng-template>
+</p-dialog>
+
 <app-guided-tour [steps]="tourSteps" [active]="tourActive()" (finished)="onTourFinished($event)"></app-guided-tour>
 
 <div class="bookmarks flex flex-col h-full border border-surface rounded bg-surface-0 dark:bg-surface-900 overflow-hidden">
@@ -169,6 +204,19 @@
 							ariaLabel="Очистить респы у РБ, у которых есть время"
 							(onClick)="confirmClearAllResp(tab, $event)"
 						></p-button>
+						@if (isAdmin()) {
+							<p-button
+								icon="pi pi-sync"
+								label="Синхронизировать с NG"
+								[text]="true"
+								[severity]="'help'"
+								size="small"
+								[loading]="syncingNg()"
+								[disabled]="!tab.rbIds.length || syncingNg()"
+								ariaLabel="Перенести более свежие респы из Bookmarks NG"
+								(onClick)="openSyncWithNg(tab, $event)"
+							></p-button>
+						}
 						<p-button
 							icon="pi pi-sliders-h"
 							[label]="'Фильтры' + ((showOnlyResp() || showOneHourToResp()) ? ' •' : '')"
