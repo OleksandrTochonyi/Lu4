@@ -11,6 +11,7 @@ import { CheckboxModule } from 'primeng/checkbox';
 import { DialogModule } from 'primeng/dialog';
 import { TabsModule } from 'primeng/tabs';
 import { PopoverModule } from 'primeng/popover';
+import { TooltipModule } from 'primeng/tooltip';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 
@@ -124,6 +125,9 @@ const BOOKMARKS_TOUR_STEPS: TourStep[] = [
   },
 ];
 
+/** «перенести только первые респы»: killed & waiting (incl. the hour before) or in the 1st resp */
+const FIRST_RESP_STATUSES = new Set<RbStatus>([RbStatus.NotInResp, RbStatus.SoonResp, RbStatus.InResp]);
+
 interface CustomBossTab {
   id: string;
   name: string;
@@ -149,6 +153,7 @@ interface CustomBossTab {
     DialogModule,
     TabsModule,
     PopoverModule,
+    TooltipModule,
     ConfirmDialogModule,
     DragDropModule,
     JsonRbCardComponent,
@@ -633,6 +638,7 @@ export class BookmarksNewComponent {
   /** first step: own dialog (it carries the "перезатереть" checkbox) */
   readonly syncDialogTab = signal<CustomBossTab | null>(null);
   readonly syncOverwrite = signal(false);
+  readonly syncFirstOnly = signal(false);
 
   // Admin-only, shared-data bulk write → two confirms in a row: our own dialog
   // with the overwrite switch, then the p-confirmDialog "точно?".
@@ -640,6 +646,7 @@ export class BookmarksNewComponent {
     event.stopPropagation();
     if (!tab.rbIds?.length || this.syncingNg()) return;
     this.syncOverwrite.set(false);
+    this.syncFirstOnly.set(false);
     this.syncDialogTab.set(tab);
   }
   closeSyncDialog(): void {
@@ -649,6 +656,7 @@ export class BookmarksNewComponent {
     const tab = this.syncDialogTab();
     if (!tab) return;
     const overwrite = this.syncOverwrite();
+    const firstOnly = this.syncFirstOnly();
     this.syncDialogTab.set(null);
     setTimeout(
       () =>
@@ -660,7 +668,7 @@ export class BookmarksNewComponent {
           rejectLabel: 'Нет, я ссыкло',
           acceptButtonStyleClass: 'p-button-danger',
           rejectButtonStyleClass: 'p-button-text',
-          accept: () => void this.syncWithNg(tab, overwrite),
+          accept: () => void this.syncWithNg(tab, overwrite, firstOnly),
         }),
       250,
     );
@@ -672,8 +680,10 @@ export class BookmarksNewComponent {
    * - ours empty or «проебан» → always take NG;
    * - `overwrite` on  → take NG when it's newer than ours;
    * - `overwrite` off → keep ours as is, even if it's older.
+   * `firstOnly` narrows the NG candidates to the first-resp cycle only: killed and
+   * waiting (incl. the hour before), or in the 1st resp right now.
    */
-  private async syncWithNg(tab: CustomBossTab, overwrite: boolean): Promise<void> {
+  private async syncWithNg(tab: CustomBossTab, overwrite: boolean, firstOnly: boolean): Promise<void> {
     if (this.syncingNg()) return;
     this.syncingNg.set(true);
     try {
@@ -686,6 +696,7 @@ export class BookmarksNewComponent {
       const updates: { id: string; name: string; time: Date }[] = [];
       let oursKept = 0;
       let ngUseless = 0;
+      let ngNotFirst = 0;
       for (const id of tab.rbIds) {
         const ng = ngById.get(id);
         const ngTime: Date | null = ng?.deadTime instanceof Date ? ng.deadTime : null;
@@ -694,6 +705,10 @@ export class BookmarksNewComponent {
           : RbStatus.Unknown;
         if (!ngTime || ngStatus === RbStatus.Missed || ngStatus === RbStatus.Unknown) {
           ngUseless++;
+          continue;
+        }
+        if (firstOnly && !FIRST_RESP_STATUSES.has(ngStatus)) {
+          ngNotFirst++;
           continue;
         }
         const ours = oursById.get(id);
@@ -713,7 +728,9 @@ export class BookmarksNewComponent {
         this.messageService.add({
           severity: 'info',
           summary: 'Нечего переносить',
-          detail: `Оставили наше: ${oursKept}, в NG нет времени или проебан: ${ngUseless}`,
+          detail:
+            `Оставили наше: ${oursKept}, в NG нет времени или проебан: ${ngUseless}` +
+            (firstOnly ? `, не первый респ: ${ngNotFirst}` : ''),
           life: 4000,
         });
         return;
@@ -735,7 +752,9 @@ export class BookmarksNewComponent {
       this.messageService.add({
         severity: failed ? 'warn' : 'success',
         summary: failed ? `Перенесено ${done}, ошибок: ${failed}` : `Перенесено из NG: ${done}`,
-        detail: `Оставили наше: ${oursKept}, в NG нет времени или проебан: ${ngUseless}`,
+        detail:
+            `Оставили наше: ${oursKept}, в NG нет времени или проебан: ${ngUseless}` +
+            (firstOnly ? `, не первый респ: ${ngNotFirst}` : ''),
         life: 5000,
       });
     } catch (e) {

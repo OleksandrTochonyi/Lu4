@@ -136,8 +136,9 @@ export class JsonRbCardComponent implements OnInit {
       case RbStatus.Missed:
         return 'rb-bg-missed';
       case RbStatus.InResp:
-      case RbStatus.SecondResp:
         return 'rb-bg-success';
+      case RbStatus.SecondResp:
+        return 'rb-bg-second';
       case RbStatus.FirstRespPassed:
         return 'rb-bg-danger';
       case RbStatus.SoonResp:

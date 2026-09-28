@@ -228,6 +228,8 @@
 
 .tab-toolbar-actions {
   display: flex;
+  // the size="small" buttons are shorter than the others — center them on one line
+  align-items: center;
   gap: 0.25rem;
   flex-shrink: 0;
   margin-left: auto;

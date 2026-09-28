@@ -22,6 +22,12 @@
   box-shadow: inset 4px 0 0 0 var(--p-green-600, #16a34a);
 }
 
+// во втором респе — light blue, so it doesn't read the same as the 1st resp (green)
+.rb-bg-second {
+  background: var(--p-sky-200, #bae6fd);
+  box-shadow: inset 4px 0 0 0 var(--p-sky-600, #0284c7);
+}
+
 .rb-bg-warn {
   background: var(--p-orange-300, #fdba74);
   box-shadow: inset 4px 0 0 0 var(--p-orange-600, #ea580c);
@@ -42,6 +48,7 @@
 .rb-bg-default,
 .rb-bg-missed,
 .rb-bg-success,
+.rb-bg-second,
 .rb-bg-warn,
 .rb-bg-danger {
   color: #1e293b;
@@ -50,6 +57,8 @@
 .rb-bg-default .stat-label,
 .rb-bg-missed .stat-label,
 .rb-bg-success .stat-label,
+.rb-bg-second .stat-label,
+.rb-bg-second .resp-mini-label,
 .rb-bg-warn .stat-label,
 .rb-bg-danger .stat-label,
 .rb-bg-default .resp-mini-label,

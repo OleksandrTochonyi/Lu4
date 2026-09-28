@@ -28,6 +28,16 @@
 				</small>
 			</div>
 		</div>
+		<div class="sync-ng-opt">
+			<p-checkbox inputId="sync-ng-first" [binary]="true" [ngModel]="syncFirstOnly()" (ngModelChange)="syncFirstOnly.set($event)"></p-checkbox>
+			<div>
+				<label for="sync-ng-first">Перенести только первые респы</label>
+				<small class="sync-ng-hint">
+					Из NG возьмём только тех, кто убит и ждёт первый респ (включая час до него) или уже в первом респе.
+					Прошедший первый респ и второй респ не переносим.
+				</small>
+			</div>
+		</div>
 	</div>
 	<ng-template pTemplate="footer">
 		<p-button label="Отмена" [text]="true" (onClick)="closeSyncDialog()"></p-button>
@@ -207,10 +217,14 @@
 						@if (isAdmin()) {
 							<p-button
 								icon="pi pi-sync"
-								label="Синхронизировать с NG"
+								label="Sync"
+								badge="NG"
+								badgeSeverity="help"
 								[text]="true"
 								[severity]="'help'"
 								size="small"
+								pTooltip="Синхронизировать с Bookmarks NG"
+								tooltipPosition="top"
 								[loading]="syncingNg()"
 								[disabled]="!tab.rbIds.length || syncingNg()"
 								ariaLabel="Перенести более свежие респы из Bookmarks NG"
