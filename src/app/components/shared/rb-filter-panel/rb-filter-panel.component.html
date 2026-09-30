@@ -1,0 +1,64 @@
+@let st = state();
+<div class="fp">
+	<div class="fp-head">
+		<span class="fp-title"><i class="pi pi-sliders-h"></i> Фильтры</span>
+		<button type="button" class="fp-reset" [disabled]="!st.activeCount() && st.sort() === 'level'" (click)="st.reset()">
+			<i class="pi pi-filter-slash"></i> Сбросить
+		</button>
+	</div>
+
+	<section class="fp-section">
+		<div class="fp-label">Быстро</div>
+		<div class="fp-presets">
+			@for (p of presets; track p.label) {
+				<button type="button" class="fp-preset" [class.is-on]="st.isPreset(p.groups)" [title]="p.hint" (click)="st.applyPreset(p.groups)">
+					{{ p.label }}
+				</button>
+			}
+		</div>
+	</section>
+
+	<section class="fp-section">
+		<div class="fp-label">Статус <small>(можно несколько; ничего не выбрано — все)</small></div>
+		<div class="fp-chips">
+			@for (g of groups; track g.key) {
+				<button
+					type="button"
+					[class]="'fp-chip fp-chip--' + g.tone"
+					[class.is-on]="st.groups().has(g.key)"
+					[title]="g.hint"
+					(click)="st.toggleGroup(g.key)"
+				>
+					<span>{{ g.label }}</span>
+					<span class="fp-count">{{ countOf(g.key) }}</span>
+				</button>
+			}
+		</div>
+	</section>
+
+	<section class="fp-section fp-row">
+		<div class="fp-field">
+			<div class="fp-label">Уровень</div>
+			<div class="fp-range">
+				<input type="number" min="1" placeholder="от" [value]="st.lvlFrom() ?? ''" (change)="onLevel('from', $event)" />
+				<span>—</span>
+				<input type="number" min="1" placeholder="до" [value]="st.lvlTo() ?? ''" (change)="onLevel('to', $event)" />
+			</div>
+		</div>
+		<div class="fp-field fp-field--grow">
+			<div class="fp-label">Имя</div>
+			<input class="fp-search" type="text" placeholder="Поиск по имени…" [value]="st.search()" (input)="onSearch($event)" />
+		</div>
+	</section>
+
+	<section class="fp-section">
+		<div class="fp-label">Сортировка</div>
+		<div class="fp-seg">
+			@for (s of sorts; track s.key) {
+				<button type="button" class="fp-seg-btn" [class.is-on]="st.sort() === s.key" (click)="st.setSort(s.key)">{{ s.label }}</button>
+			}
+		</div>
+	</section>
+
+	<small class="fp-hint">Фильтры запоминаются и действуют на все закладки этой страницы. Поиск по имени сбрасывается при перезагрузке.</small>
+</div>

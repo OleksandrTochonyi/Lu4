@@ -219,9 +219,9 @@
 						></p-button>
 						<p-button
 							icon="pi pi-sliders-h"
-							[label]="'Фильтры' + ((showOnlyResp() || showOneHourToResp()) ? ' •' : '')"
+							[label]="'Фильтры' + (rbFilter.activeCount() ? ' • ' + rbFilter.activeCount() : '')"
+							[severity]="rbFilter.activeCount() ? 'info' : 'secondary'"
 							[text]="true"
-							[severity]="'secondary'"
 							(onClick)="respFilterPanel.toggle($event)"
 							ariaLabel="Filters"
 						></p-button>
@@ -243,43 +243,7 @@
 				</div>
 
 				<p-popover #respFilterPanel>
-					<div class="flex flex-col gap-3 min-w-64">
-						<div class="text-sm font-medium text-surface-900 dark:text-surface-0">Фильтры</div>
-
-						<div class="flex items-center gap-2">
-							<p-checkbox
-								inputId="tab-only-resp-ng"
-								[ngModel]="showOnlyResp()"
-								(ngModelChange)="showOnlyResp.set($event)"
-								[binary]="true"
-							></p-checkbox>
-							<label for="tab-only-resp-ng" class="text-sm text-surface-900 dark:text-surface-0 select-none">
-								Только в респе (1 или 2)
-							</label>
-						</div>
-
-						<div class="flex items-center gap-2">
-							<p-checkbox
-								inputId="tab-one-hour-ng"
-								[ngModel]="showOneHourToResp()"
-								(ngModelChange)="showOneHourToResp.set($event)"
-								[binary]="true"
-							></p-checkbox>
-							<label for="tab-one-hour-ng" class="text-sm text-surface-900 dark:text-surface-0 select-none">
-								1 час до респа (1 или 2)
-							</label>
-						</div>
-
-						<p-button
-							label="Сбросить"
-							icon="pi pi-filter-slash"
-							[text]="true"
-							[severity]="'secondary'"
-							size="small"
-							styleClass="self-start"
-							(onClick)="resetRespFilters()"
-						></p-button>
-					</div>
+					<app-rb-filter-panel [state]="rbFilter" [items]="baseActiveTabItems()" [now]="now()" />
 				</p-popover>
 
 				<div class="grid-area flex-1 min-h-0 overflow-auto">

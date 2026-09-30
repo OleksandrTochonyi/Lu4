@@ -26,6 +26,8 @@ import { OnboardingService } from '../../services/onboarding.service';
 import { getRbKey, readHiddenIds } from '../../utils/rb-hidden';
 import { enrichJsonRb } from '../../utils/rb-json-enrich';
 import { calculateStatus } from '../../utils/rb-enrich';
+import { RbFilterState } from '../../utils/rb-filter';
+import { RbFilterPanelComponent } from '../shared/rb-filter-panel/rb-filter-panel.component';
 import { CLEAR_STATUS_OPTIONS, RbStatus } from '../../constants/status';
 import { JsonRbCardComponent } from '../shared/json-rb-card/json-rb-card.component';
 import { GuidedTourComponent, TourStep } from '../shared/guided-tour/guided-tour.component';
@@ -111,7 +113,7 @@ const BOOKMARKS_TOUR_STEPS: TourStep[] = [
     paragraphs: ['А эти кнопки относятся ко всей открытой закладке сразу:'],
     bullets: [
       { icon: 'pi-eraser', text: '«Очистить респы» — стереть время убийства у боссов закладки в выбранных статусах' },
-      { icon: 'pi-sliders-h', text: '«Фильтры» — показать только тех, кто в респе или через час до него' },
+      { icon: 'pi-sliders-h', text: '«Фильтры» — по статусу (в респе, скоро, убит, проебан…), уровню, имени и сортировка' },
       { icon: 'pi-pencil', text: 'переименовать закладку' },
       { icon: 'pi-trash', text: 'удалить закладку целиком' },
     ],
@@ -145,6 +147,7 @@ interface CustomBossTab {
   selector: 'app-bookmarks-new',
   standalone: true,
   imports: [
+    RbFilterPanelComponent,
     FormsModule,
     ButtonModule,
     InputTextModule,
@@ -184,7 +187,7 @@ export class BookmarksNewComponent {
   // Ticks every second so tabStatusCounts/activeTabItems recompute each boss's status
   // live (against its fixed resp-window Dates) instead of relying on the stale
   // `.status` snapshot that `items` only refreshes on the next Firestore emission.
-  private now = signal(Date.now());
+  readonly now = signal(Date.now());
 
   tabs = signal<CustomBossTab[]>(this.readStoredTabs());
   activeTabId = signal<string>(this.tabs().find((t) => !t.hidden)?.id ?? '');
@@ -229,13 +232,8 @@ export class BookmarksNewComponent {
     this.pickerLevelTo.set(null);
   }
 
-  showOnlyResp = signal(false);
-  showOneHourToResp = signal(false);
-
-  resetRespFilters(): void {
-    this.showOnlyResp.set(false);
-    this.showOneHourToResp.set(false);
-  }
+  /** «Фильтры»: status buckets, level, name, sort — remembered for this page */
+  readonly rbFilter = new RbFilterState('rb-filter-new');
 
   rbOptions = computed(() => {
     return (this.items() ?? [])
@@ -430,7 +428,7 @@ export class BookmarksNewComponent {
   // Everything except the live resp filters — stays free of a `now` dependency, so
   // item object references are stable across renders unless the tab/hidden-set/items
   // actually change (no per-second rebuild).
-  private baseActiveTabItems = computed(() => {
+  readonly baseActiveTabItems = computed(() => {
     const tab = this.activeTab();
     if (!tab) return [];
 
@@ -445,35 +443,7 @@ export class BookmarksNewComponent {
   // Reads `this.now()` only when a resp filter is active — see the matching comment on
   // HomeNewComponent.visibleItems for why: recreating a boss's object every second
   // while its kill-time is being edited resets the datepicker mid-edit.
-  activeTabItems = computed(() => {
-    const items = this.baseActiveTabItems();
-    const onlyResp = this.showOnlyResp();
-    const oneHour = this.showOneHourToResp();
-
-    if (!onlyResp && !oneHour) {
-      return items.slice().sort((a, b) => Number(a?.lvl ?? 0) - Number(b?.lvl ?? 0));
-    }
-
-    const now = this.now();
-    const hourMs = 60 * 60 * 1000;
-
-    return items
-      .filter((item) => {
-        const status = calculateStatus(item?.minResp ?? null, item?.maxResp ?? null, item?.secondMinResp ?? null, item?.secondMaxResp ?? null, now);
-        const inResp = status === RbStatus.InResp || status === RbStatus.SecondResp;
-
-        const minMs = item?.minResp instanceof Date ? item.minResp.getTime() : null;
-        const secondMinMs = item?.secondMinResp instanceof Date ? item.secondMinResp.getTime() : null;
-        const inOneHourToFirst = minMs != null && minMs > now && minMs - now <= hourMs;
-        const inOneHourToSecond = secondMinMs != null && secondMinMs > now && secondMinMs - now <= hourMs;
-        const inOneHourToResp = inOneHourToFirst || inOneHourToSecond;
-
-        if (onlyResp && oneHour) return inResp || inOneHourToResp;
-        if (onlyResp) return inResp;
-        return inOneHourToResp;
-      })
-      .sort((a, b) => Number(a?.lvl ?? 0) - Number(b?.lvl ?? 0));
-  });
+  activeTabItems = computed(() => this.rbFilter.apply(this.baseActiveTabItems(), () => this.now()));
 
   onDeadTimeDraftChanged(event: { rb: any; deadTime: Date | null }): void {
     const rbId = event.rb?.id;
