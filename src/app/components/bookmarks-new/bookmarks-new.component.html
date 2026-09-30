@@ -1,5 +1,51 @@
 <p-confirmDialog></p-confirmDialog>
 
+<!-- «Очистить респы»: only the RBs whose current status is ticked -->
+<p-dialog
+	[visible]="!!clearDialogTab()"
+	(visibleChange)="$event || closeClearDialog()"
+	[modal]="true"
+	[draggable]="false"
+	[resizable]="false"
+	header="Очистить респы"
+	[style]="{ width: 'min(420px, 96vw)' }"
+>
+	<div class="sync-ng">
+		<div>
+			<p class="sync-ng-q">Какие респы очистить?</p>
+			<small class="sync-ng-hint">
+				Время убийства удалится только у РБ закладки «{{ clearDialogTab()?.name }}» в отмеченных статусах.
+			</small>
+		</div>
+		<div class="clear-opts">
+			@for (o of clearOptions(); track o.status) {
+				<div class="sync-ng-opt" [class.is-empty]="!o.count">
+					<p-checkbox
+						[inputId]="'clear-st-' + $index"
+						[binary]="true"
+						[disabled]="!o.count"
+						[ngModel]="isClearStatusOn(o.status)"
+						(ngModelChange)="toggleClearStatus(o.status)"
+					></p-checkbox>
+					<label [for]="'clear-st-' + $index">{{ o.label }}</label>
+					<span class="clear-opt-n">{{ o.count }}</span>
+				</div>
+			}
+		</div>
+		<p-button label="Отметить все / снять" [text]="true" size="small" (onClick)="toggleAllClearStatuses()"></p-button>
+	</div>
+	<ng-template pTemplate="footer">
+		<p-button label="Отмена" [text]="true" (onClick)="closeClearDialog()"></p-button>
+		<p-button
+			icon="pi pi-eraser"
+			severity="danger"
+			[label]="'Очистить (' + clearSelectedCount() + ')'"
+			[disabled]="!clearSelectedCount()"
+			(onClick)="acceptClearDialog()"
+		></p-button>
+	</ng-template>
+</p-dialog>
+
 <!-- step 1 of «Синхронизировать с NG» (step 2 is the p-confirmDialog above) -->
 <p-dialog
 	[visible]="!!syncDialogTab()"
@@ -232,6 +278,16 @@
 							></p-button>
 						}
 						<p-button
+							[icon]="voice.enabled() ? 'pi pi-volume-up' : 'pi pi-volume-off'"
+							[text]="true"
+							[severity]="voice.enabled() ? 'info' : 'secondary'"
+							size="small"
+							[pTooltip]="voice.enabled() ? 'Озвучка входа в респ: вкл' : 'Озвучка входа в респ: выкл'"
+							tooltipPosition="top"
+							ariaLabel="Озвучка входа в респ"
+							(onClick)="voice.toggle()"
+						></p-button>
+						<p-button
 							icon="pi pi-sliders-h"
 							[label]="'Фильтры' + ((showOnlyResp() || showOneHourToResp()) ? ' •' : '')"
 							[text]="true"
@@ -303,6 +359,7 @@
 								<app-json-rb-card
 									[rb]="rb"
 									[showDeleteButton]="true"
+									[announceResp]="true"
 									(removeFromList)="removeFromActiveTab($event)"
 									(deadTimeDraftChanged)="onDeadTimeDraftChanged($event)"
 									(deadTimeChanged)="onDeadTimeChanged($event)"

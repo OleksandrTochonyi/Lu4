@@ -203,6 +203,28 @@
 .sync-ng-opt label {
   cursor: pointer;
 }
+.clear-opts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.clear-opts .sync-ng-opt {
+  align-items: center;
+}
+.clear-opts .sync-ng-opt.is-empty {
+  opacity: 0.5;
+}
+.clear-opt-n {
+  margin-left: auto;
+  min-width: 1.6rem;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 0.05rem 0.45rem;
+  background: var(--p-surface-100, #f1f5f9);
+  color: var(--p-text-muted-color, #64748b);
+}
 
 .level-toggle-all {
   display: flex;

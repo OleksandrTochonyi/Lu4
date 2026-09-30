@@ -16,6 +16,10 @@ import { RespHistoryEntry } from '../../../services/rb-json-resp.service';
 import { SiteUsersService, actorLabel } from '../../../services/site-users.service';
 import { RbStatus } from '../../../constants/status';
 import { TgService } from '../../../services/tg.service';
+import { RespVoiceService } from '../../../services/resp-voice.service';
+
+/** a late tick (background tab, sleeping laptop) still announces, but not hours-old news */
+const ANNOUNCE_MAX_LATE_MS = 10 * 60 * 1000;
 import { calculateStatus } from '../../../utils/rb-enrich';
 
 const SITE_URL = 'https://lu4-serv.web.app';
@@ -40,6 +44,7 @@ export class JsonRbCardComponent implements OnInit {
   private destroyRef = inject(DestroyRef);
   private tgService = inject(TgService);
   private siteUsers = inject(SiteUsersService);
+  private voice = inject(RespVoiceService);
 
   /** email -> name from the site-users list, for the "кто менял" caption */
   private readonly actorNames = toSignal(this.siteUsers.namesByEmail$, {
@@ -56,6 +61,8 @@ export class JsonRbCardComponent implements OnInit {
   showMapButton = input(true);
   /** off where the Telegram "entered resp" ping would be about someone else's data */
   notifyResp = input(true);
+  /** speak "РБ … вошел в респ" when this boss enters a resp window (bookmarks only) */
+  announceResp = input(false);
 
   toggleHidden = output<any>();
   removeFromList = output<any>();
@@ -70,6 +77,10 @@ export class JsonRbCardComponent implements OnInit {
   private lastSecondMinRespMs: number | null = null;
   private notifiedFirstRespStart = false;
   private notifiedSecondRespStart = false;
+
+  /** voice: status + window seen on the previous tick */
+  private voicePrevStatus: RbStatus | null = null;
+  private voicePrevMinMs: number | null = null;
 
   onToggleHidden(): void {
     this.toggleHidden.emit(this.rb());
@@ -339,6 +350,40 @@ export class JsonRbCardComponent implements OnInit {
         this.sendRespStartNotification();
       }
     });
+
+    effect(() => this.checkVoice());
+  }
+
+  /**
+   * Voice announcement, driven by the status CHANGING (not by hitting the exact
+   * first second of the window) — background tabs throttle timers to about once
+   * a minute, so an exact-second check would almost never fire there. The first
+   * tick after mount only records the status (a boss already in resp when the
+   * page opens isn't announced), and an edited kill time resets the baseline.
+   */
+  private checkVoice(): void {
+    const rb = this.rb();
+    const status = this.status();
+    const minMs = rb?.minResp instanceof Date ? rb.minResp.getTime() : null;
+    const prev = this.voicePrevStatus;
+    const sameWindow = minMs === this.voicePrevMinMs;
+    this.voicePrevStatus = status;
+    this.voicePrevMinMs = minMs;
+    if (!this.announceResp() || rb?.hidden || prev == null || !sameWindow || !rb) return;
+
+    const first =
+      status === RbStatus.InResp && (prev === RbStatus.NotInResp || prev === RbStatus.SoonResp);
+    const second =
+      status === RbStatus.SecondResp &&
+      (prev === RbStatus.FirstRespPassed || prev === RbStatus.SoonSecondResp);
+    if (!first && !second) return;
+
+    const start = first ? rb.minResp : rb.secondMinResp;
+    const startMs = start instanceof Date ? start.getTime() : null;
+    if (startMs == null || this.now() - startMs > ANNOUNCE_MAX_LATE_MS) return;
+
+    const name = String(rb.displayName ?? rb.name ?? '').trim() || 'без имени';
+    this.voice.announce(`${rb.id}@${startMs}`, name, second);
   }
 
   private sendRespStartNotification(): void {

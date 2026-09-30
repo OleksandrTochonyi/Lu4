@@ -20,12 +20,13 @@ import { RbJsonRespService } from '../../services/rb-json-resp.service';
 import { NoGradeRbService } from '../../services/nograde-rb.service';
 import { SiteUsersService } from '../../services/site-users.service';
 import { ActivityLogService } from '../../services/activity-log.service';
+import { RespVoiceService } from '../../services/resp-voice.service';
 import { AuthService } from '../../services/auth.service';
 import { OnboardingService } from '../../services/onboarding.service';
 import { getRbKey, readHiddenIds } from '../../utils/rb-hidden';
 import { enrichJsonRb } from '../../utils/rb-json-enrich';
 import { calculateStatus } from '../../utils/rb-enrich';
-import { RbStatus } from '../../constants/status';
+import { CLEAR_STATUS_OPTIONS, RbStatus } from '../../constants/status';
 import { JsonRbCardComponent } from '../shared/json-rb-card/json-rb-card.component';
 import { GuidedTourComponent, TourStep } from '../shared/guided-tour/guided-tour.component';
 
@@ -109,7 +110,7 @@ const BOOKMARKS_TOUR_STEPS: TourStep[] = [
     title: 'Кнопки на панели закладки',
     paragraphs: ['А эти кнопки относятся ко всей открытой закладке сразу:'],
     bullets: [
-      { icon: 'pi-eraser', text: '«Очистить респы» — разом стереть время убийства у всех боссов закладки' },
+      { icon: 'pi-eraser', text: '«Очистить респы» — стереть время убийства у боссов закладки в выбранных статусах' },
       { icon: 'pi-sliders-h', text: '«Фильтры» — показать только тех, кто в респе или через час до него' },
       { icon: 'pi-pencil', text: 'переименовать закладку' },
       { icon: 'pi-trash', text: 'удалить закладку целиком' },
@@ -164,6 +165,7 @@ interface CustomBossTab {
   styleUrl: './bookmarks-new.component.scss',
 })
 export class BookmarksNewComponent {
+  readonly voice = inject(RespVoiceService);
   private destroyRef = inject(DestroyRef);
   private rbJsonData = inject(RbJsonDataService);
   private auth = inject(AuthService);
@@ -578,31 +580,80 @@ export class BookmarksNewComponent {
     return this.tabRespRbIds(tab).length;
   }
 
-  // Wipe the kill time for every RB in a bookmark *that has one* (each one's
-  // rb-resp-time doc gets killTime: null, same as clearing it on the card).
-  // RBs with no time are skipped — there's nothing to delete. Always behind a
-  // confirm — it's a bulk, shared-data change.
-  confirmClearAllResp(tab: CustomBossTab, event: Event): void {
-    event.stopPropagation();
+  /* ---- «Очистить респы» dialog: pick which statuses to wipe ---- */
 
-    const rbIds = this.tabRespRbIds(tab);
-    if (!rbIds.length) return;
+  readonly clearDialogTab = signal<CustomBossTab | null>(null);
+  /** statuses ticked in the dialog — nothing by default, the user picks */
+  readonly clearStatuses = signal<Set<RbStatus>>(new Set());
 
-    this.confirmationService.confirm({
-      target: event.target as EventTarget,
-      header: 'Очистить респы',
-      message: `Вы точно хотите удалить время убийства у РБ с временем в закладке "${tab.name}" (${rbIds.length})?`,
-      icon: 'pi pi-exclamation-triangle',
-      acceptLabel: 'Очистить',
-      rejectLabel: 'Отмена',
-      acceptButtonStyleClass: 'p-button-danger',
-      rejectButtonStyleClass: 'p-button-text',
-      accept: () => this.clearAllResp(tab),
-    });
+  /** live status of one enriched item */
+  private liveStatus(item: any, now: number): RbStatus {
+    return calculateStatus(item?.minResp ?? null, item?.maxResp ?? null, item?.secondMinResp ?? null, item?.secondMaxResp ?? null, now);
   }
 
-  private clearAllResp(tab: CustomBossTab): void {
-    const rbIds = this.tabRespRbIds(tab);
+  /** every status option with how many of the tab's timed RBs are in it right now */
+  readonly clearOptions = computed(() => {
+    const tab = this.clearDialogTab();
+    const now = this.now();
+    const counts = new Map<RbStatus, number>();
+    if (tab) {
+      const idSet = new Set(tab.rbIds ?? []);
+      for (const item of this.items()) {
+        if (!idSet.has(item?.id) || !this.hasKillTime(item)) continue;
+        const s = this.liveStatus(item, now);
+        counts.set(s, (counts.get(s) ?? 0) + 1);
+      }
+    }
+    return CLEAR_STATUS_OPTIONS.map((o) => ({ ...o, count: counts.get(o.status) ?? 0 })).filter(
+      (o) => o.status !== RbStatus.Unknown || o.count > 0,
+    );
+  });
+
+  readonly clearSelectedCount = computed(() => {
+    const picked = this.clearStatuses();
+    return this.clearOptions().reduce((sum, o) => sum + (picked.has(o.status) ? o.count : 0), 0);
+  });
+
+  isClearStatusOn(s: RbStatus): boolean {
+    return this.clearStatuses().has(s);
+  }
+  toggleClearStatus(s: RbStatus): void {
+    const next = new Set(this.clearStatuses());
+    next.has(s) ? next.delete(s) : next.add(s);
+    this.clearStatuses.set(next);
+  }
+  toggleAllClearStatuses(): void {
+    const withTime = this.clearOptions().filter((o) => o.count > 0);
+    const allOn = withTime.length > 0 && withTime.every((o) => this.clearStatuses().has(o.status));
+    this.clearStatuses.set(allOn ? new Set() : new Set(withTime.map((o) => o.status)));
+  }
+
+  // Wipe the kill time for the tab's RBs whose CURRENT status is one of the
+  // ticked ones (each rb-resp-time doc gets killTime: null, same as clearing it
+  // on the card). RBs with no time are never touched.
+  confirmClearAllResp(tab: CustomBossTab, event: Event): void {
+    event.stopPropagation();
+    if (!this.tabRespRbIds(tab).length) return;
+    this.clearStatuses.set(new Set());
+    this.clearDialogTab.set(tab);
+  }
+  closeClearDialog(): void {
+    this.clearDialogTab.set(null);
+  }
+  acceptClearDialog(): void {
+    const tab = this.clearDialogTab();
+    const statuses = this.clearStatuses();
+    if (!tab || !statuses.size) return;
+    this.clearDialogTab.set(null);
+    this.clearAllResp(tab, statuses);
+  }
+
+  private clearAllResp(tab: CustomBossTab, statuses: Set<RbStatus>): void {
+    const now = Date.now();
+    const timed = new Set(this.tabRespRbIds(tab));
+    const rbIds = this.items()
+      .filter((item) => timed.has(item?.id) && statuses.has(this.liveStatus(item, now)))
+      .map((item) => item.id as string);
     if (!rbIds.length) return;
 
     const idSet = new Set(rbIds);
