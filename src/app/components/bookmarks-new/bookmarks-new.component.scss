@@ -323,3 +323,25 @@
   font-size: 0.85rem;
   color: var(--p-text-muted-color, #898781);
 }
+
+/* ---- phone layout ---- */
+@media (max-width: 640px) {
+  .tab-toolbar {
+    gap: 0.4rem;
+  }
+  .rb-picker {
+    flex: 1 1 100%;
+  }
+  /* icon-only toolbar buttons — the labels don't fit on one line */
+  .tab-toolbar-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
+  }
+  :host ::ng-deep .tab-toolbar-actions .p-button-label {
+    display: none;
+  }
+  :host ::ng-deep .tab-toolbar-actions .p-button-icon {
+    margin: 0;
+  }
+}

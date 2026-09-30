@@ -1,0 +1,74 @@
+<button
+	type="button"
+	class="menu-end-btn"
+	[class.is-muted]="!anyOn()"
+	(click)="panel.toggle($event)"
+	aria-label="Озвучка"
+	[title]="anyOn() ? 'Озвучка: ' + currentLabel() : 'Озвучка выключена'"
+>
+	<i class="pi" [class.pi-volume-up]="anyOn()" [class.pi-volume-off]="!anyOn()"></i>
+</button>
+
+<p-popover #panel styleClass="voice-popover">
+	<div class="vs">
+		<div class="vs-head">
+			<i class="pi pi-volume-up"></i>
+			<span>Озвучка</span>
+		</div>
+
+		<section class="vs-section">
+			<div class="vs-label">Голос</div>
+			@if (voice.voiceSets().length) {
+				<div class="vs-voices" role="radiogroup" aria-label="Голос озвучки">
+					@for (v of voice.voiceSets(); track v.key) {
+						<button
+							type="button"
+							class="vs-voice"
+							role="radio"
+							[attr.aria-checked]="v.key === voice.voiceSet()"
+							[class.is-active]="v.key === voice.voiceSet()"
+							(click)="voice.setVoiceSet(v.key)"
+						>
+							<span class="vs-voice-name">{{ v.label }}</span>
+							@if (v.key === voice.voiceSet()) {
+								<i class="pi pi-check"></i>
+							}
+						</button>
+					}
+				</div>
+				<button type="button" class="vs-play" (click)="voice.preview()">
+					<i class="pi pi-play"></i>
+					<span>Прослушать «{{ currentLabel() }}»</span>
+				</button>
+			} @else {
+				<div class="vs-empty">Голоса ещё не загружены</div>
+			}
+		</section>
+
+		<section class="vs-section">
+			<div class="vs-label">Что озвучивать</div>
+
+			<label class="vs-switch">
+				<span class="vs-switch-text">
+					<span class="vs-switch-title">Вход РБ в респ</span>
+					<span class="vs-switch-hint">«Эр-бэ Анаким в респе»</span>
+				</span>
+				<p-toggleswitch [ngModel]="voice.enabled()" (ngModelChange)="voice.setEnabled($event)"></p-toggleswitch>
+			</label>
+			<div class="vs-sub" [class.is-off]="!voice.enabled()">
+				<p-checkbox inputId="vs-all" [binary]="true" [disabled]="!voice.enabled()" [ngModel]="voice.allTabs()" (ngModelChange)="voice.setAllTabs($event)"></p-checkbox>
+				<label for="vs-all">Все закладки, а не только открытая</label>
+			</div>
+
+			<label class="vs-switch">
+				<span class="vs-switch-text">
+					<span class="vs-switch-title">Действия на сайте</span>
+					<span class="vs-switch-hint">убийство РБ, откат времени, склад, рейды…</span>
+				</span>
+				<p-toggleswitch [ngModel]="voice.actionsEnabled()" (ngModelChange)="voice.setActionsEnabled($event)"></p-toggleswitch>
+			</label>
+		</section>
+
+		<small class="vs-hint">Настройки сохраняются в этом браузере. Скрытые закладки и боссы не озвучиваются.</small>
+	</div>
+</p-popover>

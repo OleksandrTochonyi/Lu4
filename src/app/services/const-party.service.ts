@@ -14,6 +14,7 @@ import { Observable, firstValueFrom } from 'rxjs';
 import { map, take } from 'rxjs/operators';
 
 import { ActivityLogService } from './activity-log.service';
+import { RespVoiceService } from './resp-voice.service';
 import { toDateOnly } from '../data/clan-mock-data';
 
 export type ConstPartyRole = string;
@@ -123,6 +124,7 @@ function normalizeGroup(raw: any): ConstPartyGroup {
 export class ConstPartyService {
   private firestore = inject(Firestore);
   private activityLog = inject(ActivityLogService);
+  private voice = inject(RespVoiceService);
   private groupsCollection = collection(this.firestore, 'const-party');
 
   getGroups(): Observable<ConstPartyGroup[]> {
@@ -154,6 +156,7 @@ export class ConstPartyService {
     const payload: ConstPartyGroupDoc = { displayName: name, users };
     await setDoc(docRef, payload);
     this.activityLog.log('Создал пак', name);
+    this.voice.action('partyCreate');
     return docRef.id;
   }
 
@@ -165,6 +168,7 @@ export class ConstPartyService {
 
     await updateDoc(doc(this.firestore, `const-party/${id}`), { displayName: name });
     this.activityLog.log('Переименовал пак', name);
+    this.voice.action('partyRename');
   }
 
   async deleteGroup(groupId: string): Promise<void> {
@@ -172,6 +176,7 @@ export class ConstPartyService {
     if (!id) throw new Error('Group id is required');
     await deleteDoc(doc(this.firestore, `const-party/${id}`));
     this.activityLog.log('Удалил пак');
+    this.voice.action('partyDelete');
   }
 
   /* --------------------------------------------------- id-based user CRUD --- */
@@ -201,6 +206,7 @@ export class ConstPartyService {
 
     await this.writeUsers(id, next);
     this.activityLog.log('Добавил игрока в пак', user.name);
+    this.voice.action('partyAdd');
     return user.id;
   }
 
@@ -224,6 +230,7 @@ export class ConstPartyService {
     await this.writeUsers(id, next);
     const onlyGear = Object.keys(patch).length === 1 && 'equipment' in patch;
     this.activityLog.log(onlyGear ? 'Изменил снаряжение игрока' : 'Изменил игрока в паке', merged.name);
+    this.voice.action(onlyGear ? 'partyGear' : 'partyEdit');
   }
 
   async removeUser(groupId: string, userId: string): Promise<void> {
@@ -234,6 +241,7 @@ export class ConstPartyService {
     const gone = users.find((u) => u.id === userId);
     await this.writeUsers(id, users.filter((u) => u.id !== userId));
     this.activityLog.log('Удалил игрока из пака', gone?.name ?? '');
+    this.voice.action('partyRemove');
   }
 
   async setEquipment(

@@ -19,6 +19,7 @@ import { GuidedTourComponent, TourStep } from '../shared/guided-tour/guided-tour
 import { ConstPartyGroup, ConstPartyService, ConstPartyUser } from '../../services/const-party.service';
 import { JsonRb, JsonRbLoot, RbJsonDataService, isEnchantScroll } from '../../services/rb-json-data.service';
 import { RbJsonRespService } from '../../services/rb-json-resp.service';
+import { RespVoiceService } from '../../services/resp-voice.service';
 import {
   CraftCatalogService,
   CraftCategory,
@@ -184,6 +185,7 @@ export class RaidsComponent {
   private messageService = inject(MessageService);
   private confirmationService = inject(ConfirmationService);
   private destroyRef = inject(DestroyRef);
+  private voice = inject(RespVoiceService);
 
   readonly view = signal<'kills' | 'drop' | 'sales' | 'listings' | 'stats'>('kills');
 
@@ -847,9 +849,11 @@ export class RaidsComponent {
       await this.raidLoot.setSharePaid(sale.id, target, paid);
       // the last unpaid share just got marked paid — freeze it automatically,
       // whether that happened by hand or via "Всем выдано"
-      if (paid && this.wouldBeSettledAfter(sale, target, paid)) {
+      const settled = paid && this.wouldBeSettledAfter(sale, target, paid);
+      if (settled) {
         await this.raidLoot.setSaleLocked(sale.id, true);
       }
+      this.voice.action(settled ? 'saleSettled' : paid ? 'raidPaid' : 'raidUnpaid');
     } catch (e) {
       this.toast('error', 'Ошибка', this.msg(e));
     }
@@ -883,6 +887,7 @@ export class RaidsComponent {
   private async unlockSale(sale: RaidSale): Promise<void> {
     try {
       await this.raidLoot.setSaleLocked(sale.id, false);
+      this.voice.action('saleUnlock');
     } catch (e) {
       this.toast('error', 'Ошибка', this.msg(e));
     }
@@ -892,6 +897,7 @@ export class RaidsComponent {
   async lockSale(sale: RaidSale): Promise<void> {
     try {
       await this.raidLoot.setSaleLocked(sale.id, true);
+      this.voice.action('saleLock');
     } catch (e) {
       this.toast('error', 'Ошибка', this.msg(e));
     }
@@ -1074,6 +1080,7 @@ export class RaidsComponent {
       await Promise.all(targets.map((t) => this.raidLoot.setSharePaid(t.saleId, t.target, true)));
       // finalize every sale this batch just fully paid off — locked until "Редактировать"
       await Promise.all(open.map((s) => this.raidLoot.setSaleLocked(s.id, true)));
+      this.voice.action('raidSettleAll');
       this.toast('success', 'Продажи закрыты', `${open.length} ${open.length === 1 ? 'продажа' : 'продаж'} завершено`);
     } catch (e) {
       this.toast('error', 'Ошибка', this.msg(e));
@@ -1137,6 +1144,7 @@ export class RaidsComponent {
         const toLock = relevant.filter((s) => this.wouldBeSettledAfter(s, target, true));
         await Promise.all(toLock.map((s) => this.raidLoot.setSaleLocked(s.id, true)));
       }
+      this.voice.action(nextPaid ? 'raidPaid' : 'raidUnpaid');
     } catch (e) {
       this.toast('error', 'Ошибка', this.msg(e));
     } finally {
@@ -1499,6 +1507,7 @@ export class RaidsComponent {
                 payout: this.computePayout(price, dl.kill, cfg),
               },
               this.myEmail(),
+              true,
             ),
           );
         }

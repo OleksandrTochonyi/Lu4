@@ -1257,3 +1257,70 @@
     width: 100%;
   }
 }
+
+/* ---------------------------------------------------------------- «История» feed */
+
+.wh-hrow {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr) 9rem minmax(6rem, 12rem);
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.9rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.85rem;
+}
+.wh-hrow:first-child {
+  border-top: 0;
+}
+.wh-hrow-time {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.wh-hrow-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.wh-hrow-item img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  flex: none;
+}
+.wh-hrow-move {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.wh-hrow-move .pi {
+  font-size: 0.65rem;
+}
+.wh-hrow-move .up {
+  color: #16a34a;
+}
+.wh-hrow-move .down {
+  color: #dc2626;
+}
+.wh-hrow-who {
+  text-align: right;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 720px) {
+  .wh-hrow {
+    grid-template-columns: 1fr auto;
+    gap: 0.2rem 0.75rem;
+  }
+  .wh-hrow-time,
+  .wh-hrow-who {
+    font-size: 0.75rem;
+  }
+  .wh-hrow-who {
+    text-align: left;
+  }
+}

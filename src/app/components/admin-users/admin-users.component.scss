@@ -190,6 +190,64 @@
   background: #eef2ff;
   border-color: #c7d2fe;
 }
+/* first seen recently and not yet marked "просмотрено" */
+.au-ip.au-ip--new {
+  color: #b91c1c;
+  background: #fef2f2;
+  border-color: #fca5a5;
+  font-weight: 700;
+}
+
+.au-ipalert {
+  border: 1px solid #fca5a5;
+  background: #fef2f2;
+  border-radius: 12px;
+  padding: 0.7rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.au-ipalert-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  color: #991b1b;
+}
+.au-ipalert-n {
+  background: #dc2626;
+  color: #fff;
+  border-radius: 999px;
+  padding: 0 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.au-ipalert-sub {
+  font-size: 0.78rem;
+  color: #b45454;
+}
+.au-ipalert-head button {
+  margin-left: auto;
+}
+.au-ipalert-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.au-ipalert-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+.au-ipalert-who {
+  font-weight: 600;
+  color: var(--ink);
+}
 
 .au-role {
   font-size: 0.66rem;

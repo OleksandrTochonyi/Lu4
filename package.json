@@ -6,7 +6,9 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "voice": "node scripts/generate-voice.mjs",
+    "voice:sample": "node scripts/generate-voice.mjs --sample"
   },
   "private": true,
   "dependencies": {

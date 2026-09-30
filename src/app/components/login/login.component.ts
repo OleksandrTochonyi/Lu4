@@ -12,6 +12,7 @@ import { filter, take } from 'rxjs/operators';
 
 import { AuthService } from '../../services/auth.service';
 import { SiteUsersService } from '../../services/site-users.service';
+import { RespVoiceService } from '../../services/resp-voice.service';
 
 @Component({
   selector: 'app-login',
@@ -28,6 +29,7 @@ import { SiteUsersService } from '../../services/site-users.service';
 })
 export class LoginComponent implements OnInit {
   private fb = inject(FormBuilder);
+  private voice = inject(RespVoiceService);
   private authService = inject(AuthService);
   private siteUsers = inject(SiteUsersService);
   private router = inject(Router);
@@ -102,6 +104,7 @@ export class LoginComponent implements OnInit {
         detail: 'А теперь иди чекать рб, хули ты тут текст читаешь..',
         life: 4000,
       });
+      this.voice.action('login');
       await this.router.navigateByUrl('/');
     } catch (e: any) {
       const msg = typeof e?.message === 'string' ? e.message : 'Login failed';

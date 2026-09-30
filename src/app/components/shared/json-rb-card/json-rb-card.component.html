@@ -2,6 +2,7 @@
 	class="relative rb-row-grid py-2 px-3 gap-3 h-full rb-row"
 	[ngClass]="rowStatusClass()"
 	[class.rb-hidden]="rb()?.hidden"
+	[class.m-editing]="mobileEdit()"
 >
 	@if (rb()?.hidden) {
 		<div class="hidden-flag">
@@ -20,6 +21,16 @@
 
 	<div class="resp-controls flex flex-row flex-wrap items-center justify-center gap-2 min-w-0">
 		<div class="time-cluster">
+			<!-- phone only: opens / folds the kill-time editor -->
+			<button
+				type="button"
+				class="m-edit-btn"
+				[class.is-on]="mobileEdit()"
+				(click)="toggleMobileEdit()"
+				[attr.aria-label]="mobileEdit() ? 'Скрыть время убийства' : 'Изменить время убийства'"
+			>
+				<i class="pi" [ngClass]="mobileEdit() ? 'pi-times' : 'pi-pencil'"></i>
+			</button>
 			<div class="dead-time-field" data-tour="bm-kill-time">
 				<i class="pi pi-calendar dead-time-icon"></i>
 				<p-datepicker

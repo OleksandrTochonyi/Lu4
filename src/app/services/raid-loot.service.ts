@@ -13,6 +13,7 @@ import { Observable, firstValueFrom } from 'rxjs';
 import { map, take } from 'rxjs/operators';
 
 import { ActivityLogService } from './activity-log.service';
+import { RespVoiceService } from './resp-voice.service';
 
 /**
  * RB kill log + loot / sale / payout tracking for the `/raids` page.
@@ -313,6 +314,7 @@ function targetPath(target: PayoutTarget): string {
 export class RaidLootService {
   private firestore = inject(Firestore);
   private activityLog = inject(ActivityLogService);
+  private voice = inject(RespVoiceService);
   private killsCol = collection(this.firestore, 'raid-kills');
   private salesCol = collection(this.firestore, 'raid-sales');
   private listingsCol = collection(this.firestore, 'raid-listings');
@@ -381,6 +383,7 @@ export class RaidLootService {
       updatedBy: actorEmail || 'неизвестно',
     });
     this.activityLog.log('Изменил состав пака по умолчанию');
+    this.voice.action('rosterPreset');
   }
 
   async addKill(data: NewRaidKill, actorEmail: string): Promise<string> {
@@ -392,20 +395,24 @@ export class RaidLootService {
       createdAt: Date.now(),
     });
     this.activityLog.log('Отметил убийство РБ', data.bossName);
+    this.voice.action('raidKill', { id: data.bossId, name: data.bossName });
     return ref.id;
   }
 
   async updateKill(id: string, data: Partial<NewRaidKill>): Promise<void> {
     await updateDoc(doc(this.firestore, `raid-kills/${id}`), { ...data });
     this.activityLog.log('Изменил убийство РБ', data.bossName ?? '');
+    this.voice.action('raidKillEdit');
   }
 
   async removeKill(id: string): Promise<void> {
     await deleteDoc(doc(this.firestore, `raid-kills/${id}`));
     this.activityLog.log('Удалил убийство РБ');
+    this.voice.action('raidKillDelete');
   }
 
-  async addSale(data: NewRaidSale, actorEmail: string): Promise<string> {
+  /** @param quiet no voice line — for bulk sales (a whole list), which say their own */
+  async addSale(data: NewRaidSale, actorEmail: string, quiet = false): Promise<string> {
     if (!data.killId) throw new Error('Не указано, с какого убийства продан дроп');
     if (data.qty <= 0) throw new Error('Количество должно быть больше нуля');
     const ref = doc(this.salesCol);
@@ -416,12 +423,14 @@ export class RaidLootService {
       locked: false,
     });
     this.activityLog.log('Продал дроп', `${data.itemName} ×${data.qty}`);
+    if (!quiet) this.voice.action('raidSale');
     return ref.id;
   }
 
   async removeSale(id: string): Promise<void> {
     await deleteDoc(doc(this.firestore, `raid-sales/${id}`));
     this.activityLog.log('Удалил продажу');
+    this.voice.action('raidSaleDelete');
   }
 
   async addListing(data: NewRaidListing, actorEmail: string): Promise<string> {
@@ -435,19 +444,28 @@ export class RaidLootService {
       settledBy: '',
     });
     this.activityLog.log('Создал список на продажу', data.name);
+    this.voice.action('listingCreate');
     return ref.id;
   }
 
   async updateListing(id: string, data: Partial<Omit<RaidListing, 'id'>>): Promise<void> {
     await updateDoc(doc(this.firestore, `raid-listings/${id}`), { ...data });
-    if (data.status === 'sold') this.activityLog.log('Продал и попилил список', data.name ?? '');
-    else if (data.status === 'closed') this.activityLog.log('Закрыл список на продажу', data.name ?? '');
-    else this.activityLog.log('Изменил список на продажу', data.name ?? '');
+    if (data.status === 'sold') {
+      this.activityLog.log('Продал и попилил список', data.name ?? '');
+      this.voice.action('raidSplit');
+    } else if (data.status === 'closed') {
+      this.activityLog.log('Закрыл список на продажу', data.name ?? '');
+      this.voice.action('listingClose');
+    } else {
+      this.activityLog.log('Изменил список на продажу', data.name ?? '');
+      this.voice.action('listingEdit');
+    }
   }
 
   async removeListing(id: string): Promise<void> {
     await deleteDoc(doc(this.firestore, `raid-listings/${id}`));
     this.activityLog.log('Удалил список на продажу');
+    this.voice.action('listingDelete');
   }
 
   /** mark one payout share (bank / leader / one mercenary) of a sale as paid or not */
@@ -471,6 +489,7 @@ export class RaidLootService {
       { merge: true },
     );
     this.activityLog.log('Изменил настройки выплат');
+    this.voice.action('payoutConfig');
   }
 
   async getConfigOnce(): Promise<PayoutConfig | null> {

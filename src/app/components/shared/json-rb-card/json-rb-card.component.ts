@@ -17,9 +17,7 @@ import { SiteUsersService, actorLabel } from '../../../services/site-users.servi
 import { RbStatus } from '../../../constants/status';
 import { TgService } from '../../../services/tg.service';
 import { RespVoiceService } from '../../../services/resp-voice.service';
-
-/** a late tick (background tab, sleeping laptop) still announces, but not hours-old news */
-const ANNOUNCE_MAX_LATE_MS = 10 * 60 * 1000;
+import { VoiceActionKey } from '../../../data/action-phrases';
 import { calculateStatus } from '../../../utils/rb-enrich';
 
 const SITE_URL = 'https://lu4-serv.web.app';
@@ -45,7 +43,6 @@ export class JsonRbCardComponent implements OnInit {
   private tgService = inject(TgService);
   private siteUsers = inject(SiteUsersService);
   private voice = inject(RespVoiceService);
-
   /** email -> name from the site-users list, for the "кто менял" caption */
   private readonly actorNames = toSignal(this.siteUsers.namesByEmail$, {
     initialValue: new Map<string, string>(),
@@ -61,9 +58,6 @@ export class JsonRbCardComponent implements OnInit {
   showMapButton = input(true);
   /** off where the Telegram "entered resp" ping would be about someone else's data */
   notifyResp = input(true);
-  /** speak "РБ … вошел в респ" when this boss enters a resp window (bookmarks only) */
-  announceResp = input(false);
-
   toggleHidden = output<any>();
   removeFromList = output<any>();
   deadTimeDraftChanged = output<{ rb: any; deadTime: Date | null }>();
@@ -77,11 +71,6 @@ export class JsonRbCardComponent implements OnInit {
   private lastSecondMinRespMs: number | null = null;
   private notifiedFirstRespStart = false;
   private notifiedSecondRespStart = false;
-
-  /** voice: status + window seen on the previous tick */
-  private voicePrevStatus: RbStatus | null = null;
-  private voicePrevMinMs: number | null = null;
-
   onToggleHidden(): void {
     this.toggleHidden.emit(this.rb());
   }
@@ -295,7 +284,7 @@ export class JsonRbCardComponent implements OnInit {
     if (!entry) return;
 
     this.deadTime = entry.killTime ? this.toDate(entry.killTime) : null;
-    this.commitDeadTime();
+    this.commitDeadTime('rollback');
   }
 
   ngOnInit(): void {
@@ -350,40 +339,6 @@ export class JsonRbCardComponent implements OnInit {
         this.sendRespStartNotification();
       }
     });
-
-    effect(() => this.checkVoice());
-  }
-
-  /**
-   * Voice announcement, driven by the status CHANGING (not by hitting the exact
-   * first second of the window) — background tabs throttle timers to about once
-   * a minute, so an exact-second check would almost never fire there. The first
-   * tick after mount only records the status (a boss already in resp when the
-   * page opens isn't announced), and an edited kill time resets the baseline.
-   */
-  private checkVoice(): void {
-    const rb = this.rb();
-    const status = this.status();
-    const minMs = rb?.minResp instanceof Date ? rb.minResp.getTime() : null;
-    const prev = this.voicePrevStatus;
-    const sameWindow = minMs === this.voicePrevMinMs;
-    this.voicePrevStatus = status;
-    this.voicePrevMinMs = minMs;
-    if (!this.announceResp() || rb?.hidden || prev == null || !sameWindow || !rb) return;
-
-    const first =
-      status === RbStatus.InResp && (prev === RbStatus.NotInResp || prev === RbStatus.SoonResp);
-    const second =
-      status === RbStatus.SecondResp &&
-      (prev === RbStatus.FirstRespPassed || prev === RbStatus.SoonSecondResp);
-    if (!first && !second) return;
-
-    const start = first ? rb.minResp : rb.secondMinResp;
-    const startMs = start instanceof Date ? start.getTime() : null;
-    if (startMs == null || this.now() - startMs > ANNOUNCE_MAX_LATE_MS) return;
-
-    const name = String(rb.displayName ?? rb.name ?? '').trim() || 'без имени';
-    this.voice.announce(`${rb.id}@${startMs}`, name, second);
   }
 
   private sendRespStartNotification(): void {
@@ -411,26 +366,40 @@ export class JsonRbCardComponent implements OnInit {
     return currentMs !== this.lastCommittedMs;
   }
 
-  commitDeadTime(): void {
+  /** phone layout: the kill-time editor is folded away until the pencil is tapped */
+  readonly mobileEdit = signal(false);
+  toggleMobileEdit(): void {
+    this.mobileEdit.update((v) => !v);
+  }
+
+  /** @param voiceAction what to say (default: a manual edit / clear of the time) */
+  commitDeadTime(voiceAction?: VoiceActionKey): void {
+    this.mobileEdit.set(false);
     const currentMs = this.deadTime ? this.deadTime.getTime() : null;
     if (currentMs === this.lastCommittedMs) return;
     this.lastCommittedMs = currentMs;
-    this.deadTimeChanged.emit({ rb: this.rb(), deadTime: this.deadTime });
+    const rb = this.rb();
+    this.deadTimeChanged.emit({ rb, deadTime: this.deadTime });
+    this.voice.action(voiceAction ?? (this.deadTime ? 'killEdit' : 'killClear'), {
+      id: rb?.id,
+      name: rb?.displayName || rb?.name,
+    });
   }
 
   cancelDeadTime(): void {
+    this.mobileEdit.set(false);
     const rb = this.rb();
     this.deadTime = rb?.deadTime ?? null;
   }
 
   clearDeadTime(): void {
     this.deadTime = null;
-    this.commitDeadTime();
+    this.commitDeadTime('killClear');
   }
 
   setKillTimeNowKyiv(): void {
     this.deadTime = this.nowInKyivAsLocalDate();
-    this.commitDeadTime();
+    this.commitDeadTime('kill');
   }
 
   // ---------- Helpers ----------

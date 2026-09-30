@@ -21,6 +21,7 @@ import { catchError, map, take } from 'rxjs/operators';
 
 import { AuthService } from './auth.service';
 import { ActivityLogService } from './activity-log.service';
+import { RespVoiceService } from './resp-voice.service';
 
 /**
  * Склады (ported from Lu4 Black):
@@ -155,6 +156,7 @@ export class WarehouseService {
   private firestore = inject(Firestore);
   private auth = inject(AuthService);
   private activityLog = inject(ActivityLogService);
+  private voice = inject(RespVoiceService);
   /** legacy clan stock — flat, no warehouseId */
   private clanCol = collection(this.firestore, 'warehouse');
   private whCol = collection(this.firestore, 'warehouses');
@@ -224,6 +226,7 @@ export class WarehouseService {
       createdAt: Date.now(),
     });
     this.activityLog.log('Создал склад', clean);
+    this.voice.action('whCreate');
     return ref.id;
   }
 
@@ -232,12 +235,14 @@ export class WarehouseService {
     if (!clean) throw new Error('Название обязательно');
     await updateDoc(doc(this.firestore, 'warehouses', id), { name: clean });
     this.activityLog.log('Переименовал склад', clean);
+    this.voice.action('whRename');
   }
 
   async setMembers(w: Warehouse, memberEmails: string[]): Promise<void> {
     const members = uniqueMembers(w.ownerEmail, memberEmails);
     await updateDoc(doc(this.firestore, 'warehouses', w.id), { members });
     this.activityLog.log('Изменил участников склада', `${w.name}: ${members.length}`);
+    this.voice.action('whMembers');
   }
 
   /** deletes a shared warehouse together with all of its stock rows */
@@ -249,6 +254,7 @@ export class WarehouseService {
     batch.delete(doc(this.firestore, 'warehouses', w.id));
     await batch.commit();
     this.activityLog.log('Удалил склад', w.name);
+    this.voice.action('whRemove');
   }
 
   /* ----------------------------------------------------------------- stock */
@@ -297,6 +303,7 @@ export class WarehouseService {
       updatedAt: Date.now(),
     });
     this.activityLog.log('Добавил ресурс на склад', this.label(w, name));
+    this.voice.action('whAdd');
     return ref.id;
   }
 
@@ -321,6 +328,7 @@ export class WarehouseService {
     const history = [entry, ...normalizeHistory(raw.history)].slice(0, HISTORY_LIMIT);
     await updateDoc(ref, { qty: to, history, updatedAt: Date.now() });
     this.activityLog.log('Изменил склад', this.label(w, `${raw.name}: ${from} → ${to}`));
+    this.voice.action('whEdit');
   }
 
   async rename(w: Warehouse, id: string, name: string): Promise<void> {
@@ -328,10 +336,12 @@ export class WarehouseService {
     if (!clean) throw new Error('Название ресурса обязательно');
     await updateDoc(this.stockDoc(w.id, id), { name: clean, updatedAt: Date.now() });
     this.activityLog.log('Переименовал ресурс на складе', this.label(w, clean));
+    this.voice.action('whItemRename');
   }
 
   async remove(w: Warehouse, item: StockItem): Promise<void> {
     await deleteDoc(this.stockDoc(w.id, item.id));
     this.activityLog.log('Удалил ресурс со склада', this.label(w, item.name));
+    this.voice.action('whDelete');
   }
 }

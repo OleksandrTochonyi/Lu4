@@ -1,4 +1,5 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { toObservable } from '@angular/core/rxjs-interop';
 import {
   Firestore,
   collection,
@@ -66,6 +67,45 @@ export interface SiteUserIp {
 
 /** distinct IPs kept per user — oldest-used ones drop off past this */
 const IP_LIMIT = 50;
+
+/** how far back a first-seen IP still counts as "new" */
+export const NEW_IP_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+/** localStorage: admin's "просмотрено" mark — alerts at or before it are hidden */
+export const IP_ALERTS_ACK_KEY = 'au-ip-alerts-ack';
+
+export interface NewIpAlert {
+  email: string;
+  name: string;
+  ip: string;
+  firstAt: number;
+}
+
+/**
+ * An account showed up from an IP it had never used before: first seen within
+ * {@link NEW_IP_WINDOW_MS} and after `ackAt`, and NOT the account's very first
+ * IP (someone's only address isn't news). Newest first.
+ */
+export function newIpAlerts(users: SiteUser[], ackAt: number, now = Date.now()): NewIpAlert[] {
+  const out: NewIpAlert[] = [];
+  for (const u of users) {
+    if (u.ips.length < 2) continue;
+    const earliest = Math.min(...u.ips.map((e) => e.firstAt || Infinity));
+    for (const e of u.ips) {
+      if (!e.firstAt || e.firstAt === earliest) continue;
+      if (e.firstAt <= ackAt || now - e.firstAt > NEW_IP_WINDOW_MS) continue;
+      out.push({ email: u.email, name: u.name, ip: e.ip, firstAt: e.firstAt });
+    }
+  }
+  return out.sort((a, b) => b.firstAt - a.firstAt);
+}
+
+export function readIpAlertsAck(): number {
+  try {
+    return Number(localStorage.getItem(IP_ALERTS_ACK_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+}
 
 function normalizeIps(raw: unknown): SiteUserIp[] {
   if (!Array.isArray(raw)) return [];
@@ -244,6 +284,24 @@ export class SiteUsersService {
       return null;
     }),
   );
+
+  /** admin's "просмотрено" mark, shared by the menu badge and the /admin/users banner */
+  readonly ipAlertsAck = signal(readIpAlertsAck());
+  ackIpAlerts(): void {
+    const now = Date.now();
+    this.ipAlertsAck.set(now);
+    try {
+      localStorage.setItem(IP_ALERTS_ACK_KEY, String(now));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /** unseen new-IP alerts (for admins; the list is readable by anyone, so gate the UI) */
+  readonly newIpAlerts$: Observable<NewIpAlert[]> = combineLatest([
+    this.siteUsers$,
+    toObservable(this.ipAlertsAck),
+  ]).pipe(map(([list, ack]) => newIpAlerts(list, ack)));
 
   private seeding = false;
   private lastSeenWrittenAt = 0;

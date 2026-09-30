@@ -218,16 +218,6 @@
 							(onClick)="confirmClearAllResp(tab, $event)"
 						></p-button>
 						<p-button
-							[icon]="voice.enabled() ? 'pi pi-volume-up' : 'pi pi-volume-off'"
-							[text]="true"
-							[severity]="voice.enabled() ? 'info' : 'secondary'"
-							size="small"
-							[pTooltip]="voice.enabled() ? 'Озвучка входа в респ: вкл' : 'Озвучка входа в респ: выкл'"
-							tooltipPosition="top"
-							ariaLabel="Озвучка входа в респ"
-							(onClick)="voice.toggle()"
-						></p-button>
-						<p-button
 							icon="pi pi-sliders-h"
 							[label]="'Фильтры' + ((showOnlyResp() || showOneHourToResp()) ? ' •' : '')"
 							[text]="true"
@@ -301,7 +291,6 @@
 									[showDeleteButton]="true"
 									[showMapButton]="false"
 									[notifyResp]="false"
-									[announceResp]="true"
 									(removeFromList)="removeFromActiveTab($event)"
 									(deadTimeDraftChanged)="onDeadTimeDraftChanged($event)"
 									(deadTimeChanged)="onDeadTimeChanged($event)"

@@ -2,7 +2,11 @@
 
 <p-menubar *ngIf="showMenubar" [model]="items">
     <ng-template #start>
-        <img class="main-logo" src="https://static.mw2.global/main_page/assets/logo_w.png" />
+        <img
+            class="main-logo"
+            [src]="theme.dark() ? 'assets/images/lu4-logo-white.png' : 'assets/images/lu4-logo.png'"
+            alt="E·Global"
+        />
     </ng-template>
     <ng-template #item let-item let-root="root">
         <ng-container *ngIf="item.routerLink; else plainMenuItem">
@@ -15,7 +19,7 @@
             >
                 <i [ngClass]="['ms-auto', item.icon]"></i>
                 <span>{{ item.label }}</span>
-                <p-badge *ngIf="item.badge" [ngClass]="{ 'ms-auto': !root }" styleClass="new-badge" [value]="item.badge" />
+                <p-badge *ngIf="item.badge" [ngClass]="{ 'ms-auto': !root }" [styleClass]="item.badgeStyleClass || 'new-badge'" [value]="item.badge" />
                 <span *ngIf="item.shortcut"
                     class="ms-auto border border-surface rounded bg-emphasis text-muted-color text-xs p-1">{{ item.shortcut
                     }}</span>
@@ -27,7 +31,7 @@
             <a pRipple class="flex items-center px-4 py-3 cursor-pointer gap-2" href="#">
                 <i [ngClass]="['ms-auto', item.icon]"></i>
                 <span>{{ item.label }}</span>
-                <p-badge *ngIf="item.badge" [ngClass]="{ 'ms-auto': !root }" styleClass="new-badge" [value]="item.badge" />
+                <p-badge *ngIf="item.badge" [ngClass]="{ 'ms-auto': !root }" [styleClass]="item.badgeStyleClass || 'new-badge'" [value]="item.badge" />
                 <span *ngIf="item.shortcut"
                     class="ms-auto border border-surface rounded bg-emphasis text-muted-color text-xs p-1">{{ item.shortcut
                     }}</span>
@@ -36,15 +40,27 @@
         </ng-template>
     </ng-template>
     <ng-template #end>
-        <button
-            type="button"
-            class="flex items-center user-icon"
-            (click)="logout()"
-            aria-label="Logout"
-            title="Logout"
-        >
-            <i [ngClass]="['ms-auto pi pi-sign-out']"></i>
-        </button>
+        <div class="menu-end">
+            <app-voice-settings></app-voice-settings>
+            <button
+                type="button"
+                class="menu-end-btn"
+                (click)="theme.toggle()"
+                [attr.aria-label]="theme.dark() ? 'Светлая тема' : 'Тёмная тема'"
+                [title]="theme.dark() ? 'Светлая тема' : 'Тёмная тема'"
+            >
+                <i class="pi" [ngClass]="theme.dark() ? 'pi-sun' : 'pi-moon'"></i>
+            </button>
+            <button
+                type="button"
+                class="menu-end-btn"
+                (click)="logout()"
+                aria-label="Logout"
+                title="Logout"
+            >
+                <i class="pi pi-sign-out"></i>
+            </button>
+        </div>
     </ng-template>
 </p-menubar>
 

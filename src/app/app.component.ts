@@ -14,12 +14,16 @@ import { MenubarModule } from 'primeng/menubar';
 import { RippleModule } from 'primeng/ripple';
 import { ToastModule } from 'primeng/toast';
 import { MenuItem } from 'primeng/api';
+import { combineLatest } from 'rxjs';
 import { filter } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { AuthService } from './services/auth.service';
 import { SiteUsersService } from './services/site-users.service';
 import { ActivityLogService } from './services/activity-log.service';
+import { ThemeService } from './services/theme.service';
+import { RespVoiceService } from './services/resp-voice.service';
+import { VoiceSettingsComponent } from './components/shared/voice-settings/voice-settings.component';
 
 const PAGE_NAMES: Record<string, string> = {
   '/': 'Букмарки',
@@ -51,6 +55,7 @@ const PAGE_NAMES: Record<string, string> = {
     AvatarModule,
     RippleModule,
     ToastModule,
+    VoiceSettingsComponent,
   ],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
@@ -60,6 +65,8 @@ export class AppComponent {
   private authService = inject(AuthService);
   private siteUsers = inject(SiteUsersService);
   private activityLog = inject(ActivityLogService);
+  readonly theme = inject(ThemeService);
+  private voice = inject(RespVoiceService);
   private location = inject(Location);
   private destroyRef = inject(DestroyRef);
 
@@ -154,6 +161,9 @@ export class AppComponent {
   ];
 
   ngOnInit() {
+    // before the first NavigationEnd, so /login never flashes inverted
+    this.theme.setAllowed(!this.isLoginPage);
+
     void this.authService.tryAutoLoginFromStorage().then((ok) => {
       if (!ok) this.kickToLogin();
     });
@@ -186,6 +196,7 @@ export class AppComponent {
       )
       .subscribe((e) => {
         this.currentUrl = e.urlAfterRedirects;
+        this.theme.setAllowed(!this.isLoginPage);
         checkExpiry();
         const path = e.urlAfterRedirects.split('?')[0].split('#')[0];
         if (path === '/login') return;
@@ -197,12 +208,17 @@ export class AppComponent {
         this.activityLog.log('Открыл', PAGE_NAMES[path] ?? path, 'nav');
       });
 
-    this.siteUsers.isAdmin$
+    combineLatest([this.siteUsers.isAdmin$, this.siteUsers.newIpAlerts$])
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((isAdmin) => {
-        this.items = this.allMenuItems.filter(
-          (item) => isAdmin || !item.adminOnly,
-        );
+      .subscribe(([isAdmin, alerts]) => {
+        this.items = this.allMenuItems
+          .filter((item) => isAdmin || !item.adminOnly)
+          .map((item) =>
+            // unseen "new IP" alerts show as a badge on Users
+            item.routerLink === '/admin/users' && alerts.length
+              ? { ...item, badge: String(alerts.length), badgeStyleClass: 'ip-alert-badge' }
+              : item,
+          );
       });
 
     // an account that's already inside the app and loses access (blocked, or
@@ -251,6 +267,7 @@ export class AppComponent {
   async logout(): Promise<void> {
     // the user$ watcher would otherwise race us with a second sign-out + redirect
     this.kicking = true;
+    this.voice.action('logout');
     try {
       await this.authService.logout();
     } finally {

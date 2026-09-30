@@ -116,7 +116,49 @@ export class WarehouseComponent {
   private readonly hiddenCraftGrades = new Set<CraftGrade>(['NG', 'D', 'S']);
   private readonly hiddenCraftCategories = new Set<CraftCategory>(['other']);
 
-  readonly view = signal<'stock' | 'craft' | 'plan'>('stock');
+  readonly view = signal<'stock' | 'craft' | 'plan' | 'history'>('stock');
+
+  /**
+   * "История" tab: every change from every stock row's own capped `history`
+   * (last 5 per row), flattened into one newest-first feed for the whole
+   * active warehouse, so you don't have to open each resource.
+   */
+  readonly historySearch = signal('');
+  readonly combinedHistory = computed(() => {
+    const q = this.historySearch().trim().toLowerCase();
+    const rows: {
+      key: string;
+      ts: number;
+      itemName: string;
+      icon: string | null;
+      byEmail: string;
+      from: number;
+      to: number;
+    }[] = [];
+    for (const item of this.stockSorted()) {
+      item.history.forEach((h, i) =>
+        rows.push({
+          key: `${item.id}#${i}`,
+          ts: h.ts,
+          itemName: item.name,
+          icon: item.icon,
+          byEmail: h.byEmail,
+          from: h.from,
+          to: h.to,
+        }),
+      );
+    }
+    return rows
+      .filter(
+        (r) =>
+          !q ||
+          r.itemName.toLowerCase().includes(q) ||
+          r.byEmail.toLowerCase().includes(q) ||
+          this.who(r.byEmail).toLowerCase().includes(q),
+      )
+      .sort((a, b) => b.ts - a.ts);
+  });
+  trackHist = (_: number, r: { key: string }) => r.key;
 
   /* ------------------------------------------------------------------ data */
 

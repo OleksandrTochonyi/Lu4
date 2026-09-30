@@ -1,0 +1,547 @@
+{
+  "voice": "glados",
+  "label": "GLaDOS",
+  "generatedAt": "2026-09-30T12:04:06.156Z",
+  "fixed": {
+    "intro": "fixed/intro-e8aeacffa7.mp3",
+    "inResp": "fixed/inResp-9d533b1b8c.mp3",
+    "inSecondResp": "fixed/inSecondResp-3c3c2f7f3f.mp3",
+    "enabled": "fixed/enabled-5bd14254d5.mp3",
+    "disabled": "fixed/disabled-89c52a3b83.mp3"
+  },
+  "phrases": {
+    "Внимание, пацаны!": "phrases/b705ccc390.mp3",
+    "Бросай всё и слушай сюда.": "phrases/7f2ad79a4e.mp3",
+    "Экстренный выпуск новостей.": "phrases/f5777a1e65.mp3",
+    "Отложите шаурму, есть дело.": "phrases/413927ac6c.mp3",
+    "Мама, я в телевизоре! А теперь по делу.": "phrases/2370a6518b.mp3",
+    "Проснись и пой, соня.": "phrases/34262c4880.mp3",
+    "Кто спит, тот без дропа.": "phrases/60db3a208d.mp3",
+    "Жена подождёт, а вот это нет.": "phrases/f1422ca544.mp3",
+    "Говорит и показывает клан-чат.": "phrases/a98c931d7b.mp3",
+    "Кто не успел, тот опоздал, но это не точно.": "phrases/bd951637ef.mp3",
+    "Внимание, это не учения!": "phrases/0dd00e42f7.mp3",
+    "Срочно выходим из туалета.": "phrases/0095e3d30b.mp3",
+    "Хватит фармить мобов, есть рыба покрупнее.": "phrases/8d8b6a6fc7.mp3",
+    "Ваш дроп уже заждался.": "phrases/9684ec6b67.mp3",
+    "Прямо сейчас кто-то из другого клана уже бежит.": "phrases/8aed8e7464.mp3",
+    "Бижа сама себя не выбьет.": "phrases/ab92f1933b.mp3",
+    "Минутка внимания от вашего любимого бота.": "phrases/5022d9b09b.mp3",
+    "Друзья, товарищи, сокланы!": "phrases/11545a9356.mp3",
+    "Ставим чайник на паузу.": "phrases/b40ed93b04.mp3",
+    "Работа не волк, а вот это срочно.": "phrases/80d97bacbe.mp3",
+    "Мне тут птичка на хвосте принесла.": "phrases/7e946330a5.mp3",
+    "Хьюстон, у нас проблема.": "phrases/8401540236.mp3",
+    "Пристегните ремни.": "phrases/e5ce3c1211.mp3",
+    "Итак, дамы и господа, барабанная дробь.": "phrases/83291b6d56.mp3",
+    "Слышите этот звук? Это звенит ваш будущий лут.": "phrases/b0c77f82cd.mp3",
+    "Кто последний добежит, тот бафает всех.": "phrases/f60adfc181.mp3",
+    "По просьбе трудящихся сообщаем.": "phrases/7da76fc4c4.mp3",
+    "Будильник для самых ленивых.": "phrases/1066a61393.mp3",
+    "Вы просили, мы напомнили.": "phrases/e195adf78f.mp3",
+    "Не благодарите.": "phrases/da922c20d2.mp3",
+    "Ну что, погнали?": "phrases/e5c5378e48.mp3",
+    "Всем встать, суд идёт. Шучу.": "phrases/fa12d792eb.mp3",
+    "Отставить сон на клавиатуре!": "phrases/7af4a5a2de.mp3",
+    "Бабушка, я на рейде, позвоню потом.": "phrases/7f89c83c05.mp3",
+    "Тревога, тревога, волк унёс зайчат!": "phrases/7e9c679bbd.mp3",
+    "Кто сдох, тот лох.": "phrases/6dd9c7d178.mp3",
+    "Сеня лох, соси писюн!": "phrases/8bbb0136a2.mp3",
+    "Шеф, всё пропало! Гипс снимают, клиент уезжает!": "phrases/d2a28a056c.mp3",
+    "Надо, Федя, надо.": "phrases/d6d9a8bb2f.mp3",
+    "Короче, Склифосовский.": "phrases/a432887fa5.mp3",
+    "Огласите весь список, пожалуйста.": "phrases/9287dec863.mp3",
+    "Операция «Ы» начинается.": "phrases/e67e6f1cc5.mp3",
+    "Иван Васильевич меняет профессию, а вы меняете планы.": "phrases/c943f19162.mp3",
+    "Птичку жалко. А вот его нет.": "phrases/ec6bfbb1f1.mp3",
+    "Чей туфля? Неважно, бегом на рейд.": "phrases/1f33671445.mp3",
+    "Будете у нас на Колыме, милости просим. А пока срочно сюда.": "phrases/81b515a784.mp3",
+    "Лучше нет красоты, чем пописать с высоты. Но сейчас некогда.": "phrases/c66ba5ac8b.mp3",
+    "Тихо, шеф, я свой!": "phrases/804dc82cab.mp3",
+    "Восток — дело тонкое, Петруха.": "phrases/d39646cedd.mp3",
+    "Какая гадость эта ваша заливная рыба. Бросайте её.": "phrases/398c78d3ea.mp3",
+    "Меня терзают смутные сомнения, что пора бежать.": "phrases/bb144ecc52.mp3",
+    "Замуровали, демоны! Но не его.": "phrases/44639c5d42.mp3",
+    "Детектор лжи показывает: пора на рейд.": "phrases/cd9996c3b0.mp3",
+    "Я вернулся. Точнее, не я.": "phrases/dece56681e.mp3",
+    "Люк, я твой отец. И я говорю тебе: беги.": "phrases/b1e941ba3d.mp3",
+    "Зима близко. А вот это ещё ближе.": "phrases/13fd2375f2.mp3",
+    "Это Спарта! Ну почти.": "phrases/9f7f979424.mp3",
+    "Мой прелестный лут ждёт меня.": "phrases/ca1e8468fc.mp3",
+    "Ты не пройдёшь! А вот ты пройдёшь, беги скорее.": "phrases/4e36ef2804.mp3",
+    "Нам нужна лодка побольше.": "phrases/8a278ed825.mp3",
+    "Беги, Форрест, беги!": "phrases/1e5557fdfc.mp3",
+    "Я сделаю ему предложение, от которого он не сможет отказаться.": "phrases/8d086e48a8.mp3",
+    "Да пребудет с вами дроп.": "phrases/50917b7f44.mp3",
+    "Выбирай: синяя таблетка или рейд.": "phrases/6cef61b63f.mp3",
+    "Добро пожаловать в реальный мир.": "phrases/8051bb3024.mp3",
+    "Ни шагу назад. Хотя нет, шаг вперёд.": "phrases/2250674220.mp3",
+    "В чём сила, брат? В том, кто первый добежал.": "phrases/f28f0c20ee.mp3",
+    "Брат, ты это слышал?": "phrases/252019cdcc.mp3",
+    "Ты кто такой? Давай, до свидания. А нет, стой.": "phrases/402a888be5.mp3",
+    "Чисто конкретно внимание.": "phrases/c97843ee28.mp3",
+    "Отложите ложку, вы не в том измерении.": "phrases/ba2990afc6.mp3",
+    "Кот уронил кружку, но это не главная новость.": "phrases/0727eaff80.mp3",
+    "Сосед снова сверлит. Но у нас новость поважнее.": "phrases/f74dc447b7.mp3",
+    "Говорят, если прислушаться, можно услышать, как он дышит.": "phrases/a475985b1f.mp3",
+    "Мой внутренний голос подсказывает.": "phrases/d9097beed3.mp3",
+    "Звёзды сошлись.": "phrases/9c039bf573.mp3",
+    "Как говорил мой дед: я твой дед. А ещё он говорил бежать на рейд.": "phrases/325faed9de.mp3",
+    "Эй, ты, да, ты, за монитором.": "phrases/7de690a505.mp3"
+  },
+  "bosses": {
+    "25001": "bosses/25001-47ed218627.mp3",
+    "25004": "bosses/25004-1823731a30.mp3",
+    "25007": "bosses/25007-3e58e613a1.mp3",
+    "25010": "bosses/25010-8aed83ec23.mp3",
+    "25016": "bosses/25016-4e2e4cccfa.mp3",
+    "25019": "bosses/25019-1946b4bb7c.mp3",
+    "25020": "bosses/25020-4535c8dc7a.mp3",
+    "25023": "bosses/25023-a74f153e91.mp3",
+    "25026": "bosses/25026-fdf4fdb04b.mp3",
+    "25029": "bosses/25029-36f2a598c2.mp3",
+    "25032": "bosses/25032-a5ebfe0fab.mp3",
+    "25035": "bosses/25035-7a7dc73595.mp3",
+    "25038": "bosses/25038-f8f720537e.mp3",
+    "25041": "bosses/25041-19605c8e4a.mp3",
+    "25051": "bosses/25051-ba100bbdc0.mp3",
+    "25057": "bosses/25057-6999667b23.mp3",
+    "25060": "bosses/25060-513e4399d7.mp3",
+    "25063": "bosses/25063-a22869b751.mp3",
+    "25064": "bosses/25064-0ec8580532.mp3",
+    "25067": "bosses/25067-f1c6861dc8.mp3",
+    "25070": "bosses/25070-523fe3284b.mp3",
+    "25073": "bosses/25073-22c124b4bc.mp3",
+    "25076": "bosses/25076-3b66cde5c5.mp3",
+    "25079": "bosses/25079-b531908045.mp3",
+    "25082": "bosses/25082-820291d289.mp3",
+    "25085": "bosses/25085-786b774071.mp3",
+    "25088": "bosses/25088-60fbf2c189.mp3",
+    "25089": "bosses/25089-3c637c1a00.mp3",
+    "25092": "bosses/25092-88a17014b4.mp3",
+    "25095": "bosses/25095-eff684a3df.mp3",
+    "25098": "bosses/25098-379036ee51.mp3",
+    "25099": "bosses/25099-f8c3425777.mp3",
+    "25102": "bosses/25102-d655053d89.mp3",
+    "25103": "bosses/25103-dbf294bd1b.mp3",
+    "25106": "bosses/25106-df64f18cb8.mp3",
+    "25109": "bosses/25109-214ea251f8.mp3",
+    "25112": "bosses/25112-ca32338d7c.mp3",
+    "25115": "bosses/25115-4aac999283.mp3",
+    "25118": "bosses/25118-b999b07433.mp3",
+    "25119": "bosses/25119-366caf72be.mp3",
+    "25122": "bosses/25122-adb4ea17c0.mp3",
+    "25125": "bosses/25125-6173f9c184.mp3",
+    "25128": "bosses/25128-cdd91a9c52.mp3",
+    "25131": "bosses/25131-97928f0a01.mp3",
+    "25134": "bosses/25134-9a730454a7.mp3",
+    "25137": "bosses/25137-45af58bfc5.mp3",
+    "25140": "bosses/25140-2e11f5b6d9.mp3",
+    "25146": "bosses/25146-fcba914273.mp3",
+    "25149": "bosses/25149-c8e9d572ec.mp3",
+    "25152": "bosses/25152-8bafd085b8.mp3",
+    "25155": "bosses/25155-23c468f711.mp3",
+    "25158": "bosses/25158-bd04510cb2.mp3",
+    "25159": "bosses/25159-fb33e43548.mp3",
+    "25162": "bosses/25162-eb57468c8b.mp3",
+    "25163": "bosses/25163-a13ed1a92d.mp3",
+    "25166": "bosses/25166-111f917ebd.mp3",
+    "25169": "bosses/25169-4f34e7b591.mp3",
+    "25170": "bosses/25170-008c628ac9.mp3",
+    "25173": "bosses/25173-a000f7d266.mp3",
+    "25176": "bosses/25176-3d14cf2d2f.mp3",
+    "25179": "bosses/25179-da83b59331.mp3",
+    "25182": "bosses/25182-8b42aa792a.mp3",
+    "25185": "bosses/25185-879fd7b974.mp3",
+    "25188": "bosses/25188-0371fac4ac.mp3",
+    "25189": "bosses/25189-638c245517.mp3",
+    "25192": "bosses/25192-04f2ce05b1.mp3",
+    "25198": "bosses/25198-123c225836.mp3",
+    "25199": "bosses/25199-e296942503.mp3",
+    "25202": "bosses/25202-0477577db3.mp3",
+    "25208": "bosses/25208-e1133e629b.mp3",
+    "25211": "bosses/25211-de87ab12cc.mp3",
+    "25214": "bosses/25214-69934d63fa.mp3",
+    "25217": "bosses/25217-ad61bdf289.mp3",
+    "25220": "bosses/25220-3be760587c.mp3",
+    "25223": "bosses/25223-5be2c83aab.mp3",
+    "25226": "bosses/25226-8b94c93bb3.mp3",
+    "25230": "bosses/25230-16029eeb22.mp3",
+    "25233": "bosses/25233-cfaa41cbf6.mp3",
+    "25234": "bosses/25234-f333ebc4f7.mp3",
+    "25235": "bosses/25235-b5e63797e9.mp3",
+    "25238": "bosses/25238-94db292fa9.mp3",
+    "25241": "bosses/25241-dcba6df9be.mp3",
+    "25248": "bosses/25248-0515cefe59.mp3",
+    "25252": "bosses/25252-2290143c76.mp3",
+    "25255": "bosses/25255-50fd47dde4.mp3",
+    "25256": "bosses/25256-525eabdfaf.mp3",
+    "25259": "bosses/25259-d4fe5b5e6c.mp3",
+    "25260": "bosses/25260-92f7e8377f.mp3",
+    "25263": "bosses/25263-55ea60cc08.mp3",
+    "25269": "bosses/25269-bc75febcf1.mp3",
+    "25272": "bosses/25272-734c37b330.mp3",
+    "25273": "bosses/25273-36eab1663b.mp3",
+    "25281": "bosses/25281-e134ea94cb.mp3",
+    "25322": "bosses/25322-6765ab4c1c.mp3",
+    "25352": "bosses/25352-6f96b654ff.mp3",
+    "25354": "bosses/25354-4eb4f3d164.mp3",
+    "25357": "bosses/25357-f718be8ffb.mp3",
+    "25360": "bosses/25360-6e3d3522ba.mp3",
+    "25362": "bosses/25362-197a3134f1.mp3",
+    "25365": "bosses/25365-9accae3a90.mp3",
+    "25366": "bosses/25366-02c2d9a01c.mp3",
+    "25369": "bosses/25369-59b0294893.mp3",
+    "25372": "bosses/25372-6a24d8e382.mp3",
+    "25373": "bosses/25373-d2236329b5.mp3",
+    "25375": "bosses/25375-61a21d5c40.mp3",
+    "25378": "bosses/25378-ae09859b88.mp3",
+    "25380": "bosses/25380-12536962af.mp3",
+    "25383": "bosses/25383-908f18096e.mp3",
+    "25385": "bosses/25385-e500d671be.mp3",
+    "25388": "bosses/25388-553f62fcd6.mp3",
+    "25391": "bosses/25391-97cc7738c1.mp3",
+    "25392": "bosses/25392-f04f4157d2.mp3",
+    "25394": "bosses/25394-91ff949d54.mp3",
+    "25395": "bosses/25395-002eedf539.mp3",
+    "25398": "bosses/25398-07f662b7e8.mp3",
+    "25401": "bosses/25401-2e10196336.mp3",
+    "25404": "bosses/25404-6b41dc8fb2.mp3",
+    "25407": "bosses/25407-81552e172c.mp3",
+    "25410": "bosses/25410-975b051bad.mp3",
+    "25412": "bosses/25412-8350f4b3d2.mp3",
+    "25415": "bosses/25415-71f8e5a923.mp3",
+    "25418": "bosses/25418-a5ba50b961.mp3",
+    "25420": "bosses/25420-1258f098ad.mp3",
+    "25423": "bosses/25423-5be47a86f4.mp3",
+    "25426": "bosses/25426-0ec72f7c8a.mp3",
+    "25429": "bosses/25429-0bdb0154dc.mp3",
+    "25431": "bosses/25431-7d469f180b.mp3",
+    "25434": "bosses/25434-7a8aece28d.mp3",
+    "25437": "bosses/25437-2ca8e6429c.mp3",
+    "25438": "bosses/25438-9092764b1d.mp3",
+    "25441": "bosses/25441-433572c156.mp3",
+    "25444": "bosses/25444-fef7bf8a03.mp3",
+    "25447": "bosses/25447-a3316f87b2.mp3",
+    "25453": "bosses/25453-0e3247e514.mp3",
+    "25456": "bosses/25456-0bafde216e.mp3",
+    "25460": "bosses/25460-5ada9a84fb.mp3",
+    "25463": "bosses/25463-a64d343dd1.mp3",
+    "25467": "bosses/25467-740c29c8ae.mp3",
+    "25470": "bosses/25470-898ab36640.mp3",
+    "25478": "bosses/25478-397ecc13c4.mp3",
+    "25481": "bosses/25481-5505d7b65f.mp3",
+    "25484": "bosses/25484-e979be64f5.mp3",
+    "25487": "bosses/25487-a752d71373.mp3",
+    "25490": "bosses/25490-14bb33f3f9.mp3",
+    "25493": "bosses/25493-a38e2655b9.mp3",
+    "25496": "bosses/25496-2db9d3cb75.mp3",
+    "25498": "bosses/25498-13c7c9455b.mp3",
+    "25501": "bosses/25501-a044d259a8.mp3",
+    "25504": "bosses/25504-7413ef4175.mp3",
+    "25506": "bosses/25506-3ec9513ae8.mp3",
+    "25524": "bosses/25524-7f89b411ed.mp3",
+    "34141": "bosses/34141-5d020c332b.mp3",
+    "34142": "bosses/34142-61e68fc4a1.mp3",
+    "34143": "bosses/34143-2e08d2edde.mp3",
+    "34144": "bosses/34144-810a5ecb6e.mp3"
+  },
+  "actions": {
+    "kill": {
+      "phrases": {
+        "Помянем.": "actions/kill-d7e401447b.mp3",
+        "Минус один.": "actions/kill-2f0b92a876.mp3",
+        "Надеюсь, лут поделили честно.": "actions/kill-6abc8964f7.mp3",
+        "Земля ему пухом.": "actions/kill-53746cf767.mp3",
+        "Отличная работа, пацаны.": "actions/kill-0f8da29a61.mp3",
+        "Кто следующий?": "actions/kill-c812cfc37b.mp3"
+      },
+      "boss": "actions/kill-34beac099e.mp3"
+    },
+    "killEdit": {
+      "phrases": {
+        "Надеюсь, в этот раз правильно.": "actions/killEdit-436d3d65d0.mp3",
+        "Ну, тебе виднее.": "actions/killEdit-f4771cb7bf.mp3",
+        "Записал.": "actions/killEdit-a43317502a.mp3"
+      },
+      "boss": "actions/killEdit-191744b913.mp3"
+    },
+    "killClear": {
+      "phrases": {
+        "Как будто его и не было.": "actions/killClear-4e9a0ca4ad.mp3",
+        "Ладно, забыли.": "actions/killClear-19c122f3b1.mp3"
+      },
+      "boss": "actions/killClear-d592bb4e2d.mp3"
+    },
+    "rollback": {
+      "phrases": {
+        "Опять подчищать за этим идиотом. Время откатил.": "actions/rollback-dd5492a626.mp3",
+        "Кто-то накосячил, а я исправляй. Откатил.": "actions/rollback-9a75fe9644.mp3",
+        "Откатил. Сделаем вид, что ничего не было.": "actions/rollback-ef096469e0.mp3",
+        "Машина времени сработала. Откат выполнен.": "actions/rollback-c558f925cb.mp3",
+        "Руки бы оторвать тому, кто это ставил. Откатил.": "actions/rollback-53cd94722b.mp3"
+      }
+    },
+    "clearAll": {
+      "phrases": {
+        "Респы очищены. Начинаем с чистого листа.": "actions/clearAll-752268325c.mp3",
+        "Всё стёр. Надеюсь, ты знал, что делаешь.": "actions/clearAll-7adbd2fc82.mp3",
+        "Чистота — залог здоровья. Респы очищены.": "actions/clearAll-faa407d940.mp3"
+      }
+    },
+    "sync": {
+      "phrases": {
+        "Синхронизация завершена.": "actions/sync-f7964e93f9.mp3",
+        "Спёр свежие респы у соседей.": "actions/sync-8ad1529db9.mp3",
+        "Респы подтянул. Можно работать.": "actions/sync-b05f6a31f2.mp3"
+      }
+    },
+    "tabCreate": {
+      "phrases": {
+        "Новая закладка создана.": "actions/tabCreate-e7feb0d7d5.mp3",
+        "Ещё одна закладка. Коллекционер, что ли?": "actions/tabCreate-fb22d98d1d.mp3"
+      }
+    },
+    "tabRename": {
+      "phrases": {
+        "Закладка переименована. Старое имя было лучше.": "actions/tabRename-68efd6214c.mp3",
+        "Переименовал. Теперь точно не перепутаешь.": "actions/tabRename-c34ad04108.mp3"
+      }
+    },
+    "tabDelete": {
+      "phrases": {
+        "Закладка удалена. Туда ей и дорога.": "actions/tabDelete-91a0673eae.mp3",
+        "Закладки больше нет.": "actions/tabDelete-0f2bc8fa61.mp3"
+      }
+    },
+    "rbRemove": {
+      "phrases": {
+        "Босс выкинут из закладки. Не больно-то и хотелось.": "actions/rbRemove-bd3c53afbc.mp3",
+        "Убрал. Одним меньше следить.": "actions/rbRemove-7513dbf860.mp3",
+        "Вычеркнул из списка.": "actions/rbRemove-c79dc35f58.mp3"
+      }
+    },
+    "whAdd": {
+      "phrases": {
+        "Склад пополнен.": "actions/whAdd-06cc06c827.mp3",
+        "Тащи в норку. Хомяк доволен.": "actions/whAdd-878010bf33.mp3",
+        "Добавил. Богатеем.": "actions/whAdd-5a12971142.mp3"
+      }
+    },
+    "whEdit": {
+      "phrases": {
+        "Склад обновлён.": "actions/whEdit-fc4451f454.mp3",
+        "Посчитал, пересчитал, записал.": "actions/whEdit-44984cd07f.mp3",
+        "Записал в амбарную книгу.": "actions/whEdit-8080b9ce2f.mp3"
+      }
+    },
+    "whDelete": {
+      "phrases": {
+        "Удалил со склада. Кто-то уже всё пропил?": "actions/whDelete-4683c8e327.mp3",
+        "Минус ресурс.": "actions/whDelete-f359c4e411.mp3"
+      }
+    },
+    "whItemRename": {
+      "phrases": {
+        "Переименовал. Теперь звучит солиднее.": "actions/whItemRename-a0b056edfa.mp3",
+        "Новое имя, та же хрень.": "actions/whItemRename-032884b7f7.mp3"
+      }
+    },
+    "whCreate": {
+      "phrases": {
+        "Новый склад открыт.": "actions/whCreate-bf78dea0ef.mp3",
+        "Склад создан. Теперь есть куда складывать хлам.": "actions/whCreate-2a59d00759.mp3"
+      }
+    },
+    "whRemove": {
+      "phrases": {
+        "Склад снесён.": "actions/whRemove-00d20ede1c.mp3",
+        "Склада больше нет. Надеюсь, всё вывезли.": "actions/whRemove-4a5813fc91.mp3"
+      }
+    },
+    "whRename": {
+      "phrases": {
+        "Склад переименован. Табличку на двери перевесили.": "actions/whRename-5490e8ed88.mp3",
+        "Новая вывеска, старый хлам.": "actions/whRename-ca282e5792.mp3"
+      }
+    },
+    "whMembers": {
+      "phrases": {
+        "Ключи от склада перераздал.": "actions/whMembers-a5212fbe18.mp3",
+        "Состав склада обновлён. Кто-то остался без ключей.": "actions/whMembers-212363042e.mp3"
+      }
+    },
+    "raidKill": {
+      "phrases": {
+        "Лут в студию.": "actions/raidKill-0638ce3f76.mp3",
+        "Кто сегодня делит дроп?": "actions/raidKill-3178d28a0c.mp3",
+        "Красавцы.": "actions/raidKill-cadf0621ee.mp3"
+      },
+      "boss": "actions/raidKill-53da59f818.mp3"
+    },
+    "raidKillEdit": {
+      "phrases": {
+        "Запись в журнале исправлена. Историю пишут победители.": "actions/raidKillEdit-05e715e5b0.mp3",
+        "Подправил журнал. Никто не заметит.": "actions/raidKillEdit-b8d98284e9.mp3"
+      }
+    },
+    "raidKillDelete": {
+      "phrases": {
+        "Убийство удалено. Его как будто и не было.": "actions/raidKillDelete-052a8c3910.mp3",
+        "Стёр из журнала. Свидетелей нет.": "actions/raidKillDelete-8784b5615a.mp3",
+        "Удалил. Босс воскрес, поздравляю.": "actions/raidKillDelete-89a6b871d1.mp3"
+      }
+    },
+    "raidSale": {
+      "phrases": {
+        "Дроп продан. Денежки капают.": "actions/raidSale-e4220f473e.mp3",
+        "Продано!": "actions/raidSale-6ffdc48283.mp3",
+        "Ещё немного, и купим замок.": "actions/raidSale-2c7c5451c2.mp3"
+      }
+    },
+    "raidSaleDelete": {
+      "phrases": {
+        "Продажа отменена. Деньги вернулись в астрал.": "actions/raidSaleDelete-9e8be4a8c5.mp3",
+        "Удалил продажу. Кто-то уже успел потратить?": "actions/raidSaleDelete-06e4e7fc85.mp3",
+        "Сделка сорвалась.": "actions/raidSaleDelete-c9e5ca45ae.mp3"
+      }
+    },
+    "listingCreate": {
+      "phrases": {
+        "Список на продажу создан. Налетай, торопись.": "actions/listingCreate-23f727f638.mp3",
+        "Выставил на продажу. Ждём лохов.": "actions/listingCreate-d26d193a85.mp3"
+      }
+    },
+    "listingEdit": {
+      "phrases": {
+        "Список обновлён.": "actions/listingEdit-d4fc7033e5.mp3",
+        "Ценник переклеил.": "actions/listingEdit-9f2ab38f78.mp3",
+        "Поправил список. Торг уместен.": "actions/listingEdit-14fc4e60d5.mp3"
+      }
+    },
+    "listingClose": {
+      "phrases": {
+        "Лавочка закрыта.": "actions/listingClose-2d6fd7c6a2.mp3",
+        "Список закрыт. Никто не купил, обидно.": "actions/listingClose-26c1c8cdf1.mp3"
+      }
+    },
+    "listingDelete": {
+      "phrases": {
+        "Список на продажу удалён.": "actions/listingDelete-d266c1a234.mp3",
+        "Выкинул список. Всё равно никто не брал.": "actions/listingDelete-850a684963.mp3"
+      }
+    },
+    "raidSplit": {
+      "phrases": {
+        "Всё продано и попилено. Не ссорьтесь.": "actions/raidSplit-bb644e51fa.mp3",
+        "Попилили. Все довольны. Наверное.": "actions/raidSplit-1641bbc028.mp3"
+      }
+    },
+    "raidSettleAll": {
+      "phrases": {
+        "Всем всё выдано. Щедрость уровня бог.": "actions/raidSettleAll-354657150f.mp3",
+        "Раздал всем. Банк плачет.": "actions/raidSettleAll-134d56b2e2.mp3",
+        "Все расчёты закрыты. Можно спать спокойно.": "actions/raidSettleAll-61deaa844e.mp3"
+      }
+    },
+    "raidPaid": {
+      "phrases": {
+        "Выплачено. Не пропей всё сразу.": "actions/raidPaid-091b4418ca.mp3",
+        "Деньги ушли. Отметил.": "actions/raidPaid-3a14762b6a.mp3",
+        "Расплатились.": "actions/raidPaid-4d5bd5a2b6.mp3"
+      }
+    },
+    "raidUnpaid": {
+      "phrases": {
+        "Выплату отменил. Деньги верни, будь добр.": "actions/raidUnpaid-283e72aa50.mp3",
+        "Упс, не заплатили. Отметку снял.": "actions/raidUnpaid-8e92a86189.mp3"
+      }
+    },
+    "saleSettled": {
+      "phrases": {
+        "Продажа полностью закрыта. Все при деньгах.": "actions/saleSettled-ffe50332c4.mp3",
+        "Последний расчёт. Сделка закрыта.": "actions/saleSettled-272ac708ec.mp3"
+      }
+    },
+    "saleUnlock": {
+      "phrases": {
+        "Опять что-то напутали? Открываю продажу.": "actions/saleUnlock-15b783b874.mp3",
+        "Ну давай, исправляй свои косяки.": "actions/saleUnlock-2fc9c42da2.mp3"
+      }
+    },
+    "saleLock": {
+      "phrases": {
+        "Передумал? Закрыл обратно.": "actions/saleLock-c6258e062c.mp3",
+        "Продажа снова заперта.": "actions/saleLock-763de88b6b.mp3"
+      }
+    },
+    "payoutConfig": {
+      "phrases": {
+        "Настройки выплат поменяны. Надеюсь, не себе в карман.": "actions/payoutConfig-7a2b119d5d.mp3",
+        "Новые проценты. Кто-то будет недоволен.": "actions/payoutConfig-58e6586bc8.mp3"
+      }
+    },
+    "rosterPreset": {
+      "phrases": {
+        "Состав по умолчанию обновлён.": "actions/rosterPreset-de6eee082b.mp3",
+        "Новый основной состав. Запасные, не плачьте.": "actions/rosterPreset-3085fb0394.mp3"
+      }
+    },
+    "partyAdd": {
+      "phrases": {
+        "Новый боец в паке.": "actions/partyAdd-d078979a20.mp3",
+        "Пополнение в рядах.": "actions/partyAdd-69bc5385aa.mp3"
+      }
+    },
+    "partyRemove": {
+      "phrases": {
+        "Минус боец.": "actions/partyRemove-60008d0cf5.mp3",
+        "Он нам никогда не нравился.": "actions/partyRemove-60df951047.mp3"
+      }
+    },
+    "partyEdit": {
+      "phrases": {
+        "Данные игрока обновлены.": "actions/partyEdit-85840aaa26.mp3",
+        "Подправил игрока. Он даже не узнает.": "actions/partyEdit-67d1b12026.mp3"
+      }
+    },
+    "partyGear": {
+      "phrases": {
+        "Шмот обновлён. Теперь он почти одет.": "actions/partyGear-960e0ddc19.mp3",
+        "Новая шмотка. Всё равно умрёт первым.": "actions/partyGear-3174bacc1b.mp3"
+      }
+    },
+    "partyCreate": {
+      "phrases": {
+        "Новый пак создан. Собираем банду.": "actions/partyCreate-5574ff6bca.mp3",
+        "Пак создан. Осталось найти тех, кто будет ходить.": "actions/partyCreate-6221397d73.mp3"
+      }
+    },
+    "partyRename": {
+      "phrases": {
+        "Пак переименован. Звучит грозно.": "actions/partyRename-35120e6a19.mp3",
+        "Новое название. Старое было стыдным.": "actions/partyRename-c2727612c2.mp3"
+      }
+    },
+    "partyDelete": {
+      "phrases": {
+        "Пак распущен. Все свободны.": "actions/partyDelete-394670a977.mp3",
+        "Пака больше нет. Помянем.": "actions/partyDelete-f7b2bbc89c.mp3"
+      }
+    },
+    "login": {
+      "phrases": {
+        "С возвращением.": "actions/login-78698f218d.mp3",
+        "О, опять ты.": "actions/login-47ede376d7.mp3",
+        "Добро пожаловать. Респы сами себя не проверят.": "actions/login-8e5c335fca.mp3"
+      }
+    },
+    "logout": {
+      "phrases": {
+        "Пока-пока.": "actions/logout-b35df62599.mp3",
+        "Уже уходишь?": "actions/logout-8d0f9f5837.mp3",
+        "До скорого.": "actions/logout-5a61d58537.mp3"
+      }
+    }
+  }
+}

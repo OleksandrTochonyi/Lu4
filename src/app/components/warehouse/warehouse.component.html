@@ -34,6 +34,14 @@
         <i class="pi pi-list-check"></i> Набор
         <span class="wh-seg-count" *ngIf="planItems().length">{{ planItems().length }}</span>
       </button>
+      <button
+        type="button"
+        class="wh-seg-btn"
+        [class.active]="view() === 'history'"
+        (click)="view.set('history')"
+      >
+        <i class="pi pi-history"></i> История
+      </button>
     </div>
   </div>
 
@@ -395,6 +403,51 @@
         <option *ngFor="let s of pageSizes" [ngValue]="s">{{ s }} / стр</option>
       </select>
     </div>
+  </section>
+
+  <!-- =============================================== HISTORY ============ -->
+  <!-- every change of every stock row of the active warehouse, one feed -->
+  <section *ngIf="view() === 'history'" class="wh-body">
+    <div class="wh-toolbar">
+      <span class="wh-search">
+        <i class="pi pi-search"></i>
+        <input
+          pInputText
+          type="text"
+          [ngModel]="historySearch()"
+          (ngModelChange)="historySearch.set($event)"
+          placeholder="Ресурс или кто менял…"
+        />
+      </span>
+      <div class="wh-spacer"></div>
+      <span class="wh-total">Записей: <b>{{ combinedHistory().length }}</b></span>
+    </div>
+
+    <div class="wh-table wh-hfeed" *ngIf="combinedHistory().length; else emptyHistory">
+      <div class="wh-hrow" *ngFor="let h of combinedHistory(); trackBy: trackHist">
+        <span class="wh-hrow-time">{{ fmtTs(h.ts) }}</span>
+        <span class="wh-hrow-item">
+          <img *ngIf="h.icon" [src]="h.icon" [alt]="h.itemName" (error)="imgError($event)" />
+          <span class="c-name-txt">{{ h.itemName }}</span>
+        </span>
+        <span class="wh-hrow-move">
+          {{ h.from }} <i class="pi pi-arrow-right"></i>
+          <b [class.up]="h.to > h.from" [class.down]="h.to < h.from">{{ h.to }}</b>
+          <span class="wh-hist-diff" [class.up]="h.to > h.from" [class.down]="h.to < h.from">
+            ({{ h.to > h.from ? '+' : '' }}{{ h.to - h.from }})
+          </span>
+        </span>
+        <span class="wh-hrow-who" [pTooltip]="h.byEmail" tooltipPosition="left">{{ who(h.byEmail) }}</span>
+      </div>
+    </div>
+    <p class="wh-hint">По каждому ресурсу хранятся последние 5 изменений — лента собрана из них.</p>
+
+    <ng-template #emptyHistory>
+      <div class="wh-empty wh-empty--panel">
+        <div class="wh-empty-ic"><i class="pi pi-history"></i></div>
+        <p class="wh-empty-title">{{ historySearch() ? 'Ничего не найдено' : 'Изменений пока нет' }}</p>
+      </div>
+    </ng-template>
   </section>
 
   <!-- =============================================== CRAFT PLAN ========= -->

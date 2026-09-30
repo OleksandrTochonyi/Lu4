@@ -5,12 +5,41 @@
 }
 
 .main-logo {
-    width: 125px;
+    display: block;
+    height: 34px;
+    width: auto;
     margin-right: 30px;
 }
 
-.user-icon {
-    padding-right: 20px;
+// theme toggle + logout, one row, same size, vertically centred
+.menu-end {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding-right: 12px;
+}
+
+.menu-end-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.menu-end-btn:hover {
+    background: rgba(15, 23, 42, 0.06);
+}
+
+.menu-end-btn .pi {
+    font-size: 1rem;
+    line-height: 1;
 }
 
 :host {
@@ -33,5 +62,18 @@
         background: linear-gradient(135deg, #34d399, #10b981);
         color: #fff;
         box-shadow: 0 1px 3px rgba(16, 185, 129, 0.4);
+    }
+
+    // unseen "new IP" alerts on the Users item
+    ::ng-deep .ip-alert-badge.p-badge {
+        min-width: 1.1rem;
+        height: 1.1rem;
+        padding: 0 5px;
+        border-radius: 999px;
+        font-size: 0.65rem;
+        font-weight: 800;
+        line-height: 1.1rem;
+        background: #dc2626;
+        color: #fff;
     }
 }

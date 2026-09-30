@@ -20,7 +20,7 @@ import { RbJsonRespService } from '../../services/rb-json-resp.service';
 import { NoGradeRbService } from '../../services/nograde-rb.service';
 import { SiteUsersService } from '../../services/site-users.service';
 import { ActivityLogService } from '../../services/activity-log.service';
-import { RespVoiceService } from '../../services/resp-voice.service';
+import { RespVoiceService, RespVoiceWatcher } from '../../services/resp-voice.service';
 import { AuthService } from '../../services/auth.service';
 import { OnboardingService } from '../../services/onboarding.service';
 import { getRbKey, readHiddenIds } from '../../utils/rb-hidden';
@@ -193,6 +193,26 @@ export class BookmarksNewComponent {
   hiddenTabs = computed(() => this.tabs().filter((t) => t.hidden));
 
   activeTab = computed(() => this.tabs().find((t) => t.id === this.activeTabId()) ?? null);
+
+  /** voice «РБ … в респе»: the open bookmark, or every visible one (panel switch) */
+  private voiceWatcher = new RespVoiceWatcher(this.voice);
+  private readonly voiceWatch = effect(() => {
+    const now = this.now();
+    if (!this.voice.enabled()) {
+      this.voiceWatcher.check([], now); // drop baselines while muted
+      return;
+    }
+    const active = this.activeTab();
+    const tabs = this.voice.allTabs() ? this.visibleTabs() : active ? [active] : [];
+    const ids = new Set(tabs.flatMap((t) => t.rbIds ?? []));
+    const hidden = this.hiddenIds();
+    this.voiceWatcher.check(
+      this.items()
+        .filter((i) => ids.has(i?.id))
+        .map((i) => ({ ...i, hidden: hidden.has(getRbKey(i)) })),
+      now,
+    );
+  });
 
   // create/rename bookmark dialog state
   tabDialogVisible = signal(false);
@@ -495,6 +515,7 @@ export class BookmarksNewComponent {
       tab.id,
       (tab.rbIds ?? []).filter((id) => id !== rbId)
     );
+    this.voice.action('rbRemove');
   }
 
   // ---- bookmark CRUD (persisted to localStorage) ----
@@ -527,6 +548,7 @@ export class BookmarksNewComponent {
       this.writeStoredTabs(next);
       this.activeTabId.set(newTab.id);
       this.activityLog.log('Создал закладку', name);
+      this.voice.action('tabCreate');
     } else if (this.editingTabId) {
       const editingId = this.editingTabId;
       const hidden = this.tabHiddenDraft();
@@ -536,6 +558,7 @@ export class BookmarksNewComponent {
       this.writeStoredTabs(next);
       const renamed = prev && prev.name !== name ? `${prev.name} → ${name}` : name;
       this.activityLog.log('Изменил закладку', renamed);
+      this.voice.action('tabRename');
 
       if (hidden && this.activeTabId() === editingId) {
         this.activeTabId.set(next.find((t) => !t.hidden)?.id ?? '');
@@ -640,12 +663,32 @@ export class BookmarksNewComponent {
   closeClearDialog(): void {
     this.clearDialogTab.set(null);
   }
+  // step 2: one more "точно?" before anything is wiped (shared data)
   acceptClearDialog(): void {
     const tab = this.clearDialogTab();
-    const statuses = this.clearStatuses();
-    if (!tab || !statuses.size) return;
+    const statuses = new Set(this.clearStatuses());
+    const count = this.clearSelectedCount();
+    if (!tab || !statuses.size || !count) return;
+    const labels = this.clearOptions()
+      .filter((o) => statuses.has(o.status))
+      .map((o) => `«${o.label}»`)
+      .join(', ');
     this.clearDialogTab.set(null);
-    this.clearAllResp(tab, statuses);
+    // after the status dialog has closed — the confirm shares the page's p-confirmDialog
+    setTimeout(
+      () =>
+        this.confirmationService.confirm({
+          header: 'Очистить респы',
+          message: `Удалить время убийства у ${count} РБ закладки "${tab.name}" (${labels})? Вернуть можно только вручную.`,
+          icon: 'pi pi-exclamation-triangle',
+          acceptLabel: 'Очистить',
+          rejectLabel: 'Отмена',
+          acceptButtonStyleClass: 'p-button-danger',
+          rejectButtonStyleClass: 'p-button-text',
+          accept: () => this.clearAllResp(tab, statuses),
+        }),
+      250,
+    );
   }
 
   private clearAllResp(tab: CustomBossTab, statuses: Set<RbStatus>): void {
@@ -670,6 +713,7 @@ export class BookmarksNewComponent {
       const cleared = rbIds.length - failed;
       if (cleared > 0) {
         this.activityLog.log('Очистил время убийства РБ', `${tab.name}: ${cleared}`);
+        this.voice.action('clearAll');
       }
       if (failed) {
         this.messageService.add({
@@ -799,7 +843,10 @@ export class BookmarksNewComponent {
       );
       const failed = results.filter((r) => r.status === 'rejected').length;
       const done = updates.length - failed;
-      if (done > 0) this.activityLog.log('Синхронизировал респы с NG', `${tab.name}: ${done}`);
+      if (done > 0) {
+        this.activityLog.log('Синхронизировал респы с NG', `${tab.name}: ${done}`);
+        this.voice.action('sync');
+      }
       this.messageService.add({
         severity: failed ? 'warn' : 'success',
         summary: failed ? `Перенесено ${done}, ошибок: ${failed}` : `Перенесено из NG: ${done}`,
@@ -830,6 +877,7 @@ export class BookmarksNewComponent {
       this.activeTabId.set(next.find((t) => !t.hidden)?.id ?? '');
     }
     this.activityLog.log('Удалил закладку', gone?.name ?? '');
+    this.voice.action('tabDelete');
   }
 
   showTab(tab: CustomBossTab): void {

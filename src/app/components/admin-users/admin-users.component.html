@@ -15,6 +15,24 @@
     закрывает вход сразу; «убрать из списка» — тоже закрывает вход (записи больше нет).
   </div>
 
+  <div class="au-ipalert" *ngIf="ipAlerts().length">
+    <div class="au-ipalert-head">
+      <i class="pi pi-exclamation-triangle"></i>
+      <b>Вход с нового IP</b>
+      <span class="au-ipalert-n">{{ ipAlerts().length }}</span>
+      <span class="au-ipalert-sub">за последние 7 дней — адрес, с которого этот аккаунт раньше не заходил</span>
+      <button pButton type="button" icon="pi pi-check" label="Просмотрено" class="p-button-sm p-button-text"
+        (click)="ackIpAlerts()"></button>
+    </div>
+    <ul class="au-ipalert-list">
+      <li *ngFor="let a of ipAlerts()">
+        <span class="au-ipalert-who">{{ a.name || a.email }}</span>
+        <span class="au-ip au-ip--new">{{ a.ip }}</span>
+        <span class="au-date">{{ fmtDate(a.firstAt) }}</span>
+      </li>
+    </ul>
+  </div>
+
   <div class="au-tiles">
     <div class="au-tile">
       <span class="au-tile-label">Всего</span>
@@ -65,6 +83,7 @@
       <span class="au-date">{{ fmtDate(u.lastSeenAt) }}</span>
       <span class="au-ips">
         <span class="au-ip" *ngFor="let e of ipsOf(u); let first = first" [class.au-ip--last]="first"
+          [class.au-ip--new]="isNewIp(u, e.ip)"
           [pTooltip]="ipTooltip(e)" tooltipPosition="top">{{ e.ip }}</span>
         <span class="au-date" *ngIf="!ipsOf(u).length">—</span>
       </span>

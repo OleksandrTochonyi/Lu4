@@ -21,3 +21,146 @@ app-root {
   flex-direction: column;
   height: 100%;
 }
+
+/* ---------------------------------------------------------------- dark theme
+ * Whole-page invert (ThemeService toggles `app-dark` on <html>). invert +
+ * hue-rotate(180) flips lightness but keeps hues, so status colours stay
+ * green / red / orange — just dark versions. contrast(.88) softens pure
+ * black/white. Pictures get the exact inverse filter so they look normal:
+ * the page filter runs AFTER theirs, and the two cancel out.
+ */
+html.app-dark {
+  filter: invert(1) hue-rotate(180deg) contrast(0.88);
+  background: #f8f9fa;
+}
+html.app-dark img,
+html.app-dark video,
+html.app-dark canvas,
+html.app-dark .map-viewport,
+html.app-dark .paperdoll,
+html.app-dark .no-invert {
+  filter: contrast(1.1364) hue-rotate(180deg) invert(1);
+}
+/* ...but not twice: pictures inside an already re-inverted block */
+html.app-dark .map-viewport img,
+html.app-dark .map-viewport canvas,
+html.app-dark .paperdoll img,
+html.app-dark .no-invert img {
+  filter: none;
+}
+/* dark modal backdrops would turn into a white haze — use light ones, they invert to dark */
+html.app-dark .p-dialog-mask,
+html.app-dark .p-overlay-mask {
+  background: rgba(255, 255, 255, 0.55) !important;
+}
+
+/* Keep-original-colours list: saturated fills with white text. Inverted they
+ * become dark text on a dark fill (unreadable), so they get the page filter
+ * cancelled and look exactly like in the light theme — a bright badge on a dark
+ * page. Don't list an element that sits INSIDE another listed one (it'd be
+ * flipped twice). */
+html.app-dark {
+  .p-badge,
+  .p-button:not(.p-button-text):not(.p-button-outlined):not(.p-button-link):not(.p-button-secondary),
+  .p-checkbox-checked .p-checkbox-box,
+  .p-radiobutton-checked .p-radiobutton-box,
+  .p-toggleswitch-checked .p-toggleswitch-slider,
+  .p-datepicker-day-selected,
+  app-grade-badge,
+  app-chance-badge,
+  .status-seg,
+  .hidden-flag,
+  /* raids */
+  .rd-kill-badge,
+  .rd-kill-soldout-tag,
+  .rd-kill-nodrop-tag,
+  .rd-listing-status--draft,
+  .rd-listing-status--closed,
+  .rd-listing-status--sold,
+  .rd-role-tag--bank,
+  .rd-role-tag--leader,
+  .rd-role-tag--merc,
+  .rd-role-tag--mixed,
+  .rd-toggle-chip.active,
+  .rd-pg-num.active,
+  /* warehouse */
+  .wh-chip.active,
+  .wh-switch-btn.active,
+  .wh-pg-num.active,
+  .wh-add-card.picked .wh-add-check,
+  .wh-add-owned,
+  .wh-cat,
+  /* admin */
+  .au-role,
+  .au-ipalert-n,
+  .au-ip--new {
+    filter: contrast(1.1364) hue-rotate(180deg) invert(1);
+  }
+}
+
+/* Pale tinted backgrounds (…-50 / -100 shades) invert to near-black and the
+ * tint disappears. In dark mode they get a deeper (…-200/300) shade, which
+ * inverts to a clearly visible dark green / red / slate / indigo. */
+/* Surfaces vs page: white cards and the near-white page both invert to almost
+ * the same black, so cards melt into the background. In dark mode the page
+ * stays the darkest layer and the main blocks get a grey-blue that inverts to a
+ * visibly lighter slate. (Lighter before inversion = darker after it.) */
+html.app-dark {
+  .rd-kill,
+  .rd-kill-head,
+  .rd-sale,
+  .rd-listing,
+  .rd-stat-tile,
+  .rd-stat-table,
+  .rd-pager,
+  .rd-seg,
+  .rd-seg-btn:not(.active) {
+    background: #d3dae3;
+  }
+  .rd-stat-row--h > * {
+    background: #c4ccd7;
+  }
+  .rd-seg-btn.active {
+    background: #93c5fd;
+  }
+}
+
+html.app-dark {
+  /* raids — kill cards: sold-out ones sink back towards the page (dimmer) */
+  .rd-kill.is-soldout,
+  .rd-kill.is-soldout .rd-kill-head,
+  .rd-kill.is-soldout.is-open .rd-kill-head {
+    background: #eaeef3;
+  }
+  .rd-kill.is-open .rd-kill-head {
+    background: #c7d2fe;
+  }
+  .rd-drop-chip.is-partial {
+    background: #fcd34d;
+  }
+  .rd-drop-chip.is-soldout {
+    background: #cbd5e1;
+  }
+  /* raids — sales */
+  .rd-sale.is-settled {
+    background: #86efac;
+    border-color: #4ade80;
+  }
+  /* warehouse picker */
+  .wh-add-card.owned {
+    background: #a7f3d0;
+  }
+  .wh-add-card.picked {
+    background: #c7d2fe;
+  }
+  .wh-qty-draft.changed {
+    background: #c7d2fe;
+  }
+  /* admin */
+  .au-ipalert {
+    background: #fca5a5;
+  }
+  .au-row--blocked > * {
+    background: #fca5a5;
+  }
+}

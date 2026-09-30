@@ -45,3 +45,7 @@ Thumbs.db
 .firebase
 *-debug.log
 .runtimeconfig.json
+
+# ElevenLabs API key for scripts/generate-voice.mjs — never commit
+.env.voice
+/.voice-preview

@@ -12,7 +12,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
 
 import { AuthService } from '../../services/auth.service';
-import { SiteRole, SiteUser, SiteUsersService } from '../../services/site-users.service';
+import { NewIpAlert, SiteRole, SiteUser, SiteUsersService } from '../../services/site-users.service';
 import { ActivityEntry, ActivityLogService } from '../../services/activity-log.service';
 
 @Component({
@@ -43,6 +43,16 @@ export class AdminUsersComponent {
   readonly activityNav = toSignal(this.activityLog.recentNav$, { initialValue: [] as ActivityEntry[] });
 
   readonly users = toSignal(this.siteUsers.siteUsers$, { initialValue: [] as SiteUser[] });
+  /** accounts that logged in from an IP they had never used before (unseen ones) */
+  readonly ipAlerts = toSignal(this.siteUsers.newIpAlerts$, { initialValue: [] as NewIpAlert[] });
+  ackIpAlerts(): void {
+    this.siteUsers.ackIpAlerts();
+  }
+  /** "ip@email" keys of unseen new IPs — their chip in the IP column is marked */
+  private readonly newIpKeys = computed(() => new Set(this.ipAlerts().map((a) => `${a.ip}@${a.email}`)));
+  isNewIp(u: SiteUser, ip: string): boolean {
+    return this.newIpKeys().has(`${ip}@${u.email}`);
+  }
   readonly myEmail = toSignal(
     this.auth.user$.pipe(map((u) => String(u?.email ?? '').trim().toLowerCase())),
     { initialValue: '' },
