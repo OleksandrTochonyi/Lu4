@@ -60,6 +60,8 @@ export interface RaidKill {
   participants: RaidParticipant[];
   drops: RaidDrop[];
   note: string;
+  /** farmed together with Feels — shown with its own tag; the drop may or may not be there */
+  withFeels: boolean;
   createdBy: string;
   createdAt: number;
 }
@@ -222,6 +224,7 @@ function normalizeKill(raw: any): RaidKill {
     participants: Array.isArray(raw?.participants) ? raw.participants.map(normalizeParticipant) : [],
     drops: Array.isArray(raw?.drops) ? raw.drops.map(normalizeDrop) : [],
     note: String(raw?.note ?? ''),
+    withFeels: !!raw?.withFeels,
     createdBy: String(raw?.createdBy ?? ''),
     createdAt: toNum(raw?.createdAt),
   };

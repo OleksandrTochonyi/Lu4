@@ -288,6 +288,40 @@
   color: #dc2626;
   background: #fee2e2;
 }
+.rd-kill-feels-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: #7c3aed;
+  background: #ede9fe;
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  flex: none;
+}
+.rd-kill-feels-tag .pi {
+  font-size: 0.7rem;
+}
+/* farmed with Feels — violet stripe on the left edge */
+.rd-kill.is-feels {
+  border-left: 4px solid #a78bfa;
+}
+.rd-toggle-chip--feels {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.rd-toggle-chip--feels .pi {
+  font-size: 0.72rem;
+}
+.rd-toggle-chip--feels.active {
+  background: #ede9fe !important;
+  border-color: #a78bfa !important;
+  color: #6d28d9 !important;
+}
 .rd-kill-title {
   display: flex;
   align-items: baseline;

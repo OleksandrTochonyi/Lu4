@@ -55,6 +55,8 @@
           (click)="killStatusFilter.set('open')">Есть дроп</button>
         <button type="button" class="rd-toggle-chip rd-toggle-chip--done" [class.active]="killStatusFilter() === 'closed'"
           (click)="killStatusFilter.set('closed')">Распродано</button>
+        <button type="button" class="rd-toggle-chip rd-toggle-chip--feels" [class.active]="killStatusFilter() === 'feels'"
+          (click)="killStatusFilter.set('feels')"><i class="pi pi-users"></i> С филзом</button>
       </div>
       <span class="rd-spacer"></span>
       <button pButton type="button" icon="pi pi-plus" label="Добавить РБ" (click)="openKillDialog()"></button>
@@ -63,7 +65,7 @@
     <div class="rd-kills" *ngIf="filteredKills().length; else emptyKills">
       <div class="rd-kill" *ngFor="let k of filteredKills(); trackBy: trackByKill" [attr.data-kill-id]="k.id"
         [class.is-open]="isKillExpanded(k.id)" [class.is-soldout]="isKillFullySold(k)"
-        [class.is-highlighted]="highlightedKillId() === k.id">
+        [class.is-highlighted]="highlightedKillId() === k.id" [class.is-feels]="k.withFeels">
         <div class="rd-kill-head" role="button" tabindex="0" (click)="toggleKillExpanded(k.id)"
           (keydown.enter)="toggleKillExpanded(k.id)">
           <i class="pi rd-kill-chevron" [ngClass]="isKillExpanded(k.id) ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
@@ -75,9 +77,13 @@
             <b>{{ k.bossName }}</b>
             <span class="rd-kill-lvl" *ngIf="k.bossLevel">ур. {{ k.bossLevel }}</span>
           </span>
-          <span class="rd-kill-nodrop-tag" *ngIf="isKillNoDrop(k)" pTooltip="С этого убийства не выпало ничего"
+          <span class="rd-kill-nodrop-tag" *ngIf="isKillNoDrop(k)"
+            [pTooltip]="k.withFeels ? 'Фармили с филзом — нам с этого ничего не досталось' : 'С этого убийства не выпало ничего'"
             tooltipPosition="top">
-            <i class="pi pi-times-circle"></i> Нихуя не выпало
+            <i class="pi pi-times-circle"></i> {{ k.withFeels ? 'Нихуя нам не перепало' : 'Нихуя не выпало' }}
+          </span>
+          <span class="rd-kill-feels-tag" *ngIf="k.withFeels" pTooltip="Зафармили вместе с филзом" tooltipPosition="top">
+            <i class="pi pi-users"></i> С филзом
           </span>
           <span class="rd-kill-soldout-tag" *ngIf="isKillFullySold(k) && !isKillNoDrop(k)"
             pTooltip="Весь дроп с этого убийства продан" tooltipPosition="top">
@@ -700,8 +706,8 @@
     <div class="rd-form-row">
       <label class="rd-field rd-field--grow">
         <span>Рейд-босс (по уровню)</span>
-        <p-dropdown [options]="bossOptions()" optionLabel="label" optionValue="value" [filter]="true"
-          filterBy="label" [ngModel]="killBossId()" (ngModelChange)="onKillBossChange($event)"
+        <p-dropdown [options]="bossOptions()" [group]="true" optionGroupLabel="label" optionGroupChildren="items"
+          optionLabel="label" optionValue="value" [filter]="true" filterBy="label" [ngModel]="killBossId()" (ngModelChange)="onKillBossChange($event)"
           placeholder="Выбрать" appendTo="body"></p-dropdown>
       </label>
       <label class="rd-field">
@@ -711,12 +717,21 @@
       </label>
     </div>
 
-    <div class="rd-mark-dead">
+    <div class="rd-mark-dead" *ngIf="!editingKillId()">
       <p-toggleswitch inputId="kill-mark-dead" [ngModel]="killMarkAsDead()"
         (ngModelChange)="killMarkAsDead.set($event)" />
       <label for="kill-mark-dead">
         Пометить как убитый
         <span class="rd-mark-dead-hint">Время смерти = «Дата и время» выше, для карты и закладок</span>
+      </label>
+    </div>
+
+    <div class="rd-mark-dead rd-mark-feels">
+      <p-toggleswitch inputId="kill-with-feels" [ngModel]="killWithFeels()"
+        (ngModelChange)="killWithFeels.set($event)" />
+      <label for="kill-with-feels">
+        Зафармили с филзом
+        <span class="rd-mark-dead-hint">Отдельная пометка в списке — дроп при этом может быть, а может и не быть</span>
       </label>
     </div>
 

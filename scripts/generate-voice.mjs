@@ -106,7 +106,7 @@ async function readActions() {
   const { VOICE_ACTIONS } = await import(url);
   return Object.entries(VOICE_ACTIONS ?? {}).map(([key, a]) => ({
     key,
-    boss: (a.boss ?? '').trim(),
+    lead: (a.lead ?? a.boss ?? '').trim(),
     phrases: [...new Set((a.phrases ?? []).map((p) => String(p).trim()).filter(Boolean))],
   }));
 }
@@ -226,7 +226,7 @@ async function main() {
       ...phrases.map((text) => ({ group: 'phrases', id: text, text })),
       ...bosses.map((b) => ({ group: 'bosses', id: b.id, text: b.text })),
       ...actions.flatMap((a) => [
-        ...(a.boss ? [{ group: 'actions', action: a.key, id: '#boss', text: a.boss }] : []),
+        ...(a.lead ? [{ group: 'actions', action: a.key, id: '#boss', text: a.lead }] : []),
         ...a.phrases.map((text) => ({ group: 'actions', action: a.key, id: text, text })),
       ]),
     ].map((j) => {

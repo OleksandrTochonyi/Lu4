@@ -2,8 +2,9 @@
  * Voice lines for user actions around the site (the header's «Озвучка» → «Действия»).
  *
  * Each action:
- * - `boss` — optional: the line starts with «Эр-бэ <имя босса> <boss>», e.g. «Эр-бэ Анаким убит.»
- * - `phrases` — one of them is picked at random and said (after the boss part, if any).
+ * - `lead` — optional: said first, before the phrase, e.g. «Время убийства поправлено.»
+ *   (no boss name — the site never says which boss on actions)
+ * - `phrases` — one of them is picked at random and said (after `lead`, if any).
  *   Add / remove / edit lines freely — keep them short.
  *
  * After editing, re-render the clips (the local TTS container must be running):
@@ -15,7 +16,7 @@
 export interface VoiceAction {
   /** where / when it plays — just a note for whoever edits this file */
   when: string;
-  boss?: string;
+  lead?: string;
   phrases: string[];
 }
 
@@ -24,7 +25,7 @@ export const VOICE_ACTIONS = {
 
   kill: {
     when: 'Закладки: нажал «убит сейчас» у босса',
-    boss: 'убит.',
+    lead: 'убит.',
     phrases: [
       'Помянем.',
       'Минус один.',
@@ -36,12 +37,12 @@ export const VOICE_ACTIONS = {
   },
   killEdit: {
     when: 'Закладки: вручную поменял время убийства',
-    boss: 'время убийства поправлено.',
+    lead: 'время убийства поправлено.',
     phrases: ['Надеюсь, в этот раз правильно.', 'Ну, тебе виднее.', 'Записал.'],
   },
   killClear: {
     when: 'Закладки: стёр время убийства у босса',
-    boss: 'время убийства стёрто.',
+    lead: 'время убийства стёрто.',
     phrases: ['Как будто его и не было.', 'Ладно, забыли.'],
   },
   rollback: {
@@ -122,7 +123,7 @@ export const VOICE_ACTIONS = {
 
   raidKill: {
     when: 'Рейды: отметил убийство РБ',
-    boss: 'убит. Записал в журнал.',
+    lead: 'убит. Записал в журнал.',
     phrases: ['Лут в студию.', 'Кто сегодня делит дроп?', 'Красавцы.'],
   },
   raidKillEdit: {

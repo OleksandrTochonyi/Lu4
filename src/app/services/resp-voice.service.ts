@@ -88,7 +88,7 @@ interface Step {
  * browser's own voice for just that piece.
  *
  * Per-browser switches in localStorage: resp announcements (on by default),
- * "все закладки" (off = only the open bookmark), actions (on by default).
+ * "все закладки" (on by default; off = only the open bookmark), actions (on by default).
  * Everything is queued, so several announcements are read one after another.
  *
  * Browsers only let a page make sound after the user has interacted with it at
@@ -99,7 +99,7 @@ export class RespVoiceService {
   /** «РБ … в респе» announcements */
   readonly enabled = signal(readFlag(LS_ENABLED, true));
   /** watch every bookmark, not just the open one */
-  readonly allTabs = signal(readFlag(LS_ALL_TABS, false));
+  readonly allTabs = signal(readFlag(LS_ALL_TABS, true));
   /** joke lines on user actions */
   readonly actionsEnabled = signal(readFlag(LS_ACTIONS, true));
   private announced = new Set<string>();
@@ -206,10 +206,11 @@ export class RespVoiceService {
   }
 
   /**
-   * A joke line for a user action (see data/action-phrases.ts). Actions with a
-   * `boss` part start with «Эр-бэ <имя> …» — pass the boss for those.
+   * A joke line for a user action (see data/action-phrases.ts): the optional
+   * `lead` («время убийства поправлено.»), then a random phrase. Never says the
+   * boss name — `_boss` is accepted only so call sites can keep passing it.
    */
-  action(key: VoiceActionKey, boss?: { id?: string | number | null; name?: string | null }): void {
+  action(key: VoiceActionKey, _boss?: { id?: string | number | null; name?: string | null }): void {
     if (!this.actionsEnabled()) return;
     const now = Date.now();
     if (now - (this.lastAction.get(key) ?? 0) < ACTION_REPEAT_MS) return;
@@ -219,13 +220,7 @@ export class RespVoiceService {
     const m = this.manifest();
     const clips = m?.actions?.[key];
     const steps: Step[] = [];
-    if (def.boss) {
-      const bossId = boss?.id != null ? String(boss.id) : '';
-      const name = String(boss?.name ?? '').trim();
-      steps.push(this.fixedStep('intro', 'РБ'));
-      if (bossId || name) steps.push({ url: this.url(m?.bosses?.[bossId]), text: name });
-      steps.push({ url: this.url(clips?.boss), text: def.boss });
-    }
+    if (def.lead) steps.push({ url: this.url(clips?.boss), text: def.lead });
     const phrase = pick(def.phrases);
     if (phrase) steps.push({ url: this.url(clips?.phrases?.[phrase]), text: phrase });
     if (steps.length) this.play(steps);

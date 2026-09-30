@@ -212,11 +212,24 @@ export class RaidsComponent {
 
   private readonly catalogNameIndex = computed(() => buildNameIndex(this.catalog()));
 
-  readonly bossOptions = computed(() =>
-    [...this.bosses()]
+  /** boss ids from this browser's Bookmarks page (re-read each time the dialog opens) */
+  readonly bookmarkedBossIds = signal<Set<string>>(readBookmarkedBossIds());
+
+  /** boss picker: bosses from the bookmarks first, then all the rest — each by level */
+  readonly bossOptions = computed(() => {
+    const marked = this.bookmarkedBossIds();
+    const opts = [...this.bosses()]
       .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name))
-      .map((b) => ({ label: `[${b.level}] ${b.name}`, value: b.id })),
-  );
+      .map((b) => ({ label: `[${b.level}] ${b.name}`, value: b.id }));
+    const mine = opts.filter((o) => marked.has(String(o.value)));
+    const rest = opts.filter((o) => !marked.has(String(o.value)));
+    return mine.length
+      ? [
+          { label: 'Из закладок', items: mine },
+          { label: 'Остальные РБ', items: rest },
+        ]
+      : [{ label: 'Все РБ', items: rest }];
+  });
   readonly selectedBoss = computed(() => this.bosses().find((b) => b.id === this.killBossId()) ?? null);
 
   /** every player across every pack, for the mercenary/leader pickers */
@@ -261,8 +274,8 @@ export class RaidsComponent {
 
   /** search across boss name, participant names, drop names, and the kill date */
   readonly killSearch = signal('');
-  /** all kills / only ones with drop still unsold / only fully sold-out ones */
-  readonly killStatusFilter = signal<'all' | 'open' | 'closed'>('all');
+  /** all kills / only ones with drop still unsold / only fully sold-out ones / farmed with Feels */
+  readonly killStatusFilter = signal<'all' | 'open' | 'closed' | 'feels'>('all');
 
   readonly filteredKills = computed(() => {
     const q = this.killSearch().trim().toLowerCase();
@@ -271,12 +284,14 @@ export class RaidsComponent {
       const soldOut = this.isKillFullySold(k);
       if (status === 'open' && soldOut) return false;
       if (status === 'closed' && !soldOut) return false;
+      if (status === 'feels' && !k.withFeels) return false;
       if (!q) return true;
       const haystack = [
         k.bossName,
         this.fmtDate(k.killedAt),
         ...k.participants.map((p) => p.name),
         ...k.drops.map((d) => d.name),
+        k.withFeels ? 'филз' : '',
       ]
         .join(' ')
         .toLowerCase();
@@ -316,6 +331,8 @@ export class RaidsComponent {
   /** also push this boss's kill time to the shared resp tracker (rb-resp-time,
    *  same store the Bookmarks page uses) using the "Дата и время" above */
   readonly killMarkAsDead = signal(true);
+  /** «Зафармили с филзом» */
+  readonly killWithFeels = signal(false);
   readonly killPackIds = signal<Set<string>>(new Set());
   /** `${groupId}:${userId}` -> selected */
   readonly killParticipants = signal<Set<string>>(new Set());
@@ -333,12 +350,14 @@ export class RaidsComponent {
   }
 
   openKillDialog(): void {
+    this.bookmarkedBossIds.set(readBookmarkedBossIds());
     this.editingKillId.set(null);
     this.editingOriginalDrops = [];
     this.killBossId.set(null);
     this.killDate.set(this.nowLocalInput());
     this.killNote.set('');
     this.killMarkAsDead.set(true);
+    this.killWithFeels.set(false);
     // pre-fill from the "Текущий состав" preset — still fully editable from here
     const preset = this.rosterPreset()?.players ?? [];
     this.killPackIds.set(new Set(preset.map((p) => p.groupId)));
@@ -352,11 +371,14 @@ export class RaidsComponent {
 
   /** open the same dialog pre-filled from an existing kill, to fix a mistake */
   openEditKill(kill: RaidKill): void {
+    this.bookmarkedBossIds.set(readBookmarkedBossIds());
     this.editingKillId.set(kill.id);
     this.editingOriginalDrops = kill.drops;
     this.killDate.set(this.localInputFromDate(new Date(kill.killedAt)));
     this.killNote.set(kill.note ?? '');
+    // editing never touches the bookmarks' kill time (the switch is hidden too)
     this.killMarkAsDead.set(false);
+    this.killWithFeels.set(kill.withFeels);
     this.killPackIds.set(new Set(kill.packIds));
     this.killParticipants.set(new Set(kill.participants.map((p) => `${p.groupId}:${p.userId}`)));
     this.onKillBossChange(kill.bossId);
@@ -508,6 +530,7 @@ export class RaidsComponent {
       participants,
       drops,
       note: this.killNote().trim(),
+      withFeels: this.killWithFeels(),
     };
 
     this.savingKill.set(true);
@@ -522,8 +545,9 @@ export class RaidsComponent {
       }
       // optionally also mark the boss "killed" in the shared resp tracker
       // (rb-resp-time — same store the Bookmarks page reads/writes), using the
-      // kill's own "Дата и время" as the death time
-      if (this.killMarkAsDead()) {
+      // kill's own "Дата и время" as the death time. New kills only — editing an
+      // old record must never move the bookmarks' kill time.
+      if (!editId && this.killMarkAsDead()) {
         try {
           // the kill itself is already logged by raid-loot — don't double-log
           await this.rbJsonResp.setKillTime(boss.id, new Date(killedAt), { silent: true });
@@ -2300,5 +2324,16 @@ export class RaidsComponent {
       if (this.tourActive() || !this.pendingTourUid()) return;
       this.tourActive.set(true);
     });
+  }
+}
+
+/** every boss id in the Bookmarks page's tabs (localStorage `rb-new-custom-tabs`, this browser) */
+function readBookmarkedBossIds(): Set<string> {
+  try {
+    const tabs = JSON.parse(localStorage.getItem('rb-new-custom-tabs') ?? '[]');
+    if (!Array.isArray(tabs)) return new Set();
+    return new Set(tabs.flatMap((t: any) => (Array.isArray(t?.rbIds) ? t.rbIds.map(String) : [])));
+  } catch {
+    return new Set();
   }
 }
