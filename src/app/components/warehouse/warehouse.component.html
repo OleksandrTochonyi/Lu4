@@ -537,30 +537,31 @@
       <div class="wh-plan-result-h">
         <h3>Сколько нужно ресурсов</h3>
         <div class="wh-chips">
-          <button
-            type="button"
-            class="wh-chip"
-            [class.active]="!planFlat()"
-            (click)="planFlat.set(false)"
-          >
+          <button type="button" class="wh-chip" [class.active]="planView() === 'tree'" (click)="setPlanView('tree')">
             Составные
+          </button>
+          <button type="button" class="wh-chip" [class.active]="planView() === 'flat'" (click)="setPlanView('flat')">
+            Простой список
           </button>
           <button
             type="button"
-            class="wh-chip"
-            [class.active]="planFlat()"
-            (click)="planFlat.set(true)"
+            class="wh-chip wh-chip--aden"
+            [class.active]="planView() === 'aden'"
+            pTooltip="Указать цены ресурсов и посчитать, сколько адены нужно на докупку недостающего"
+            tooltipPosition="top"
+            (click)="setPlanView('aden')"
           >
-            Простой список
+            <i class="pi pi-wallet"></i> В адене
           </button>
         </div>
       </div>
       <app-cost-tree
-        *ngIf="!planFlat()"
+        *ngIf="planView() === 'tree'"
         [tree]="planCost().tree"
         [shortfall]="planCost().shortfall"
       />
-      <app-cost-table *ngIf="planFlat()" [rows]="planRollup()" />
+      <app-cost-table *ngIf="planView() === 'flat'" [rows]="planRollup()" />
+      <app-cost-aden *ngIf="planView() === 'aden'" [rows]="planRollup()" />
     </div>
   </section>
 </div>

@@ -14,6 +14,7 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 
 import { GradeBadgeComponent } from '../shared/grade-badge/grade-badge.component';
 import { CostTableComponent } from '../shared/cost-table/cost-table.component';
+import { CostAdenComponent } from '../shared/cost-aden/cost-aden.component';
 import { CostTreeComponent } from '../shared/cost-tree/cost-tree.component';
 import { CraftDetailComponent } from './craft-detail/craft-detail.component';
 import {
@@ -45,6 +46,7 @@ interface PlanItem {
 }
 
 const LS_PLAN = 'wh-craft-plan';
+const LS_PLAN_VIEW = 'wh-craft-plan-view';
 /** last picked warehouse (per browser) */
 const LS_ACTIVE_WH = 'wh-active';
 
@@ -84,6 +86,7 @@ function writeLS(key: string, value: string): void {
     TooltipModule,
     GradeBadgeComponent,
     CostTableComponent,
+    CostAdenComponent,
     CostTreeComponent,
     CraftDetailComponent,
   ],
@@ -745,8 +748,14 @@ export class WarehouseComponent {
     return new CraftCostCalc(this.catalog(), this.stock()).computePlan(roots);
   });
   readonly planRollup = computed(() => this.planCost().rollup);
-  /** plan result view: composite tree (default) vs flat resource list */
-  readonly planFlat = signal(false);
+  /** plan result view: composite tree (default), flat resource list, or priced in adena */
+  readonly planView = signal<'tree' | 'flat' | 'aden'>(
+    ((v) => (v === 'flat' || v === 'aden' ? v : 'tree'))(readLS(LS_PLAN_VIEW)),
+  );
+  setPlanView(v: 'tree' | 'flat' | 'aden'): void {
+    this.planView.set(v);
+    writeLS(LS_PLAN_VIEW, v);
+  }
 
   recipeOptionsFor(entry: CraftEntry | null): { value: number; label: string }[] {
     return (entry?.recipes ?? []).map((r, i) => ({ value: i, label: recipeLabel(r) }));

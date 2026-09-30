@@ -77,6 +77,18 @@
   color: #1d4ed8;
   font-weight: 600;
 }
+.cd-seg-btn--aden {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.cd-seg-btn--aden .pi {
+  font-size: 0.75rem;
+}
+.cd-seg-btn--aden.active {
+  background: #fef3c7;
+  color: #92400e;
+}
 
 .cd-summary {
   display: flex;

@@ -7,9 +7,23 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { TooltipModule } from 'primeng/tooltip';
 
 import { GradeBadgeComponent } from '../../shared/grade-badge/grade-badge.component';
+import { CostAdenComponent } from '../../shared/cost-aden/cost-aden.component';
 import { CraftEntry, CraftRecipe } from '../../../services/craft-catalog.service';
 import { StockItem } from '../../../services/warehouse.service';
 import { CostNode, CostPlan, CraftCostCalc, recipeLabel } from '../../../utils/craft-cost';
+
+/** same key as the warehouse «Набор» result view — one choice for both */
+const LS_VIEW = 'wh-craft-plan-view';
+type CostView = 'tree' | 'flat' | 'aden';
+
+function readView(): CostView {
+  try {
+    const v = localStorage.getItem(LS_VIEW);
+    return v === 'flat' || v === 'aden' ? v : 'tree';
+  } catch {
+    return 'tree';
+  }
+}
 
 @Component({
   selector: 'app-craft-detail',
@@ -22,6 +36,7 @@ import { CostNode, CostPlan, CraftCostCalc, recipeLabel } from '../../../utils/c
     InputNumberModule,
     TooltipModule,
     GradeBadgeComponent,
+    CostAdenComponent,
   ],
   templateUrl: './craft-detail.component.html',
   styleUrl: './craft-detail.component.scss',
@@ -35,8 +50,19 @@ export class CraftDetailComponent {
 
   readonly craftQty = signal(1);
   readonly recipeIndex = signal(0);
-  /** recursively expand shortages down to base resources */
-  readonly deep = signal(false);
+  /** composite tree / flat list of base resources / priced in adena */
+  readonly view = signal<CostView>(readView());
+  /** flat list of base resources */
+  readonly deep = computed(() => this.view() === 'flat');
+
+  setView(v: CostView): void {
+    this.view.set(v);
+    try {
+      localStorage.setItem(LS_VIEW, v);
+    } catch {
+      /* ignore */
+    }
+  }
   /**
    * per-row expand override, keyed by node key. Absent → use the default
    * (a composite row is open unless it is fully covered by the stock).

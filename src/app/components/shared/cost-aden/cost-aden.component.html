@@ -1,0 +1,97 @@
+<div class="ca-summary" *ngIf="rows().length">
+  <div class="ca-total">
+    <span class="ca-total-label">Нужно потратить на докупку</span>
+    <span class="ca-total-value">
+      {{ fmt(totals().buy) }} <small>аден</small>
+    </span>
+    <span class="ca-total-short" *ngIf="totals().buy >= 1000">≈ {{ short(totals().buy) }}</span>
+  </div>
+  <div class="ca-sub">
+    <div class="ca-sub-item" pTooltip="Сколько стоит то, что уже лежит на складе и уйдёт в крафт" tooltipPosition="top">
+      <span>Склад покрывает</span>
+      <b>{{ fmt(totals().covered) }}</b>
+    </div>
+    <div class="ca-sub-item" pTooltip="Если бы на складе не было ничего — купить всё с нуля" tooltipPosition="top">
+      <span>Весь крафт по ценам</span>
+      <b>{{ fmt(totals().all) }}</b>
+    </div>
+  </div>
+  <div class="ca-warn" *ngIf="totals().unpriced">
+    <i class="pi pi-exclamation-triangle"></i>
+    Не указана цена у {{ totals().unpriced }} из {{ totals().missingKinds }} недостающих ресурсов — сумма неполная.
+  </div>
+  <div class="ca-ok" *ngIf="!totals().missingKinds">
+    <i class="pi pi-check-circle"></i> Докупать ничего не нужно — на складе всё есть.
+  </div>
+</div>
+
+<div class="ca-toolbar" *ngIf="rows().length">
+  <label class="ca-only">
+    <input type="checkbox" [checked]="onlyMissing()" (change)="onlyMissing.set($any($event.target).checked)" />
+    Только то, чего не хватает
+  </label>
+  <span class="ca-hint">Цена за 1 шт. Можно писать <b>150к</b>, <b>1.5кк</b>, <b>1 500 000</b>. Цены запоминаются в этом браузере.</span>
+  <span class="ca-clear">
+    @if (!confirmClear()) {
+      <button
+        type="button"
+        class="ca-clear-btn"
+        [disabled]="!pricedCount()"
+        pTooltip="Стереть цены у всех ресурсов этого набора"
+        tooltipPosition="top"
+        (click)="confirmClear.set(true)"
+      >
+        <i class="pi pi-eraser"></i> Очистить цены
+      </button>
+    } @else {
+      <span class="ca-clear-ask">Стереть {{ pricedCount() }} цен?</span>
+      <button type="button" class="ca-clear-btn ca-clear-btn--yes" (click)="clearPrices()">Да</button>
+      <button type="button" class="ca-clear-btn" (click)="confirmClear.set(false)">Нет</button>
+    }
+  </span>
+</div>
+
+<div class="ca-table" *ngIf="visible().length; else empty">
+  <div class="ca-tr ca-tr--h">
+    <span class="ca-name">Ресурс</span>
+    <span class="ca-num" pTooltip="Сколько нужно с учётом того, что уже есть на складе" tooltipPosition="top">Нужно</span>
+    <span class="ca-num" pTooltip="Сколько есть на складе" tooltipPosition="top">Есть</span>
+    <span class="ca-num" pTooltip="Сколько не хватает — это и докупаем" tooltipPosition="top">Купить</span>
+    <span class="ca-num">Цена / шт</span>
+    <span class="ca-num">Сумма</span>
+  </div>
+  <div
+    class="ca-tr"
+    *ngFor="let r of visible(); trackBy: trackRow"
+    [class.is-short]="r.n.effShort > 0"
+    [class.no-price]="r.n.effShort > 0 && !r.price"
+  >
+    <span class="ca-name">
+      <img *ngIf="r.n.icon" [src]="r.n.icon" [alt]="r.n.name" (error)="imgError($event)" />
+      <span class="ca-name-text">{{ r.n.name }}</span>
+      <app-grade-badge *ngIf="showGrade(r.n.category)" [grade]="r.n.grade" />
+    </span>
+    <span class="ca-num">{{ r.n.need }}</span>
+    <span class="ca-num">{{ r.n.have }}</span>
+    <span class="ca-num ca-buy">{{ r.n.effShort || '—' }}</span>
+    <span class="ca-num">
+      <input
+        class="ca-price"
+        type="text"
+        inputmode="decimal"
+        placeholder="цена"
+        [value]="priceText(r.price)"
+        (change)="onPrice(r.n.resKey, $event)"
+        (keydown.enter)="blurOnEnter($event)"
+      />
+    </span>
+    <span class="ca-num ca-sum">
+      <ng-container *ngIf="r.buy; else dash">{{ fmt(r.buy) }}</ng-container>
+      <ng-template #dash>—</ng-template>
+    </span>
+  </div>
+</div>
+
+<ng-template #empty>
+  <p class="ca-empty">{{ rows().length ? 'Всё есть на складе — докупать нечего.' : 'Пусто — добавьте предметы, чтобы посчитать.' }}</p>
+</ng-template>

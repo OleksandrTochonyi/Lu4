@@ -143,6 +143,19 @@
   color: #fff;
   font-weight: 600;
 }
+.wh-chip--aden {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.wh-chip--aden .pi {
+  font-size: 0.75rem;
+}
+.wh-chip--aden.active {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #92400e;
+}
 .wh-chip--grade {
   min-width: 2rem;
   text-align: center;

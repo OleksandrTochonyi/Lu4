@@ -58,10 +58,23 @@
         </div>
       </div>
 
-      <label class="cd-toggle">
-        <input type="checkbox" [checked]="deep()" (change)="deep.set(!deep())" />
-        <span>Полный список ресурсов</span>
-      </label>
+      <div class="cd-field">
+        <span>Показать</span>
+        <div class="cd-seg">
+          <button type="button" class="cd-seg-btn" [class.active]="view() === 'tree'" (click)="setView('tree')">Составные</button>
+          <button type="button" class="cd-seg-btn" [class.active]="view() === 'flat'" (click)="setView('flat')">Полный список</button>
+          <button
+            type="button"
+            class="cd-seg-btn cd-seg-btn--aden"
+            [class.active]="view() === 'aden'"
+            pTooltip="Указать цены ресурсов и посчитать, сколько адены нужно на докупку недостающего"
+            tooltipPosition="top"
+            (click)="setView('aden')"
+          >
+            <i class="pi pi-wallet"></i> В адене
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- summary -->
@@ -84,13 +97,13 @@
     </div>
 
     <!-- direct tree -->
-    <div class="cd-tree-bar" *ngIf="!deep()">
+    <div class="cd-tree-bar" *ngIf="view() === 'tree'">
       <span class="cd-legend"><i class="pi pi-sitemap"></i> составной ресурс — можно раскрыть</span>
       <span class="cd-spacer"></span>
       <button type="button" class="cd-mini" (click)="expandAll()">Раскрыть всё</button>
       <button type="button" class="cd-mini" (click)="collapseAll()">Свернуть всё</button>
     </div>
-    <div class="cd-table" *ngIf="!deep()">
+    <div class="cd-table" *ngIf="view() === 'tree'">
       <div class="cd-tr cd-tr--h">
         <span class="c-name">Ресурс</span>
         <span class="c-num" pTooltip="Сколько всего нужно ресурса по рецепту" tooltipPosition="top">Всего</span>
@@ -104,7 +117,7 @@
     </div>
 
     <!-- shortfall shopping list -->
-    <div class="cd-short" *ngIf="!deep() && shortfall().length">
+    <div class="cd-short" *ngIf="view() === 'tree' && shortfall().length">
       <div class="cd-short-h">Докупить / нафармить:</div>
       <div class="cd-short-list">
         <span class="cd-short-item" *ngFor="let n of shortfall(); trackBy: trackNode">
@@ -113,6 +126,9 @@
         </span>
       </div>
     </div>
+
+    <!-- priced in adena -->
+    <app-cost-aden *ngIf="view() === 'aden'" [rows]="rollup()" />
 
     <!-- flat roll-up -->
     <div class="cd-table" *ngIf="deep()">
