@@ -1,5 +1,51 @@
 <p-confirmDialog></p-confirmDialog>
 
+<!-- step 1 of «Sync» (our Bookmarks → NG); step 2 is the p-confirmDialog above -->
+<p-dialog
+	[visible]="!!syncDialogTab()"
+	(visibleChange)="$event || closeSyncDialog()"
+	[modal]="true"
+	[draggable]="false"
+	[resizable]="false"
+	header="Записать наши респы в NG"
+	[style]="{ width: 'min(420px, 96vw)' }"
+>
+	<div class="sync-ng">
+		<div>
+			<p class="sync-ng-q">Вы уверены, что хотите перенести респы?</p>
+			<small class="sync-ng-hint">
+				Время убийства боссов этой закладки возьмётся из наших Закладок и запишется в Bookmarks NG. Наши закладки при этом не меняются.
+				Наши «проебанные» не переносятся, а «проебанные» и пустые в NG заполнятся нашими.
+			</small>
+		</div>
+		<div class="sync-ng-opt">
+			<p-checkbox inputId="sync-to-ng-overwrite" [binary]="true" [ngModel]="syncOverwrite()" (ngModelChange)="syncOverwrite.set($event)"></p-checkbox>
+			<div>
+				<label for="sync-to-ng-overwrite">Перезатереть данные</label>
+				<small class="sync-ng-hint">
+					Включено — если у нас время свежее, чем в NG, заменим в NG.
+					Выключено — время в NG оставляем, даже если оно старее.
+				</small>
+			</div>
+		</div>
+		<div class="sync-ng-opt">
+			<p-checkbox inputId="sync-to-ng-first" [binary]="true" [ngModel]="syncFirstOnly()" (ngModelChange)="syncFirstOnly.set($event)"></p-checkbox>
+			<div>
+				<label for="sync-to-ng-first">Перенести только первые респы</label>
+				<small class="sync-ng-hint">
+					От нас возьмём только тех, кто убит и ждёт первый респ (включая час до него) или уже в первом респе.
+					Прошедший первый респ и второй респ не переносим.
+				</small>
+			</div>
+		</div>
+	</div>
+	<ng-template pTemplate="footer">
+		<p-button label="Отмена" [text]="true" (onClick)="closeSyncDialog()"></p-button>
+		<p-button label="Да" icon="pi pi-sync" (onClick)="acceptSyncDialog()"></p-button>
+	</ng-template>
+</p-dialog>
+
+
 <!-- «Очистить респы»: only the RBs whose current status is ticked -->
 <p-dialog
 	[visible]="!!clearDialogTab()"
@@ -217,6 +263,21 @@
 							ariaLabel="Очистить респы у РБ, у которых есть время"
 							(onClick)="confirmClearAllResp(tab, $event)"
 						></p-button>
+						@if (isAdmin()) {
+							<p-button
+								icon="pi pi-sync"
+								label="Sync"
+								[text]="true"
+								[severity]="'help'"
+								size="small"
+								pTooltip="Записать наши респы в Bookmarks NG"
+								tooltipPosition="top"
+								[loading]="syncingOurs()"
+								[disabled]="!tab.rbIds.length || syncingOurs()"
+								ariaLabel="Перенести наши более свежие респы в Bookmarks NG"
+								(onClick)="openSyncToNg(tab, $event)"
+							></p-button>
+						}
 						<p-button
 							icon="pi pi-sliders-h"
 							[label]="'Фильтры' + (rbFilter.activeCount() ? ' • ' + rbFilter.activeCount() : '')"

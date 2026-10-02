@@ -1,7 +1,7 @@
 import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { timer } from 'rxjs';
+import { firstValueFrom, timer } from 'rxjs';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
@@ -16,6 +16,8 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 
 import { NoGradeRbService } from '../../services/nograde-rb.service';
+import { RbJsonDataService } from '../../services/rb-json-data.service';
+import { SiteUsersService } from '../../services/site-users.service';
 import { ActivityLogService } from '../../services/activity-log.service';
 import { RespVoiceService, RespVoiceWatcher } from '../../services/resp-voice.service';
 import { enrichJsonRb } from '../../utils/rb-json-enrich';
@@ -23,6 +25,9 @@ import { calculateStatus } from '../../utils/rb-enrich';
 import { RbFilterState } from '../../utils/rb-filter';
 import { RbFilterPanelComponent } from '../shared/rb-filter-panel/rb-filter-panel.component';
 import { CLEAR_STATUS_OPTIONS, RbStatus } from '../../constants/status';
+
+/** «Перенести только первые респы»: killed & waiting (incl. the hour before) or in the 1st resp */
+const FIRST_RESP_STATUSES = new Set<RbStatus>([RbStatus.NotInResp, RbStatus.SoonResp, RbStatus.InResp]);
 import { JsonRbCardComponent } from '../shared/json-rb-card/json-rb-card.component';
 
 interface CustomBossTab {
@@ -63,6 +68,8 @@ export class BookmarksNgComponent {
   readonly voice = inject(RespVoiceService);
   private destroyRef = inject(DestroyRef);
   private noGradeRb = inject(NoGradeRbService);
+  private rbJsonData = inject(RbJsonDataService);
+  readonly isAdmin = toSignal(inject(SiteUsersService).isAdmin$, { initialValue: false });
   private activityLog = inject(ActivityLogService);
   private confirmationService = inject(ConfirmationService);
   private messageService = inject(MessageService);
@@ -236,6 +243,140 @@ export class BookmarksNgComponent {
     if (counts.yellow) segments.push({ cls: 'yellow', value: counts.yellow, title: this.segmentTitles['yellow'] });
     if (counts.green) segments.push({ cls: 'green', value: counts.green, title: this.segmentTitles['green'] });
     return segments;
+  }
+
+  /* ------------------------------------------- sync: our Bookmarks → NoGrade */
+
+  readonly syncingOurs = signal(false);
+  /** first step: own dialog (it carries the "перезатереть" checkbox) */
+  readonly syncDialogTab = signal<CustomBossTab | null>(null);
+  readonly syncOverwrite = signal(false);
+  readonly syncFirstOnly = signal(false);
+
+  // Admin-only, shared-data bulk write → two confirms in a row: our own dialog
+  // with the overwrite switch, then the p-confirmDialog "точно?".
+  openSyncToNg(tab: CustomBossTab, event: Event): void {
+    event.stopPropagation();
+    if (!tab.rbIds?.length || this.syncingOurs()) return;
+    this.syncOverwrite.set(false);
+    this.syncFirstOnly.set(false);
+    this.syncDialogTab.set(tab);
+  }
+  closeSyncDialog(): void {
+    this.syncDialogTab.set(null);
+  }
+  acceptSyncDialog(): void {
+    const tab = this.syncDialogTab();
+    if (!tab) return;
+    const overwrite = this.syncOverwrite();
+    const firstOnly = this.syncFirstOnly();
+    this.syncDialogTab.set(null);
+    setTimeout(
+      () =>
+        this.confirmationService.confirm({
+          header: 'Точно?',
+          message: 'Ты блять точно все продумал, умник ебаный?',
+          icon: 'pi pi-exclamation-triangle',
+          acceptLabel: 'Да, погнали',
+          rejectLabel: 'Нет, я ссыкло',
+          acceptButtonStyleClass: 'p-button-danger',
+          rejectButtonStyleClass: 'p-button-text',
+          accept: () => void this.syncToNg(tab, overwrite, firstOnly),
+        }),
+      250,
+    );
+  }
+
+  /**
+   * Mirror of «Sync NG» on our Bookmarks page, the other way round: reads OUR
+   * rb-resp-time, writes ONLY NoGrade. One of our times is a candidate only when
+   * it's still "alive" (anything but «проебан» / no time). Then:
+   * - NG empty or «проебан» → always take ours;
+   * - `overwrite` on  → take ours when it's newer than NG's;
+   * - `overwrite` off → keep NG's as is, even if it's older.
+   * `firstOnly` narrows our candidates to the first-resp cycle only.
+   */
+  private async syncToNg(tab: CustomBossTab, overwrite: boolean, firstOnly: boolean): Promise<void> {
+    if (this.syncingOurs()) return;
+    this.syncingOurs.set(true);
+    try {
+      const ourBosses = await firstValueFrom(this.rbJsonData.getRaidBosses());
+      if (!ourBosses.length) throw new Error('Не удалось загрузить наши закладки');
+      const oursById = new Map(ourBosses.map((b) => [b.id, enrichJsonRb(b)]));
+      const ngById = new Map(this.items().map((i) => [i.id as string, i]));
+      const now = Date.now();
+
+      const updates: { id: string; name: string; time: Date }[] = [];
+      let ngKept = 0;
+      let oursUseless = 0;
+      let oursNotFirst = 0;
+      for (const id of tab.rbIds) {
+        const ours = oursById.get(id);
+        const ourTime: Date | null = ours?.deadTime instanceof Date ? ours.deadTime : null;
+        const ourStatus = ours
+          ? calculateStatus(ours.minResp ?? null, ours.maxResp ?? null, ours.secondMinResp ?? null, ours.secondMaxResp ?? null, now)
+          : RbStatus.Unknown;
+        if (!ourTime || ourStatus === RbStatus.Missed || ourStatus === RbStatus.Unknown) {
+          oursUseless++;
+          continue;
+        }
+        if (firstOnly && !FIRST_RESP_STATUSES.has(ourStatus)) {
+          oursNotFirst++;
+          continue;
+        }
+        const ng = ngById.get(id);
+        const ngTime: Date | null = ng?.deadTime instanceof Date ? ng.deadTime : null;
+        const ngMissed =
+          !!ngTime &&
+          calculateStatus(ng.minResp ?? null, ng.maxResp ?? null, ng.secondMinResp ?? null, ng.secondMaxResp ?? null, now) ===
+            RbStatus.Missed;
+        if (ngTime && !ngMissed && (!overwrite || ngTime.getTime() >= ourTime.getTime())) {
+          ngKept++;
+          continue;
+        }
+        updates.push({ id, name: ng?.displayName || ng?.name || ours?.displayName || id, time: ourTime });
+      }
+
+      const detail =
+        `Оставили NG: ${ngKept}, у нас нет времени или проебан: ${oursUseless}` +
+        (firstOnly ? `, не первый респ: ${oursNotFirst}` : '');
+      if (!updates.length) {
+        this.messageService.add({ severity: 'info', summary: 'Нечего переносить', detail, life: 4000 });
+        return;
+      }
+
+      const byId = new Map(updates.map((u) => [u.id, u.time]));
+      this.items.update((items) =>
+        (items ?? []).map((item) =>
+          byId.has(item?.id) ? enrichJsonRb({ ...item, lastDeadTime: byId.get(item.id) as any }) : item,
+        ),
+      );
+
+      const results = await Promise.allSettled(
+        updates.map((u) => this.noGradeRb.setKillTime(u.id, u.time, { bossName: u.name, silent: true })),
+      );
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      const done = updates.length - failed;
+      if (done > 0) {
+        this.activityLog.log('Синхронизировал респы в NG', `${tab.name}: ${done}`);
+        this.voice.action('sync');
+      }
+      this.messageService.add({
+        severity: failed ? 'warn' : 'success',
+        summary: failed ? `Перенесено ${done}, ошибок: ${failed}` : `Перенесено в NG: ${done}`,
+        detail,
+        life: 5000,
+      });
+    } catch (e) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Ошибка синхронизации',
+        detail: e instanceof Error ? e.message : '',
+        life: 5000,
+      });
+    } finally {
+      this.syncingOurs.set(false);
+    }
   }
 
   constructor() {
