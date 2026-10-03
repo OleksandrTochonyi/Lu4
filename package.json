@@ -8,7 +8,8 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "voice": "node scripts/generate-voice.mjs",
-    "voice:sample": "node scripts/generate-voice.mjs --sample"
+    "voice:sample": "node scripts/generate-voice.mjs --sample",
+    "rb:sync": "node scripts/sync-rb-wiki.mjs"
   },
   "private": true,
   "dependencies": {
