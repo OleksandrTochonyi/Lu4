@@ -57,6 +57,8 @@
           (click)="killStatusFilter.set('closed')">Распродано</button>
         <button type="button" class="rd-toggle-chip rd-toggle-chip--feels" [class.active]="killStatusFilter() === 'feels'"
           (click)="killStatusFilter.set('feels')"><i class="pi pi-users"></i> С филзом</button>
+        <button type="button" class="rd-toggle-chip rd-toggle-chip--clan" [class.active]="killStatusFilter() === 'clan'"
+          (click)="killStatusFilter.set('clan')"><i class="pi pi-flag"></i> С кланом</button>
       </div>
       <span class="rd-spacer"></span>
       <button pButton type="button" icon="pi pi-plus" label="Добавить РБ" (click)="openKillDialog()"></button>
@@ -65,11 +67,11 @@
     <div class="rd-kills" *ngIf="filteredKills().length; else emptyKills">
       <div class="rd-kill" *ngFor="let k of filteredKills(); trackBy: trackByKill" [attr.data-kill-id]="k.id"
         [class.is-open]="isKillExpanded(k.id)" [class.is-soldout]="isKillFullySold(k)"
-        [class.is-highlighted]="highlightedKillId() === k.id" [class.is-feels]="k.withFeels">
+        [class.is-highlighted]="highlightedKillId() === k.id" [class.is-feels]="k.withFeels" [class.is-clan]="k.withClan">
         <div class="rd-kill-head" role="button" tabindex="0" (click)="toggleKillExpanded(k.id)"
           (keydown.enter)="toggleKillExpanded(k.id)">
           <i class="pi rd-kill-chevron" [ngClass]="isKillExpanded(k.id) ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
-          <span class="rd-kill-badge" [class.is-soldout]="isKillFullySold(k) && !isKillNoDrop(k)"
+          <span class="rd-kill-badge" [class.is-soldout]="isKillFullySold(k) && balanceDrops(k).length"
             [class.is-nodrop]="isKillNoDrop(k)">
             <i class="pi" [ngClass]="isKillNoDrop(k) ? 'pi-times' : (isKillFullySold(k) ? 'pi-check' : 'pi-flag-fill')"></i>
           </span>
@@ -80,12 +82,16 @@
           <span class="rd-kill-nodrop-tag" *ngIf="isKillNoDrop(k)"
             [pTooltip]="k.withFeels ? 'Фармили с филзом — нам с этого ничего не досталось' : 'С этого убийства не выпало ничего'"
             tooltipPosition="top">
-            <i class="pi pi-times-circle"></i> {{ k.withFeels ? 'Нихуя нам не перепало' : 'Нихуя не выпало' }}
+            <i class="pi pi-times-circle"></i> {{ k.withFeels || k.withClan ? 'Нихуя нам не перепало' : 'Нихуя не выпало' }}
           </span>
           <span class="rd-kill-feels-tag" *ngIf="k.withFeels" pTooltip="Зафармили вместе с филзом" tooltipPosition="top">
             <i class="pi pi-users"></i> С филзом
           </span>
-          <span class="rd-kill-soldout-tag" *ngIf="isKillFullySold(k) && !isKillNoDrop(k)"
+          <span class="rd-kill-feels-tag" *ngIf="k.withClan"
+            pTooltip="Зафармили вместе с кланом — на баланс идёт только отмеченный дроп" tooltipPosition="top">
+            <i class="pi pi-flag"></i> С кланом
+          </span>
+          <span class="rd-kill-soldout-tag" *ngIf="isKillFullySold(k) && balanceDrops(k).length"
             pTooltip="Весь дроп с этого убийства продан" tooltipPosition="top">
             <i class="pi pi-check-circle"></i> Распродано
           </span>
@@ -103,7 +109,7 @@
             <div class="rd-kill-pack" *ngFor="let grp of participantsByPack(k)">
               <div class="rd-kill-pack-h">
                 <span class="rd-chip rd-chip--pack">{{ grp.groupName }}</span>
-                <span class="rd-kill-pcount">{{ grp.people.length }} чел.</span>
+                <span class="rd-kill-pcount">{{ grp.people.length ? grp.people.length + ' чел.' : 'игроки не отмечены' }}</span>
               </div>
               <div class="rd-kill-names">
                 <span class="rd-name-pill" *ngFor="let p of grp.people" [class.is-merc]="isMercRosterMember(p.userId)"
@@ -121,10 +127,14 @@
             <div class="rd-kill-section-h">Дроп</div>
             <div class="rd-kill-drops">
               <span class="rd-drop-chip" *ngFor="let d of k.drops"
+                [class.is-not-ours]="k.withClan && !d.ours"
                 [class.is-soldout]="dropRemaining(k, d) === 0"
                 [class.is-partial]="dropSoldQty(k, d) > 0 && dropRemaining(k, d) > 0">
                 <img *ngIf="d.icon" [src]="d.icon" (error)="imgError($event)" alt="" />
                 <span class="rd-drop-chip-name">{{ d.name }} × {{ d.qty }}</span>
+                <span class="rd-drop-chip-tag" *ngIf="k.withClan" [class.is-ours]="d.ours"
+                  [pTooltip]="d.ours ? 'Забрали себе — есть в «Дроп» и в продажах' : 'Досталось другому клану — только в истории'"
+                  tooltipPosition="top">{{ d.ours ? 'на балансе' : 'не наш' }}</span>
                 <span class="rd-drop-chip-remain" *ngIf="dropSoldQty(k, d) > 0"
                   [pTooltip]="'Продано ' + dropSoldQty(k, d) + ' из ' + d.qty" tooltipPosition="top">
                   <i class="pi" [ngClass]="dropRemaining(k, d) === 0 ? 'pi-check-circle' : 'pi-arrow-right'"></i>
@@ -735,6 +745,15 @@
       </label>
     </div>
 
+    <div class="rd-mark-dead rd-mark-clan">
+      <p-toggleswitch inputId="kill-with-clan" [ngModel]="killWithClan()"
+        (ngModelChange)="setKillWithClan($event)" />
+      <label for="kill-with-clan">
+        Зафармили с кланом
+        <span class="rd-mark-dead-hint">Дроп пишется только в историю РБ. На баланс попадёт лишь то, что отметишь «на баланс»</span>
+      </label>
+    </div>
+
     <div class="rd-field">
       <span>Паки, которые были</span>
       <div class="rd-chips">
@@ -768,7 +787,11 @@
     </div>
 
     <div class="rd-field">
-      <span>Дроп — из таблицы дропа выбранного босса</span>
+      <span>Дроп — из таблицы дропа босса или любой предмет вручную</span>
+      <div class="rd-clan-hint" *ngIf="killWithClan()">
+        <i class="pi pi-info-circle"></i>
+        С кланом: отмеченный дроп сохранится в истории РБ. Нажми <b>«не наш»</b> у предмета, чтобы он пошёл на наш баланс.
+      </div>
 
       <div class="rd-loot-list" *ngIf="killLootRows().length; else lootEmpty">
         <div class="rd-loot-row" *ngFor="let r of killLootRows(); trackBy: trackByLootRow"
@@ -783,13 +806,40 @@
           <p-inputNumber *ngIf="r.checked" [ngModel]="r.qty" (ngModelChange)="setLootRowQty(r.key, $event)"
             [min]="1" [showButtons]="true" buttonLayout="horizontal" decrementButtonClass="p-button-secondary"
             incrementButtonClass="p-button-secondary" inputStyleClass="rd-loot-qty"></p-inputNumber>
+          <button type="button" class="rd-loot-ours" *ngIf="killWithClan() && r.checked" [class.is-on]="r.ours"
+            [pTooltip]="r.ours ? 'Идёт на наш баланс — нажми, чтобы оставить только в истории' : 'Только в истории — нажми, чтобы забрать на наш баланс'"
+            tooltipPosition="top" (click)="toggleLootOurs(r.key)">
+            <i class="pi" [ngClass]="r.ours ? 'pi-wallet' : 'pi-history'"></i> {{ r.ours ? 'на баланс' : 'не наш' }}
+          </button>
+          <button type="button" class="rd-loot-remove" *ngIf="r.extra" pTooltip="Убрать" tooltipPosition="top"
+            (click)="removeExtraRow(r.key)"><i class="pi pi-times"></i></button>
         </div>
       </div>
       <ng-template #lootEmpty>
         <div class="rd-muted rd-loot-empty">
-          {{ killBossId() ? 'Для этого босса в базе нет таблицы дропа' : 'Сначала выберите рейд-босса' }}
+          {{ killBossId() ? 'Для этого босса в базе нет таблицы дропа — добавь предметы вручную ниже' : 'Сначала выберите рейд-босса' }}
         </div>
       </ng-template>
+
+      <div class="rd-extra-add">
+        <p-dropdown [options]="extraItemOptions()" optionLabel="name" [filter]="true" filterBy="name"
+          [virtualScroll]="true" [virtualScrollItemSize]="38" [ngModel]="extraPick()"
+          (ngModelChange)="addExtraItem($event)" placeholder="+ Добавить любой предмет…" appendTo="body"
+          styleClass="rd-extra-select">
+          <ng-template #item let-o>
+            <div class="rd-extra-opt">
+              <img *ngIf="o.icon" [src]="o.icon" (error)="imgError($event)" alt="" />
+              <span>{{ o.name }}</span>
+              <app-grade-badge *ngIf="o.grade" [grade]="o.grade" />
+            </div>
+          </ng-template>
+        </p-dropdown>
+        <input pInputText type="text" class="rd-extra-custom" placeholder="или своё название"
+          [ngModel]="customItemName()" (ngModelChange)="customItemName.set($event)" (keydown.enter)="addCustomItem()" />
+        <button pButton type="button" icon="pi pi-plus" class="p-button-sm p-button-outlined"
+          [disabled]="!customItemName().trim()" pTooltip="Добавить своё" tooltipPosition="top"
+          (click)="addCustomItem()"></button>
+      </div>
     </div>
 
     <label class="rd-field">

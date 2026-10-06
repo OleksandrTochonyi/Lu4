@@ -53,6 +53,18 @@ interface LootRow {
   checked: boolean;
   qty: number;
   catalogId: string | null;
+  /** «на баланс» — only asked on a kill farmed with another clan */
+  ours: boolean;
+  /** added by hand, not from the boss's drop table (removable) */
+  extra: boolean;
+}
+
+/** an item the «добавить любой предмет» picker offers */
+interface ExtraItemOption {
+  name: string;
+  icon: string | null;
+  grade: string | null;
+  catalogId: string | null;
 }
 
 interface DropLine {
@@ -275,7 +287,7 @@ export class RaidsComponent {
   /** search across boss name, participant names, drop names, and the kill date */
   readonly killSearch = signal('');
   /** all kills / only ones with drop still unsold / only fully sold-out ones / farmed with Feels */
-  readonly killStatusFilter = signal<'all' | 'open' | 'closed' | 'feels'>('all');
+  readonly killStatusFilter = signal<'all' | 'open' | 'closed' | 'feels' | 'clan'>('all');
 
   readonly filteredKills = computed(() => {
     const q = this.killSearch().trim().toLowerCase();
@@ -285,6 +297,7 @@ export class RaidsComponent {
       if (status === 'open' && soldOut) return false;
       if (status === 'closed' && !soldOut) return false;
       if (status === 'feels' && !k.withFeels) return false;
+      if (status === 'clan' && !k.withClan) return false;
       if (!q) return true;
       const haystack = [
         k.bossName,
@@ -292,6 +305,7 @@ export class RaidsComponent {
         ...k.participants.map((p) => p.name),
         ...k.drops.map((d) => d.name),
         k.withFeels ? 'филз' : '',
+        k.withClan ? 'клан' : '',
       ]
         .join(' ')
         .toLowerCase();
@@ -307,9 +321,16 @@ export class RaidsComponent {
   /** every drop line from this kill has been completely sold off — a kill with no drop
    *  at all counts as "done" straight away (nothing left to deal with) */
   isKillFullySold(kill: RaidKill): boolean {
-    if (!kill.drops.length) return true;
+    const own = this.balanceDrops(kill);
+    if (!own.length) return true;
     const sold = this.soldByKey();
-    return kill.drops.every((d) => (sold.get(`${kill.id}:${d.id}`) ?? 0) >= d.qty);
+    return own.every((d) => (sold.get(`${kill.id}:${d.id}`) ?? 0) >= d.qty);
+  }
+
+  /** drops that reach our balance («Дроп»): all of them, except on a kill farmed with
+   *  another clan — there only the ones marked «на баланс» */
+  balanceDrops(kill: RaidKill): RaidDrop[] {
+    return kill.withClan ? kill.drops.filter((d) => d.ours) : kill.drops;
   }
 
   /** how much of this one drop line has already been sold */
@@ -333,6 +354,12 @@ export class RaidsComponent {
   readonly killMarkAsDead = signal(true);
   /** «Зафармили с филзом» */
   readonly killWithFeels = signal(false);
+  /** «Зафармили с кланом» + which clan */
+  readonly killWithClan = signal(false);
+  readonly killClanName = signal('');
+  /** «добавить любой предмет»: the picker's transient value + the free-text name */
+  readonly extraPick = signal<ExtraItemOption | null>(null);
+  readonly customItemName = signal('');
   readonly killPackIds = signal<Set<string>>(new Set());
   /** `${groupId}:${userId}` -> selected */
   readonly killParticipants = signal<Set<string>>(new Set());
@@ -358,6 +385,9 @@ export class RaidsComponent {
     this.killNote.set('');
     this.killMarkAsDead.set(true);
     this.killWithFeels.set(false);
+    this.killWithClan.set(false);
+    this.killClanName.set('');
+    this.customItemName.set('');
     // pre-fill from the "Текущий состав" preset — still fully editable from here
     const preset = this.rosterPreset()?.players ?? [];
     this.killPackIds.set(new Set(preset.map((p) => p.groupId)));
@@ -379,16 +409,30 @@ export class RaidsComponent {
     // editing never touches the bookmarks' kill time (the switch is hidden too)
     this.killMarkAsDead.set(false);
     this.killWithFeels.set(kill.withFeels);
+    this.killWithClan.set(kill.withClan);
+    this.killClanName.set(kill.clanName ?? '');
+    this.customItemName.set('');
+    this.killLootRows.set([]);
     this.killPackIds.set(new Set(kill.packIds));
     this.killParticipants.set(new Set(kill.participants.map((p) => `${p.groupId}:${p.userId}`)));
     this.onKillBossChange(kill.bossId);
     const byName = new Map(kill.drops.map((d) => [d.name.trim().toLowerCase(), d]));
-    this.killLootRows.update((rows) =>
-      rows.map((r) => {
-        const existing = byName.get(r.loot.displayName.trim().toLowerCase());
-        return existing ? { ...r, checked: true, qty: existing.qty } : r;
-      }),
-    );
+    const matched = new Set<string>();
+    this.killLootRows.update((rows) => {
+      const out = rows.map((r) => {
+        const key = r.loot.displayName.trim().toLowerCase();
+        const existing = byName.get(key);
+        if (!existing) return r;
+        matched.add(key);
+        return { ...r, checked: true, qty: existing.qty, ours: existing.ours };
+      });
+      // drops that aren't in the boss's table (added by hand) come back as extra rows
+      for (const d of kill.drops) {
+        if (matched.has(d.name.trim().toLowerCase())) continue;
+        out.push(this.extraRow({ name: d.name, icon: d.icon, grade: d.grade, catalogId: d.catalogId }, d.qty, d.ours));
+      }
+      return out;
+    });
     this.killDialogOpen.set(true);
   }
   closeKillDialog(): void {
@@ -403,8 +447,10 @@ export class RaidsComponent {
     this.killBossId.set(bossId);
     const boss = this.bosses().find((b) => b.id === bossId);
     const index = this.catalogNameIndex();
-    this.killLootRows.set(
-      (boss?.loot ?? []).map((loot, i) => {
+    // items added by hand survive a boss change
+    const extras = this.killLootRows().filter((r) => r.extra);
+    this.killLootRows.set([
+      ...(boss?.loot ?? []).map((loot, i) => {
         const qty = Math.max(1, parseInt(String(loot.qty ?? '1'), 10) || 1);
         return {
           key: `${loot.displayName}-${i}`,
@@ -412,9 +458,12 @@ export class RaidsComponent {
           checked: false,
           qty,
           catalogId: index.get(normName(loot.displayName))?.id ?? null,
+          ours: !this.killWithClan(),
+          extra: false,
         };
       }),
-    );
+      ...extras,
+    ]);
   }
   toggleLootRow(key: string): void {
     this.killLootRows.update((rows) =>
@@ -426,6 +475,81 @@ export class RaidsComponent {
       rows.map((r) => (r.key === key ? { ...r, qty: Math.max(1, Math.round(qty || 1)) } : r)),
     );
   }
+  /** «Зафармили с кланом» switch: with a clan the drop is history-only by default */
+  setKillWithClan(on: boolean): void {
+    this.killWithClan.set(on);
+    this.killLootRows.update((rows) => rows.map((r) => ({ ...r, ours: !on })));
+  }
+
+  /** «на баланс» / «не наш» on one drop row (kills farmed with another clan) */
+  toggleLootOurs(key: string): void {
+    this.killLootRows.update((rows) => rows.map((r) => (r.key === key ? { ...r, ours: !r.ours } : r)));
+  }
+  removeExtraRow(key: string): void {
+    this.killLootRows.update((rows) => rows.filter((r) => r.key !== key));
+  }
+
+  /** every item we know: the craft catalogue + every boss's drop table, one per name */
+  readonly extraItemOptions = computed<ExtraItemOption[]>(() => {
+    const out = new Map<string, ExtraItemOption>();
+    const index = this.catalogNameIndex();
+    for (const b of this.bosses()) {
+      for (const l of b.loot ?? []) {
+        const k = l.displayName.trim().toLowerCase();
+        if (!k || out.has(k)) continue;
+        out.set(k, {
+          name: l.displayName,
+          icon: l.imgUrl || null,
+          grade: l.grade ?? null,
+          catalogId: index.get(normName(l.displayName))?.id ?? null,
+        });
+      }
+    }
+    for (const e of this.catalog()) {
+      const k = e.name.trim().toLowerCase();
+      if (!k || out.has(k)) continue;
+      out.set(k, { name: e.name, icon: e.icon ?? null, grade: e.grade ?? null, catalogId: e.id });
+    }
+    return [...out.values()].sort((a, b) => a.name.localeCompare(b.name));
+  });
+
+  private extraRow(o: ExtraItemOption, qty = 1, ours = !this.killWithClan()): LootRow {
+    return {
+      key: `extra-${newLocalId()}`,
+      loot: { displayName: o.name, imgUrl: o.icon ?? '', grade: o.grade ?? undefined },
+      checked: true,
+      qty: Math.max(1, Math.round(qty || 1)),
+      catalogId: o.catalogId,
+      ours,
+      extra: true,
+    };
+  }
+
+  /** picked in «добавить любой предмет»: tick it if it's already listed, else add a row */
+  addExtraItem(o: ExtraItemOption | null): void {
+    this.extraPick.set(o);
+    setTimeout(() => this.extraPick.set(null)); // the picker goes back to its placeholder
+    if (!o) return;
+    const key = o.name.trim().toLowerCase();
+    const rows = this.killLootRows();
+    if (rows.some((r) => r.loot.displayName.trim().toLowerCase() === key)) {
+      this.killLootRows.set(
+        rows.map((r) => (r.loot.displayName.trim().toLowerCase() === key ? { ...r, checked: true } : r)),
+      );
+      return;
+    }
+    this.killLootRows.set([...rows, this.extraRow(o)]);
+  }
+
+  /** a name that isn't in any list — matched to the catalogue when possible */
+  addCustomItem(): void {
+    const name = this.customItemName().trim();
+    if (!name) return;
+    const known = this.extraItemOptions().find((o) => o.name.trim().toLowerCase() === name.toLowerCase());
+    this.addExtraItem(known ?? { name, icon: null, grade: null, catalogId: this.catalogNameIndex().get(normName(name))?.id ?? null });
+    this.customItemName.set('');
+  }
+
   readonly killLootCheckedCount = computed(
     () => this.killLootRows().filter((r) => r.checked).length,
   );
@@ -515,6 +639,7 @@ export class RaidsComponent {
           icon: r.loot.imgUrl || null,
           grade: r.loot.grade ?? null,
           qty: Math.max(1, Math.round(r.qty || 1)),
+          ours: r.ours,
         };
       });
 
@@ -531,6 +656,8 @@ export class RaidsComponent {
       drops,
       note: this.killNote().trim(),
       withFeels: this.killWithFeels(),
+      withClan: this.killWithClan(),
+      clanName: '',
     };
 
     this.savingKill.set(true);
@@ -590,6 +717,10 @@ export class RaidsComponent {
       g.people.push({ userId: p.userId, name: p.name });
       map.set(p.groupId, g);
     }
+    // packs that were there but nobody was ticked — still show the pack
+    kill.packIds.forEach((id, i) => {
+      if (!map.has(id)) map.set(id, { groupId: id, groupName: kill.packNames[i] ?? id, people: [] });
+    });
     return [...map.values()];
   }
 
@@ -627,7 +758,7 @@ export class RaidsComponent {
     const sold = this.soldByKey();
     const lines: DropLine[] = [];
     for (const k of this.kills()) {
-      for (const d of k.drops) {
+      for (const d of this.balanceDrops(k)) {
         const key = `${k.id}:${d.id}`;
         const remaining = d.qty - (sold.get(key) ?? 0);
         if (remaining > 0) lines.push({ key, kill: k, drop: d, remaining });

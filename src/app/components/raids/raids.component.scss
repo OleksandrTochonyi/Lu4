@@ -1645,3 +1645,154 @@
     order: -1;
   }
 }
+
+/* ---------------------------------------------------- farmed with another clan */
+.rd-kill-clan-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: #c2410c;
+  background: #ffedd5;
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  flex: none;
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rd-kill-clan-tag .pi {
+  font-size: 0.7rem;
+}
+.rd-kill.is-clan {
+  border-left: 4px solid #fb923c;
+}
+.rd-toggle-chip--clan {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.rd-toggle-chip--clan .pi {
+  font-size: 0.72rem;
+}
+.rd-toggle-chip--clan.active {
+  background: #ffedd5 !important;
+  border-color: #fb923c !important;
+  color: #c2410c !important;
+}
+
+/* a drop that went to the other clan — history only */
+.rd-drop-chip.is-not-ours {
+  background: #fff;
+  border: 1px dashed #cbd5e1;
+  color: #94a3b8;
+}
+.rd-drop-chip.is-not-ours img {
+  opacity: 0.55;
+}
+.rd-drop-chip-tag {
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  color: #64748b;
+  background: #e2e8f0;
+}
+.rd-drop-chip-tag.is-ours {
+  color: #15803d;
+  background: #dcfce7;
+}
+
+.rd-clan-name {
+  margin-top: -0.25rem;
+}
+.rd-clan-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+/* «на баланс» / «не наш» on a loot row */
+.rd-loot-ours {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex: none;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #fff;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.rd-loot-ours.is-on {
+  border-color: #86efac;
+  background: #dcfce7;
+  color: #15803d;
+}
+.rd-loot-ours .pi {
+  font-size: 0.72rem;
+}
+.rd-loot-remove {
+  display: inline-flex;
+  flex: none;
+  padding: 0.2rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+}
+.rd-loot-remove:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* «добавить любой предмет» */
+.rd-extra-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+:host ::ng-deep .rd-extra-select {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+.rd-extra-custom {
+  flex: 0 1 12rem;
+  min-width: 8rem;
+}
+.rd-extra-opt {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+.rd-extra-opt img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  flex: none;
+}
+.rd-extra-opt span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

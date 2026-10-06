@@ -46,6 +46,8 @@ export interface RaidDrop {
   icon: string | null;
   grade: string | null;
   qty: number;
+  /** goes to OUR balance («Дроп») — only matters on a kill farmed with another clan */
+  ours: boolean;
 }
 
 export interface RaidKill {
@@ -62,6 +64,11 @@ export interface RaidKill {
   note: string;
   /** farmed together with Feels — shown with its own tag; the drop may or may not be there */
   withFeels: boolean;
+  /** farmed together with another clan: its drop stays in the kill history and only
+   *  drops marked `ours` reach the balance */
+  withClan: boolean;
+  /** which clan (optional, free text) */
+  clanName: string;
   createdBy: string;
   createdAt: number;
 }
@@ -199,6 +206,7 @@ function normalizeDrop(raw: any): RaidDrop {
     icon: raw?.icon ? String(raw.icon) : null,
     grade: raw?.grade ? String(raw.grade) : null,
     qty: toInt(raw?.qty),
+    ours: raw?.ours !== false,
   };
 }
 
@@ -225,6 +233,8 @@ function normalizeKill(raw: any): RaidKill {
     drops: Array.isArray(raw?.drops) ? raw.drops.map(normalizeDrop) : [],
     note: String(raw?.note ?? ''),
     withFeels: !!raw?.withFeels,
+    withClan: !!raw?.withClan,
+    clanName: String(raw?.clanName ?? ''),
     createdBy: String(raw?.createdBy ?? ''),
     createdAt: toNum(raw?.createdAt),
   };
