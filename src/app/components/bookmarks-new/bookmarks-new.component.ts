@@ -18,6 +18,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { RbJsonDataService } from '../../services/rb-json-data.service';
 import { RbJsonRespService } from '../../services/rb-json-resp.service';
 import { NoGradeRbService } from '../../services/nograde-rb.service';
+import { NgMirrorService } from '../../services/ng-mirror.service';
 import { SiteUsersService } from '../../services/site-users.service';
 import { ActivityLogService } from '../../services/activity-log.service';
 import { RespVoiceService, RespVoiceWatcher } from '../../services/resp-voice.service';
@@ -175,6 +176,8 @@ export class BookmarksNewComponent {
   private onboarding = inject(OnboardingService);
   private rbJsonResp = inject(RbJsonRespService);
   private noGrade = inject(NoGradeRbService);
+  /** «Дубль в NG» switch */
+  readonly ngMirror = inject(NgMirrorService);
   readonly isAdmin = toSignal(inject(SiteUsersService).isAdmin$, { initialValue: false });
   private activityLog = inject(ActivityLogService);
   private confirmationService = inject(ConfirmationService);
@@ -677,7 +680,7 @@ export class BookmarksNewComponent {
     );
 
     Promise.allSettled(
-      rbIds.map((id) => this.rbJsonResp.setKillTime(id, null, { silent: true })),
+      rbIds.map((id) => this.rbJsonResp.setKillTime(id, null, { silent: true, mirror: false })),
     ).then((results) => {
       const failed = results.filter((r) => r.status === 'rejected').length;
       const cleared = rbIds.length - failed;
@@ -809,7 +812,7 @@ export class BookmarksNewComponent {
       );
 
       const results = await Promise.allSettled(
-        updates.map((u) => this.rbJsonResp.setKillTime(u.id, u.time, { bossName: u.name, silent: true })),
+        updates.map((u) => this.rbJsonResp.setKillTime(u.id, u.time, { bossName: u.name, silent: true, mirror: false })),
       );
       const failed = results.filter((r) => r.status === 'rejected').length;
       const done = updates.length - failed;

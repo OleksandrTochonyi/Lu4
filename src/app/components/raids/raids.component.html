@@ -732,7 +732,7 @@
         (ngModelChange)="killMarkAsDead.set($event)" />
       <label for="kill-mark-dead">
         Пометить как убитый
-        <span class="rd-mark-dead-hint">Время смерти = «Дата и время» выше, для карты и закладок</span>
+        <span class="rd-mark-dead-hint">Время смерти = «Дата и время» выше, для карты и закладок{{ ngMirror.enabled() ? ' + дубль в Bookmarks NG' : '' }}</span>
       </label>
     </div>
 

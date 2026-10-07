@@ -1,10 +1,14 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, Injector, inject } from '@angular/core';
 import { Auth } from '@angular/fire/auth';
 import { Firestore, collection, collectionData, doc, getDoc, setDoc } from '@angular/fire/firestore';
 import { Timestamp } from 'firebase/firestore';
 import { Observable, map } from 'rxjs';
 
+import { MessageService } from 'primeng/api';
+
 import { ActivityLogService } from './activity-log.service';
+import { NgMirrorService } from './ng-mirror.service';
+import { NoGradeRbService } from './nograde-rb.service';
 
 const MAX_HISTORY = 5;
 
@@ -32,6 +36,10 @@ export class RbJsonRespService {
   private firestore = inject(Firestore);
   private auth = inject(Auth);
   private activityLog = inject(ActivityLogService);
+  private ngMirror = inject(NgMirrorService);
+  private messages = inject(MessageService, { optional: true });
+  // NoGradeRbService → RbJsonDataService → this service: resolved lazily to avoid the cycle
+  private injector = inject(Injector);
   private respCollection = collection(this.firestore, 'rb-resp-time');
 
   /** Map of db.json monster id -> its kill-time record. */
@@ -51,11 +59,14 @@ export class RbJsonRespService {
    * @param opts.bossName  human name for the activity-log line (falls back to the id)
    * @param opts.silent     skip the activity-log write — for flows that already log
    *                        their own action (e.g. the raids kill dialog)
+   * @param opts.mirror     false = never copy to Bookmarks NG (bulk flows: sync from NG,
+   *                        «Очистить респы»). Otherwise a set time is copied when the
+   *                        «Дублировать в NG» switch is on; clearing is never copied.
    */
   async setKillTime(
     bossId: string,
     killTime: Date | null,
-    opts: { bossName?: string; silent?: boolean } = {},
+    opts: { bossName?: string; silent?: boolean; mirror?: boolean } = {},
   ): Promise<void> {
     const id = (bossId ?? '').trim();
     if (!id) throw new Error('bossId is required');
@@ -97,6 +108,21 @@ export class RbJsonRespService {
               ? 'Изменил время убийства РБ'
               : null; // clearing an already-empty time — nothing worth logging
       if (verb) this.activityLog.log(verb, opts.bossName || id);
+    }
+
+    if (killTime && opts.mirror !== false && this.ngMirror.enabled()) {
+      // best-effort: ours is already saved, a failed NG write only warns
+      try {
+        await this.injector.get(NoGradeRbService).setKillTime(id, killTime, { bossName: opts.bossName, silent: true });
+      } catch (e) {
+        console.error('NG mirror write failed:', e);
+        this.messages?.add({
+          severity: 'warn',
+          summary: 'В NG не записалось',
+          detail: `${opts.bossName || id}: у нас время сохранено, в Bookmarks NG — нет`,
+          life: 5000,
+        });
+      }
     }
   }
 }

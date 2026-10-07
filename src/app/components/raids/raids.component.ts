@@ -20,6 +20,7 @@ import { ConstPartyGroup, ConstPartyService, ConstPartyUser } from '../../servic
 import { JsonRb, JsonRbLoot, RbJsonDataService, isEnchantScroll } from '../../services/rb-json-data.service';
 import { RbJsonRespService } from '../../services/rb-json-resp.service';
 import { RespVoiceService } from '../../services/resp-voice.service';
+import { NgMirrorService } from '../../services/ng-mirror.service';
 import {
   CraftCatalogService,
   CraftCategory,
@@ -198,6 +199,8 @@ export class RaidsComponent {
   private confirmationService = inject(ConfirmationService);
   private destroyRef = inject(DestroyRef);
   private voice = inject(RespVoiceService);
+  /** «Дубль в NG» (set on the Bookmarks page) — only for the hint; the write is central */
+  readonly ngMirror = inject(NgMirrorService);
 
   readonly view = signal<'kills' | 'drop' | 'sales' | 'listings' | 'stats'>('kills');
 

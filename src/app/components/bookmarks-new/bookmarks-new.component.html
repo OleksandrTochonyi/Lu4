@@ -260,6 +260,20 @@
 							ariaLabel="Очистить респы у РБ, у которых есть время"
 							(onClick)="confirmClearAllResp(tab, $event)"
 						></p-button>
+						<p-button
+							icon="pi pi-clone"
+							label="Дубль в NG"
+							[text]="!ngMirror.enabled()"
+							[outlined]="ngMirror.enabled()"
+							[severity]="ngMirror.enabled() ? 'help' : 'secondary'"
+							size="small"
+							[pTooltip]="ngMirror.enabled()
+								? 'Включено: каждое время убийства, которое мы ставим (здесь, в рейдах, на карте), пишется и в Bookmarks NG. Нажми, чтобы выключить'
+								: 'Выключено: время пишется только к нам. Нажми, чтобы дублировать в Bookmarks NG'"
+							tooltipPosition="top"
+							[ariaLabel]="'Дублировать время убийства в Bookmarks NG'"
+							(onClick)="ngMirror.setEnabled(!ngMirror.enabled())"
+						></p-button>
 						@if (isAdmin()) {
 							<p-button
 								icon="pi pi-sync"
