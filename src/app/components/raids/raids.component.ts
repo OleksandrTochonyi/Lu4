@@ -29,6 +29,7 @@ import {
   normName,
 } from '../../services/craft-catalog.service';
 import {
+  ClanIncome,
   ClanPackShare,
   ClanShareTarget,
   DropDest,
@@ -113,6 +114,9 @@ interface DropCategoryBlock {
 }
 
 /** one row of the "new listing" dialog — a stock item that can be put up for sale */
+/** «На продаже» line keys for «Склад клана» stock */
+const CLAN_KEY = 'clan:';
+
 interface ListingRow {
   key: string;
   name: string;
@@ -123,6 +127,8 @@ interface ListingRow {
   checked: boolean;
   listedQty: number;
   unitPrice: number;
+  /** from «Склад клана» */
+  clan: boolean;
 }
 
 interface PlayerRef {
@@ -922,7 +928,68 @@ export class RaidsComponent {
     return this.openDropGroups().has(key);
   }
 
-/* ========================================================= СКЛАД КЛАНА === */
+  /* ========================================================= СКЛАД КЛАНА === */
+
+  /* -------- «Получили адену»: what the clan paid out to us -------- */
+  readonly clanIncome = toSignal(this.raidLoot.clanIncome$, { initialValue: [] as ClanIncome[] });
+  readonly clanIncomeTotal = computed(() => round2(this.clanIncome().reduce((s, r) => s + r.amount, 0)));
+  readonly clanIncomeListOpen = signal(false);
+  readonly incomeDialogOpen = signal(false);
+  readonly incomeAmount = signal(0);
+  readonly incomeDate = signal('');
+  readonly incomeNote = signal('');
+  readonly savingIncome = signal(false);
+
+  openIncomeDialog(): void {
+    if (!this.canClan()) return;
+    this.incomeAmount.set(0);
+    this.incomeDate.set(this.nowLocalInput());
+    this.incomeNote.set('');
+    this.incomeDialogOpen.set(true);
+  }
+  closeIncomeDialog(): void {
+    this.incomeDialogOpen.set(false);
+  }
+  async submitIncome(): Promise<void> {
+    if (this.savingIncome() || !this.canClan()) return;
+    const amount = round2(Number(this.incomeAmount()) || 0);
+    if (amount <= 0) {
+      this.toast('warn', 'Укажите сумму', '');
+      return;
+    }
+    const receivedAt = this.incomeDate() ? new Date(this.incomeDate()).getTime() : Date.now();
+    this.savingIncome.set(true);
+    try {
+      await this.raidLoot.addClanIncome({ amount, receivedAt, note: this.incomeNote() }, this.myEmail());
+      this.toast('success', 'Записано', `Получили от клана ${this.fmtMoney(amount)}`);
+      this.incomeDialogOpen.set(false);
+      this.clanIncomeListOpen.set(true);
+    } catch (e) {
+      this.toast('error', 'Ошибка', this.msg(e));
+    } finally {
+      this.savingIncome.set(false);
+    }
+  }
+  confirmDeleteIncome(r: ClanIncome): void {
+    if (!this.canClan()) return;
+    this.confirmationService.confirm({
+      header: 'Удалить запись',
+      message: `Удалить запись «${this.fmtMoney(r.amount)}» от ${this.fmtDate(r.receivedAt)}?`,
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Удалить',
+      rejectLabel: 'Отмена',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: async () => {
+        try {
+          await this.raidLoot.removeClanIncome(r.id);
+        } catch (e) {
+          this.toast('error', 'Ошибка', this.msg(e));
+        }
+      },
+    });
+  }
+  trackIncome = (_: number, r: ClanIncome) => r.id;
+
 
   /** may sell from «Склад клана» and mark its payouts (admin + clan-warehouse switch) */
   readonly canClan = toSignal(this.siteUsers.canClanWarehouse$, { initialValue: false });
@@ -1644,6 +1711,25 @@ export class RaidsComponent {
     }
   }
 
+  /** «Склад клана» stock grouped by item, for «На продаже» — keys are «clan:<name>»
+   *  so a clan item never merges with the same item on our own «Дроп» */
+  readonly clanDropGroups = computed(() => {
+    const byName = new Map<string, { key: string; name: string; icon: string | null; grade: string | null; total: number; lines: DropLine[] }>();
+    for (const l of this.clanDropLines()) {
+      const key = CLAN_KEY + l.drop.name.trim().toLowerCase();
+      const g = byName.get(key) ?? { key, name: l.drop.name, icon: l.drop.icon, grade: l.drop.grade, total: 0, lines: [] };
+      g.total += l.remaining;
+      g.lines.push(l);
+      byName.set(key, g);
+    }
+    return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
+  });
+  /** our «Дроп» groups + (for those with clan-warehouse access) the clan ones */
+  private listableGroups(): { key: string; name: string; icon: string | null; grade: string | null; total: number; lines: DropLine[]; clan: boolean }[] {
+    const ours = this.dropGroups().map((g) => ({ ...g, clan: false }));
+    return this.canClan() ? [...ours, ...this.clanDropGroups().map((g) => ({ ...g, clan: true }))] : ours;
+  }
+
   /* ============================================================= LISTINGS === */
 
   /** open lists you're still working on vs. everything already closed/sold */
@@ -1678,6 +1764,10 @@ export class RaidsComponent {
   private availableToList(key: string, total: number, exceptId?: string | null): number {
     return Math.max(0, total - this.reservedForItem(key, exceptId));
   }
+
+  /** «Закрытые» lists (На продаже) and «Завершённые» sales (Продажи): folded by default */
+  readonly doneListingsOpen = signal(false);
+  readonly closedSalesOpen = signal(false);
 
   readonly expandedListingIds = signal<Set<string>>(new Set());
   toggleListingExpanded(id: string): void {
@@ -1728,7 +1818,7 @@ export class RaidsComponent {
     this.editingListingId.set(null);
     this.listingName.set(this.defaultListingName());
     this.listingRows.set(
-      this.dropGroups()
+      this.listableGroups()
         .map((g) => ({ g, available: this.availableToList(g.key, g.total) }))
         // hide anything already fully spoken-for by another draft listing
         .filter(({ available }) => available > 0)
@@ -1742,6 +1832,7 @@ export class RaidsComponent {
           checked: false,
           listedQty: 1,
           unitPrice: 0,
+          clan: g.clan,
         })),
     );
     this.listingDialogOpen.set(true);
@@ -1754,7 +1845,7 @@ export class RaidsComponent {
     this.editingListingId.set(l.id);
     this.listingName.set(l.name);
     const existing = new Map(l.lines.map((ln) => [ln.key, ln]));
-    const groups = this.dropGroups();
+    const groups = this.listableGroups();
     const groupByKey = new Map(groups.map((g) => [g.key, g]));
     const rows: ListingRow[] = [];
     // the list's own current lines first (checked), then whatever else is free to add
@@ -1770,6 +1861,7 @@ export class RaidsComponent {
         checked: true,
         listedQty: ln.listedQty,
         unitPrice: ln.unitPrice,
+        clan: ln.clan,
       });
     }
     for (const g of groups) {
@@ -1786,6 +1878,7 @@ export class RaidsComponent {
         checked: false,
         listedQty: 1,
         unitPrice: 0,
+        clan: g.clan,
       });
     }
     this.listingRows.set(rows);
@@ -1823,7 +1916,7 @@ export class RaidsComponent {
     // re-check against current free stock — another draft may have claimed some
     // while this dialog was open (ignoring THIS list's own reservation when editing)
     const editId = this.editingListingId();
-    const totalByKey = new Map(this.dropGroups().map((g) => [g.key, g.total]));
+    const totalByKey = new Map(this.listableGroups().map((g) => [g.key, g.total]));
     const overListed = rows.filter(
       (r) => Math.round(r.listedQty) > this.availableToList(r.key, totalByKey.get(r.key) ?? r.available, editId),
     );
@@ -1852,6 +1945,7 @@ export class RaidsComponent {
         // keep whatever "продано" was already noted for a line we're editing (clamped);
         // a fresh line starts at 0 sold — everything's still on the market
         soldQty: orig ? Math.min(orig.soldQty, listedQty) : 0,
+        clan: r.clan,
       };
     });
     const name = this.listingName().trim() || this.defaultListingName();
@@ -1897,8 +1991,10 @@ export class RaidsComponent {
 
   /** stock lines for one item, FIFO — oldest kill first (that stock has sat longest) */
   private stockLinesForItem(key: string): DropLine[] {
-    return this.dropLines()
-      .filter((dl) => dl.drop.name.trim().toLowerCase() === key)
+    const clan = key.startsWith(CLAN_KEY);
+    const name = clan ? key.slice(CLAN_KEY.length) : key;
+    return (clan ? this.clanDropLines() : this.dropLines())
+      .filter((dl) => dl.drop.name.trim().toLowerCase() === name)
       .sort((a, b) => a.kill.killedAt - b.kill.killedAt);
   }
 
@@ -1972,6 +2068,10 @@ export class RaidsComponent {
       this.toast('error', 'Не хватает дропа на складе', shortfalls.join(' · '));
       return;
     }
+    if (plan.some((p) => p.line.clan && p.chunks.length) && !this.canClan()) {
+      this.toast('error', 'Нет доступа к складу клана', 'В списке есть предметы склада клана — их может продать только тот, у кого есть доступ');
+      return;
+    }
     const chunkCount = plan.reduce((s, p) => s + p.chunks.length, 0);
     if (!chunkCount) {
       this.toast('warn', 'Нечего продавать', 'Укажите, сколько продано');
@@ -1984,6 +2084,27 @@ export class RaidsComponent {
       for (const { line, chunks } of plan) {
         for (const { dl, take } of chunks) {
           const price = round2(line.unitPrice * take);
+          if (line.clan) {
+            // clan stock → «Продажи клана», left open (closed by hand there)
+            jobs.push(
+              this.raidLoot.addClanSale(
+                {
+                  killId: dl.kill.id,
+                  dropId: dl.drop.id,
+                  bossName: dl.kill.bossName,
+                  itemName: dl.drop.name,
+                  icon: dl.drop.icon,
+                  catalogId: dl.drop.catalogId,
+                  grade: dl.drop.grade,
+                  qty: take,
+                  price,
+                  packs: this.computeClanPayout(price, dl.kill),
+                },
+                this.myEmail(),
+              ),
+            );
+            continue;
+          }
           jobs.push(
             this.raidLoot.addSale(
               {

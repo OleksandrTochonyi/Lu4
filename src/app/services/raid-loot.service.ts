@@ -38,6 +38,17 @@ export interface RaidParticipant {
   name: string;
 }
 
+/** adena the clan handed over to us — a plain ledger entry */
+export interface ClanIncome {
+  id: string;
+  amount: number;
+  /** when the clan gave it */
+  receivedAt: number;
+  note: string;
+  createdBy: string;
+  createdAt: number;
+}
+
 /** where one drop line of a kill farmed with Feels / another clan goes */
 export type DropDest = 'pack' | 'clan' | 'none';
 
@@ -260,6 +271,8 @@ export interface RaidListingLine {
   listedQty: number;
   unitPrice: number;
   soldQty: number;
+  /** stock from «Склад клана» (key is prefixed «clan:») — sells into «Продажи клана» */
+  clan: boolean;
 }
 
 export interface RaidListing {
@@ -438,6 +451,7 @@ function normalizeListingLine(raw: any): RaidListingLine {
     listedQty: toInt(raw?.listedQty),
     unitPrice: toNum(raw?.unitPrice),
     soldQty: Math.max(0, Math.round(Number(raw?.soldQty) || 0)),
+    clan: !!raw?.clan || String(raw?.key ?? '').startsWith('clan:'),
   };
 }
 
@@ -633,7 +647,45 @@ export class RaidLootService {
     await updateDoc(doc(this.firestore, `raid-sales/${saleId}`), { locked });
   }
 
-/* ------------------------------------------------------- «Склад клана» sales */
+  /* ------------------------------------------------------- «Получили адену» ledger */
+
+  private clanIncomeCol = collection(this.firestore, 'raid-clan-income');
+
+  readonly clanIncome$: Observable<ClanIncome[]> = (
+    collectionData(this.clanIncomeCol, { idField: 'id' }) as Observable<any[]>
+  ).pipe(
+    map((list) =>
+      (list ?? [])
+        .map((r) => ({
+          id: String(r?.id ?? ''),
+          amount: Number(r?.amount) || 0,
+          receivedAt: Number(r?.receivedAt) || Number(r?.createdAt) || 0,
+          note: String(r?.note ?? ''),
+          createdBy: String(r?.createdBy ?? ''),
+          createdAt: Number(r?.createdAt) || 0,
+        }))
+        .sort((a, b) => b.receivedAt - a.receivedAt),
+    ),
+  );
+
+  async addClanIncome(data: { amount: number; receivedAt: number; note: string }, actorEmail: string): Promise<void> {
+    if (!(data.amount > 0)) throw new Error('Укажите сумму');
+    await setDoc(doc(this.clanIncomeCol), {
+      amount: data.amount,
+      receivedAt: data.receivedAt || Date.now(),
+      note: (data.note ?? '').trim(),
+      createdBy: actorEmail || 'неизвестно',
+      createdAt: Date.now(),
+    });
+    this.activityLog.log('Записал адену от клана', String(data.amount));
+  }
+
+  async removeClanIncome(id: string): Promise<void> {
+    await deleteDoc(doc(this.firestore, `raid-clan-income/${id}`));
+    this.activityLog.log('Удалил запись об адене от клана');
+  }
+
+  /* ------------------------------------------------------- «Склад клана» sales */
 
   private clanSalesCol = collection(this.firestore, 'raid-clan-sales');
 

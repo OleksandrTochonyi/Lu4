@@ -265,6 +265,31 @@
       <b>% в банк, наёмникам и лидеру</b> (по настройкам «Выплаты»); остальные паки получают долю целиком.
     </div>
 
+    <div class="rd-income">
+      <div class="rd-income-sum">
+        <span class="rd-income-label"><i class="pi pi-wallet"></i> Получено адены от клана</span>
+        <span class="rd-income-total">{{ fmtMoney(clanIncomeTotal()) }}</span>
+        <span class="rd-income-count">{{ clanIncome().length }} {{ clanIncome().length === 1 ? 'выдача' : 'выдач' }}</span>
+      </div>
+      <span class="rd-spacer"></span>
+      <button pButton type="button" icon="pi pi-list" class="p-button-sm p-button-text"
+        [label]="clanIncomeListOpen() ? 'Скрыть историю' : 'История'" [disabled]="!clanIncome().length"
+        (click)="clanIncomeListOpen.set(!clanIncomeListOpen())"></button>
+      <button pButton type="button" icon="pi pi-plus" label="Получили адену" class="p-button-sm"
+        *ngIf="canClan()" (click)="openIncomeDialog()"></button>
+    </div>
+    <div class="rd-income-list" *ngIf="clanIncomeListOpen() && clanIncome().length">
+      <div class="rd-income-row" *ngFor="let r of clanIncome(); trackBy: trackIncome">
+        <span class="rd-income-date"><i class="pi pi-calendar"></i> {{ fmtDate(r.receivedAt) }}</span>
+        <b class="rd-income-amt">+{{ fmtMoney(r.amount) }}</b>
+        <span class="rd-income-note">{{ r.note }}</span>
+        <span class="rd-spacer"></span>
+        <span class="rd-income-who">{{ who(r.createdBy) }}</span>
+        <button pButton type="button" icon="pi pi-trash" class="p-button-sm p-button-text p-button-danger"
+          *ngIf="canClan()" pTooltip="Удалить запись" tooltipPosition="left" (click)="confirmDeleteIncome(r)"></button>
+      </div>
+    </div>
+
     <div class="rd-sales-h">На складе клана</div>
     <div class="rd-clan-stock" *ngIf="filteredClanLines().length; else clanStockEmpty">
       <div class="rd-clan-line" *ngFor="let l of filteredClanLines(); trackBy: trackByLine"
@@ -278,6 +303,10 @@
         <span class="rd-line-boss">{{ l.kill.bossName }}</span>
         <span class="rd-line-date">{{ fmtDate(l.kill.killedAt) }}</span>
         <span class="rd-clan-packs">{{ l.kill.packNames.join(', ') }}</span>
+        <span class="rd-group-listed" *ngIf="reservedForItem('clan:' + l.drop.name.trim().toLowerCase()) as reserved"
+          pTooltip="Выставлено на продажу в черновике «На продаже»" tooltipPosition="top">
+          <i class="pi pi-tags"></i> {{ reserved }} выставлено
+        </span>
         <span class="rd-line-qty">{{ l.remaining }} шт</span>
         <button pButton type="button" label="Продать" icon="pi pi-money-bill" class="p-button-sm"
           [disabled]="!canClan()" (click)="openClanSell(l)"></button>
@@ -476,11 +505,12 @@
       </ng-template>
 
       <ng-container *ngIf="filteredClosedSales().length">
-        <div class="rd-sales-h rd-sales-h--closed">
+        <button type="button" class="rd-sales-h rd-sales-h--closed rd-collapse-h" (click)="closedSalesOpen.set(!closedSalesOpen())">
+          <i class="pi" [ngClass]="closedSalesOpen() ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
           Завершённые
           <span class="rd-sales-h-n">{{ filteredClosedSales().length }}</span>
-        </div>
-        <div class="rd-sales rd-sales--closed">
+        </button>
+        <div class="rd-sales rd-sales--closed" *ngIf="closedSalesOpen()">
           <ng-container *ngFor="let s of filteredClosedSales(); trackBy: trackBySale">
             <ng-container *ngTemplateOutlet="saleRow; context: { $implicit: s }"></ng-container>
           </ng-container>
@@ -531,11 +561,12 @@
       </ng-container>
 
       <ng-container *ngIf="doneListings().length">
-        <div class="rd-sales-h rd-sales-h--closed">
+        <button type="button" class="rd-sales-h rd-sales-h--closed rd-collapse-h" (click)="doneListingsOpen.set(!doneListingsOpen())">
+          <i class="pi" [ngClass]="doneListingsOpen() ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
           Закрытые
           <span class="rd-sales-h-n">{{ doneListings().length }}</span>
-        </div>
-        <div class="rd-listings-group rd-listings-group--done">
+        </button>
+        <div class="rd-listings-group rd-listings-group--done" *ngIf="doneListingsOpen()">
           <ng-container *ngFor="let l of doneListings(); trackBy: trackByListing">
             <ng-container *ngTemplateOutlet="listingCard; context: { $implicit: l }"></ng-container>
           </ng-container>
@@ -565,6 +596,7 @@
           <div class="rd-listing-line" *ngFor="let ln of l.lines; trackBy: trackByListingLine">
             <img *ngIf="ln.icon" [src]="ln.icon" (error)="imgError($event)" alt="" class="rd-listing-icon" />
             <span class="rd-listing-line-name">{{ ln.name }}</span>
+            <span class="rd-clan-badge" *ngIf="ln.clan" pTooltip="Со склада клана — продажа уйдёт в «Продажи клана»" tooltipPosition="top">клан</span>
             <app-grade-badge [grade]="ln.grade" />
             <span class="rd-spacer"></span>
             <ng-container *ngIf="l.status === 'draft'; else soldReadonly">
@@ -1063,6 +1095,34 @@
   </ng-template>
 </p-dialog>
 
+<!-- ================================================== CLAN INCOME DIALOG === -->
+<p-dialog [visible]="incomeDialogOpen()" (visibleChange)="$event || closeIncomeDialog()" [modal]="true"
+  [draggable]="false" [dismissableMask]="true" header="Получили адену от клана" [style]="{ width: 'min(420px, 96vw)' }">
+  <div class="rd-form">
+    <div class="rd-form-row">
+      <label class="rd-field rd-field--grow">
+        <span>Сумма</span>
+        <p-inputNumber [ngModel]="incomeAmount()" (ngModelChange)="incomeAmount.set($event || 0)" [min]="0"
+          [showButtons]="true" [step]="1000000"></p-inputNumber>
+      </label>
+      <label class="rd-field">
+        <span>Дата выдачи</span>
+        <input type="datetime-local" class="rd-datetime" [ngModel]="incomeDate()" (ngModelChange)="incomeDate.set($event)" />
+      </label>
+    </div>
+    <label class="rd-field">
+      <span>Заметка (необязательно)</span>
+      <input pInputText type="text" [ngModel]="incomeNote()" (ngModelChange)="incomeNote.set($event)"
+        placeholder="за что / от кого" (keydown.enter)="submitIncome()" />
+    </label>
+  </div>
+  <ng-template pTemplate="footer">
+    <button pButton type="button" label="Отмена" class="p-button-sm p-button-text" (click)="closeIncomeDialog()"></button>
+    <button pButton type="button" label="Записать" icon="pi pi-check" class="p-button-sm"
+      [disabled]="savingIncome() || !(incomeAmount() > 0)" (click)="submitIncome()"></button>
+  </ng-template>
+</p-dialog>
+
 <!-- ===================================================== CLAN SELL DIALOG === -->
 <p-dialog [visible]="!!clanSellLine()" (visibleChange)="$event || closeClanSell()" [modal]="true" [draggable]="false"
   [dismissableMask]="true" [style]="{ width: 'min(500px, 96vw)' }">
@@ -1238,6 +1298,7 @@
           </button>
           <img *ngIf="r.icon" [src]="r.icon" (error)="imgError($event)" alt="" class="rd-loot-icon" />
           <span class="rd-loot-name" rdOverflowTip>{{ r.name }}</span>
+          <span class="rd-clan-badge" *ngIf="r.clan" pTooltip="Со склада клана" tooltipPosition="top">клан</span>
           <app-grade-badge [grade]="r.grade" />
           <span class="rd-loot-chance">
             свободно {{ r.available }}
@@ -1291,6 +1352,7 @@
       <div class="rd-loot-row" *ngFor="let ln of sl.lines; trackBy: trackByListingLine">
         <img *ngIf="ln.icon" [src]="ln.icon" (error)="imgError($event)" alt="" class="rd-loot-icon" />
         <span class="rd-loot-name" [rdOverflowTip]="ln.name">{{ ln.name }}</span>
+        <span class="rd-clan-badge" *ngIf="ln.clan" pTooltip="Уйдёт в «Продажи клана» (не закрытой)" tooltipPosition="top">клан</span>
         <app-grade-badge [grade]="ln.grade" />
         <span class="rd-loot-chance">в продаже {{ ln.listedQty }} × {{ fmtMoney(ln.unitPrice) }}</span>
         <span class="rd-listing-field">
