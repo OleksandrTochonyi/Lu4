@@ -164,3 +164,9 @@ html.app-dark {
     background: #fca5a5;
   }
 }
+
+/* raids «Дроп»: hover list of item comments, one per line */
+.rd-tip-pre .p-tooltip-text {
+  white-space: pre-line;
+  max-width: 22rem;
+}

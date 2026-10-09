@@ -25,6 +25,10 @@
       <i class="pi pi-box"></i> Дроп на складе
       <span class="rd-seg-count">{{ dropGroups().length }}</span>
     </button>
+    <button type="button" class="rd-seg-btn" [class.active]="view() === 'clan'" (click)="view.set('clan')">
+      <i class="pi pi-building"></i> Склад клана
+      <span class="rd-seg-count" *ngIf="clanDropLines().length">{{ clanDropLines().length }}</span>
+    </button>
     <button type="button" class="rd-seg-btn" [class.active]="view() === 'sales'" (click)="view.set('sales')">
       <i class="pi pi-wallet"></i> Продажи
       <span class="rd-seg-count" *ngIf="totalUnpaid() > 0" [pTooltip]="'Не выдано: ' + fmtMoney(totalUnpaid())"
@@ -71,7 +75,7 @@
         <div class="rd-kill-head" role="button" tabindex="0" (click)="toggleKillExpanded(k.id)"
           (keydown.enter)="toggleKillExpanded(k.id)">
           <i class="pi rd-kill-chevron" [ngClass]="isKillExpanded(k.id) ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
-          <span class="rd-kill-badge" [class.is-soldout]="isKillFullySold(k) && balanceDrops(k).length"
+          <span class="rd-kill-badge" [class.is-soldout]="isKillFullySold(k) && hasStock(k)"
             [class.is-nodrop]="isKillNoDrop(k)">
             <i class="pi" [ngClass]="isKillNoDrop(k) ? 'pi-times' : (isKillFullySold(k) ? 'pi-check' : 'pi-flag-fill')"></i>
           </span>
@@ -91,7 +95,7 @@
             pTooltip="Зафармили вместе с кланом — на баланс идёт только отмеченный дроп" tooltipPosition="top">
             <i class="pi pi-flag"></i> С кланом
           </span>
-          <span class="rd-kill-soldout-tag" *ngIf="isKillFullySold(k) && balanceDrops(k).length"
+          <span class="rd-kill-soldout-tag" *ngIf="isKillFullySold(k) && hasStock(k)"
             pTooltip="Весь дроп с этого убийства продан" tooltipPosition="top">
             <i class="pi pi-check-circle"></i> Распродано
           </span>
@@ -127,14 +131,17 @@
             <div class="rd-kill-section-h">Дроп</div>
             <div class="rd-kill-drops">
               <span class="rd-drop-chip" *ngFor="let d of k.drops"
-                [class.is-not-ours]="k.withClan && !d.ours"
+                [class.is-not-ours]="isSharedKill(k) && d.dest === 'none'"
+                [class.is-clan-dest]="isSharedKill(k) && d.dest === 'clan'"
                 [class.is-soldout]="dropRemaining(k, d) === 0"
                 [class.is-partial]="dropSoldQty(k, d) > 0 && dropRemaining(k, d) > 0">
                 <img *ngIf="d.icon" [src]="d.icon" (error)="imgError($event)" alt="" />
                 <span class="rd-drop-chip-name">{{ d.name }} × {{ d.qty }}</span>
-                <span class="rd-drop-chip-tag" *ngIf="k.withClan" [class.is-ours]="d.ours"
-                  [pTooltip]="d.ours ? 'Забрали себе — есть в «Дроп» и в продажах' : 'Досталось другому клану — только в истории'"
-                  tooltipPosition="top">{{ d.ours ? 'на балансе' : 'не наш' }}</span>
+                <i class="pi pi-comment rd-drop-chip-comment" *ngIf="d.comment" [pTooltip]="d.comment" tooltipPosition="top"></i>
+                <span class="rd-drop-chip-tag" *ngIf="isSharedKill(k)" [class.is-ours]="d.dest === 'pack'"
+                  [class.is-clan]="d.dest === 'clan'"
+                  [pTooltip]="d.dest === 'pack' ? 'На нашем складе («Дроп»)' : d.dest === 'clan' ? 'На складе клана' : 'Досталось другим — только в истории'"
+                  tooltipPosition="top">{{ d.dest === 'pack' ? 'наш склад' : d.dest === 'clan' ? 'склад клана' : 'не наш' }}</span>
                 <span class="rd-drop-chip-remain" *ngIf="dropSoldQty(k, d) > 0"
                   [pTooltip]="'Продано ' + dropSoldQty(k, d) + ' из ' + d.qty" tooltipPosition="top">
                   <i class="pi" [ngClass]="dropRemaining(k, d) === 0 ? 'pi-check-circle' : 'pi-arrow-right'"></i>
@@ -196,11 +203,13 @@
       <ng-container *ngFor="let block of categorizedDropGroups()">
         <div class="rd-sales-h" *ngIf="dropCategoryFilter() === 'all'">{{ block.label }}</div>
         <div class="rd-drop-group" *ngFor="let g of block.groups; trackBy: trackByGroupItem">
-          <button type="button" class="rd-group-head" (click)="toggleDropGroup(g.key)">
+          <button type="button" class="rd-group-head" (click)="toggleDropGroup(g.key)"
+            [pTooltip]="groupComments(g.lines)" tooltipPosition="top" tooltipStyleClass="rd-tip-pre">
             <i class="pi" [ngClass]="isDropGroupOpen(g.key) ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
             <img *ngIf="g.icon" [src]="g.icon" (error)="imgError($event)" alt="" class="rd-group-icon" />
             <span class="rd-group-name">{{ g.name }}</span>
             <app-grade-badge [grade]="g.grade" />
+            <i class="pi pi-comment rd-has-comment" *ngIf="groupComments(g.lines)"></i>
             <span class="rd-group-listed" *ngIf="reservedForItem(g.key) as reserved"
               pTooltip="Выставлено на продажу в черновике — второй раз выставить нельзя" tooltipPosition="top">
               <i class="pi pi-tags"></i> {{ reserved }} выставлено
@@ -212,6 +221,9 @@
             <div class="rd-drop-line" *ngFor="let l of g.lines; trackBy: trackByLine">
               <span class="rd-line-boss">{{ l.kill.bossName }}</span>
               <span class="rd-line-date">{{ fmtDate(l.kill.killedAt) }}</span>
+              <span class="rd-line-comment" *ngIf="l.drop.comment" [pTooltip]="l.drop.comment" tooltipPosition="top">
+                <i class="pi pi-comment"></i> {{ l.drop.comment }}
+              </span>
               <span class="rd-line-qty">{{ l.remaining }} шт</span>
               <button pButton type="button" label="Продать" icon="pi pi-money-bill" class="p-button-sm"
                 (click)="openSell(l)"></button>
@@ -228,6 +240,144 @@
         <p class="rd-empty-sub">
           {{ dropSearch() ? 'Попробуйте другой запрос' : 'Появится после отметки убийства с дропом' }}
         </p>
+      </div>
+    </ng-template>
+  </section>
+
+  <!-- ========================================================== СКЛАД КЛАНА === -->
+  <section *ngIf="view() === 'clan'" class="rd-body">
+    <div class="rd-toolbar">
+      <span class="rd-search">
+        <i class="pi pi-search"></i>
+        <input pInputText type="text" [ngModel]="clanSearch()" (ngModelChange)="clanSearch.set($event)"
+          placeholder="Поиск: предмет, босс, пак, игрок…" />
+      </span>
+      <span class="rd-spacer"></span>
+      <span class="rd-clan-access" *ngIf="!canClan()">
+        <i class="pi pi-lock"></i> Продавать и отмечать выплаты могут только те, у кого есть доступ к складу клана
+      </span>
+    </div>
+
+    <div class="rd-clan-intro">
+      <i class="pi pi-info-circle"></i>
+      Сюда попадает дроп с РБ «с филзом» / «с кланом», у которого выбрано <b>«склад клана»</b>.
+      Деньги с продажи делятся <b>поровну между паками</b>, которые были на РБ. Наш пак делит свою долю как обычную продажу —
+      <b>% в банк, наёмникам и лидеру</b> (по настройкам «Выплаты»); остальные паки получают долю целиком.
+    </div>
+
+    <div class="rd-sales-h">На складе клана</div>
+    <div class="rd-clan-stock" *ngIf="filteredClanLines().length; else clanStockEmpty">
+      <div class="rd-clan-line" *ngFor="let l of filteredClanLines(); trackBy: trackByLine"
+        [pTooltip]="l.drop.comment || ''" tooltipPosition="top">
+        <img *ngIf="l.drop.icon" [src]="l.drop.icon" (error)="imgError($event)" alt="" class="rd-group-icon" />
+        <span class="rd-clan-line-name">
+          <b>{{ l.drop.name }}</b>
+          <app-grade-badge [grade]="l.drop.grade" />
+          <i class="pi pi-comment rd-has-comment" *ngIf="l.drop.comment"></i>
+        </span>
+        <span class="rd-line-boss">{{ l.kill.bossName }}</span>
+        <span class="rd-line-date">{{ fmtDate(l.kill.killedAt) }}</span>
+        <span class="rd-clan-packs">{{ l.kill.packNames.join(', ') }}</span>
+        <span class="rd-line-qty">{{ l.remaining }} шт</span>
+        <button pButton type="button" label="Продать" icon="pi pi-money-bill" class="p-button-sm"
+          [disabled]="!canClan()" (click)="openClanSell(l)"></button>
+      </div>
+    </div>
+    <ng-template #clanStockEmpty>
+      <div class="rd-muted rd-clan-empty">
+        {{ clanSearch() ? 'Ничего не найдено' : 'На складе клана пусто' }}
+      </div>
+    </ng-template>
+
+    <div class="rd-sales-h rd-clan-sales-h">
+      Продажи клана
+      <span class="rd-clan-unpaid" *ngIf="clanUnpaid() > 0">не выдано {{ fmtMoney(clanUnpaid()) }}</span>
+      <span class="rd-spacer"></span>
+      <button pButton type="button" label="Всем выдано" icon="pi pi-check-circle" class="p-button-sm p-button-outlined"
+        *ngIf="canClan() && clanUnpaid() > 0" (click)="confirmSettleClan()"></button>
+    </div>
+    <div class="rd-clan-sales" *ngIf="openClanSales().length; else clanSalesEmpty">
+      <ng-container *ngFor="let s of openClanSales(); trackBy: trackClanSale">
+        <ng-container *ngTemplateOutlet="clanSaleCard; context: { $implicit: s }"></ng-container>
+      </ng-container>
+    </div>
+    <ng-template #clanSalesEmpty>
+      <div class="rd-muted rd-clan-empty">{{ closedClanSales().length ? 'Открытых продаж нет' : 'Продаж со склада клана пока нет' }}</div>
+    </ng-template>
+
+    <div class="rd-clan-closed" *ngIf="closedClanSales().length">
+      <button type="button" class="rd-clan-closed-h" (click)="clanClosedOpen.set(!clanClosedOpen())">
+        <i class="pi" [ngClass]="clanClosedOpen() ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
+        Закрытые продажи
+        <span class="rd-seg-count">{{ closedClanSales().length }}</span>
+      </button>
+      <div class="rd-clan-sales" *ngIf="clanClosedOpen()">
+        <ng-container *ngFor="let s of closedClanSales(); trackBy: trackClanSale">
+          <ng-container *ngTemplateOutlet="clanSaleCard; context: { $implicit: s }"></ng-container>
+        </ng-container>
+      </div>
+    </div>
+
+    <ng-template #clanSaleCard let-s>
+      <div class="rd-clan-sale" [class.is-locked]="s.locked">
+        <div class="rd-clan-sale-h">
+          <img *ngIf="s.icon" [src]="s.icon" (error)="imgError($event)" alt="" class="rd-group-icon" />
+          <b>{{ s.itemName }}</b> × {{ s.qty }}
+          <app-grade-badge [grade]="s.grade" />
+          <span class="rd-line-boss">{{ s.bossName }}</span>
+          <span class="rd-line-date">{{ fmtDate(s.soldAt) }}</span>
+          <span class="rd-spacer"></span>
+          <b class="rd-clan-price">{{ fmtMoney(s.price) }}</b>
+          <span class="rd-clan-done" *ngIf="s.locked"><i class="pi pi-lock"></i> закрыта</span>
+          <span class="rd-clan-ready" *ngIf="!s.locked && clanSaleSettled(s)"><i class="pi pi-check-circle"></i> всё выдано</span>
+          <ng-container *ngIf="canClan()">
+            <button pButton type="button" icon="pi pi-pencil" class="p-button-sm p-button-text"
+              pTooltip="Изменить количество / цену" tooltipPosition="left" (click)="openClanEdit(s)"></button>
+            <button pButton type="button" *ngIf="!s.locked" label="Закрыть" icon="pi pi-lock" class="p-button-sm"
+              [class.p-button-outlined]="!clanSaleSettled(s)" [class.p-button-success]="clanSaleSettled(s)"
+              pTooltip="Закрыть продажу — спросит подтверждение" tooltipPosition="left"
+              (click)="confirmCloseClanSale(s)"></button>
+            <button pButton type="button" *ngIf="s.locked" icon="pi pi-lock-open" class="p-button-sm p-button-text"
+              pTooltip="Открыть заново для правки выплат" tooltipPosition="left" (click)="confirmReopenClanSale(s)"></button>
+            <button pButton type="button" icon="pi pi-trash" class="p-button-sm p-button-text p-button-danger"
+              pTooltip="Удалить продажу" tooltipPosition="left" (click)="confirmDeleteClanSale(s)"></button>
+          </ng-container>
+        </div>
+        <div class="rd-cp-pack rd-cp-pack--sale" *ngFor="let p of s.packs" [class.is-ours]="!!p.split"
+          [class.is-paid]="clanPackPaid(p)">
+          <div class="rd-cp-pack-h">
+            <button type="button" class="rd-clan-share rd-clan-share--pack" [class.is-paid]="clanPackPaid(p)"
+              [disabled]="s.locked || !canClan()" (click)="toggleClanShare(s, p, { kind: 'pack' }, clanPackPaid(p))"
+              [pTooltip]="p.split ? 'Отметить всю долю пака (банк, наёмники, лидер)' : 'Доля на весь пак'" tooltipPosition="top">
+              <i class="pi" [ngClass]="clanPackPaid(p) ? 'pi-check-circle' : 'pi-circle'"></i> {{ p.groupName }}
+            </button>
+            <span class="rd-cp-amt">{{ fmtMoney(p.amount) }}</span>
+          </div>
+          <div class="rd-cp-split" *ngIf="p.split as sp">
+            <button type="button" class="rd-clan-share" [class.is-paid]="sp.bank.paid" [disabled]="s.locked || !canClan()"
+              (click)="toggleClanShare(s, p, { kind: 'bank' }, sp.bank.paid)">
+              <i class="pi" [ngClass]="sp.bank.paid ? 'pi-check-circle' : 'pi-circle'"></i>
+              Банк {{ sp.bankPercent }}% <span class="rd-clan-amt">{{ fmtMoney(sp.bank.amount) }}</span>
+            </button>
+            <button type="button" class="rd-clan-share" *ngFor="let m of clanMercs(sp)" [class.is-paid]="m.value.paid"
+              [disabled]="s.locked || !canClan()" (click)="toggleClanShare(s, p, { kind: 'merc', userId: m.key }, m.value.paid)">
+              <i class="pi" [ngClass]="m.value.paid ? 'pi-check-circle' : 'pi-circle'"></i>
+              {{ m.value.name }} <span class="rd-clan-amt">{{ fmtMoney(m.value.amount) }}</span>
+            </button>
+            <button type="button" class="rd-clan-share" [class.is-paid]="sp.leader.paid" [disabled]="s.locked || !canClan()"
+              (click)="toggleClanShare(s, p, { kind: 'leader' }, sp.leader.paid)">
+              <i class="pi" [ngClass]="sp.leader.paid ? 'pi-check-circle' : 'pi-circle'"></i>
+              {{ sp.leaderName }} <span class="rd-clan-amt">{{ fmtMoney(sp.leader.amount) }}</span>
+            </button>
+          </div>
+          <div class="rd-cp-split" *ngIf="!p.split && p.people.length">
+            <button type="button" class="rd-clan-share" *ngFor="let x of p.people" [class.is-paid]="x.paid"
+              [disabled]="s.locked || !canClan()" (click)="toggleClanShare(s, p, { kind: 'person', userId: x.userId }, x.paid)">
+              <i class="pi" [ngClass]="x.paid ? 'pi-check-circle' : 'pi-circle'"></i>
+              {{ x.name }} <span class="rd-clan-amt">{{ fmtMoney(x.amount) }}</span>
+            </button>
+          </div>
+        </div>
       </div>
     </ng-template>
   </section>
@@ -738,7 +888,7 @@
 
     <div class="rd-mark-dead rd-mark-feels">
       <p-toggleswitch inputId="kill-with-feels" [ngModel]="killWithFeels()"
-        (ngModelChange)="killWithFeels.set($event)" />
+        (ngModelChange)="setKillWithFeels($event)" />
       <label for="kill-with-feels">
         Зафармили с филзом
         <span class="rd-mark-dead-hint">Отдельная пометка в списке — дроп при этом может быть, а может и не быть</span>
@@ -788,9 +938,10 @@
 
     <div class="rd-field">
       <span>Дроп — из таблицы дропа босса или любой предмет вручную</span>
-      <div class="rd-clan-hint" *ngIf="killWithClan()">
+      <div class="rd-clan-hint" *ngIf="killShared()">
         <i class="pi pi-info-circle"></i>
-        С кланом: отмеченный дроп сохранится в истории РБ. Нажми <b>«не наш»</b> у предмета, чтобы он пошёл на наш баланс.
+        С филзом / кланом: у каждого предмета выбери, куда он идёт — <b>«наш склад»</b> (вкладка «Дроп»),
+        <b>«склад клана»</b> (делится по пакам) или <b>«не наш»</b> (только в истории РБ).
       </div>
 
       <div class="rd-loot-list" *ngIf="killLootRows().length; else lootEmpty">
@@ -806,13 +957,19 @@
           <p-inputNumber *ngIf="r.checked" [ngModel]="r.qty" (ngModelChange)="setLootRowQty(r.key, $event)"
             [min]="1" [showButtons]="true" buttonLayout="horizontal" decrementButtonClass="p-button-secondary"
             incrementButtonClass="p-button-secondary" inputStyleClass="rd-loot-qty"></p-inputNumber>
-          <button type="button" class="rd-loot-ours" *ngIf="killWithClan() && r.checked" [class.is-on]="r.ours"
-            [pTooltip]="r.ours ? 'Идёт на наш баланс — нажми, чтобы оставить только в истории' : 'Только в истории — нажми, чтобы забрать на наш баланс'"
-            tooltipPosition="top" (click)="toggleLootOurs(r.key)">
-            <i class="pi" [ngClass]="r.ours ? 'pi-wallet' : 'pi-history'"></i> {{ r.ours ? 'на баланс' : 'не наш' }}
-          </button>
+          <span class="rd-dest" *ngIf="killShared() && r.checked">
+            <button type="button" class="rd-dest-btn" [class.is-on]="r.dest === 'none'" (click)="setLootDest(r.key, 'none')"
+              pTooltip="Досталось другим — только в истории РБ" tooltipPosition="top">не наш</button>
+            <button type="button" class="rd-dest-btn rd-dest-btn--pack" [class.is-on]="r.dest === 'pack'"
+              (click)="setLootDest(r.key, 'pack')" pTooltip="На наш склад («Дроп»), продажа как обычно" tooltipPosition="top">наш склад</button>
+            <button type="button" class="rd-dest-btn rd-dest-btn--clan" [class.is-on]="r.dest === 'clan'"
+              (click)="setLootDest(r.key, 'clan')" pTooltip="На склад клана — продажа делится по пакам и людям" tooltipPosition="top">склад клана</button>
+          </span>
           <button type="button" class="rd-loot-remove" *ngIf="r.extra" pTooltip="Убрать" tooltipPosition="top"
             (click)="removeExtraRow(r.key)"><i class="pi pi-times"></i></button>
+          <input *ngIf="r.checked" pInputText type="text" class="rd-loot-comment" maxlength="200"
+            placeholder="Комментарий к предмету (необязательно) — видно при наведении на складе"
+            [ngModel]="r.comment" (ngModelChange)="setLootRowComment(r.key, $event)" />
         </div>
       </div>
       <ng-template #lootEmpty>
@@ -903,6 +1060,62 @@
     <button pButton type="button" label="Отмена" class="p-button-sm p-button-text" (click)="closeSell()"></button>
     <button pButton type="button" label="Продать" class="p-button-sm" [disabled]="savingSale()"
       (click)="submitSell()"></button>
+  </ng-template>
+</p-dialog>
+
+<!-- ===================================================== CLAN SELL DIALOG === -->
+<p-dialog [visible]="!!clanSellLine()" (visibleChange)="$event || closeClanSell()" [modal]="true" [draggable]="false"
+  [dismissableMask]="true" [style]="{ width: 'min(500px, 96vw)' }">
+  <ng-template pTemplate="header">
+    <span class="rd-sell-title" *ngIf="clanSellLine() as l">
+      <img *ngIf="l.drop.icon" [src]="l.drop.icon" (error)="imgError($event)" alt="" />
+      {{ clanEditing() ? 'Изменить продажу' : 'Склад клана: продать' }} «{{ l.drop.name }}»
+    </span>
+  </ng-template>
+
+  <div class="rd-form" *ngIf="clanSellLine() as l">
+    <div class="rd-sell-src">С убийства «{{ l.kill.bossName }}» от {{ fmtDate(l.kill.killedAt) }}</div>
+
+    <div class="rd-form-row">
+      <label class="rd-field">
+        <span>Количество (доступно {{ l.remaining }})</span>
+        <p-inputNumber [ngModel]="clanSellQty()" (ngModelChange)="clanSellQty.set($event || 1)" [min]="1"
+          [max]="l.remaining" [showButtons]="true"></p-inputNumber>
+      </label>
+      <label class="rd-field rd-field--grow">
+        <span>Цена за 1 шт</span>
+        <p-inputNumber [ngModel]="clanSellUnitPrice()" (ngModelChange)="clanSellUnitPrice.set($event || 0)" [min]="0"
+          [showButtons]="true"></p-inputNumber>
+      </label>
+    </div>
+
+    <div class="rd-sell-total">Итого: <b>{{ fmtMoney(clanSellTotal()) }}</b></div>
+
+    <div class="rd-cp">
+      <div class="rd-cp-h">Делится поровну между паками</div>
+      <div class="rd-cp-pack" *ngFor="let p of clanSellPreview()" [class.is-ours]="!!p.split">
+        <div class="rd-cp-pack-h">
+          <span class="rd-cp-name"><i class="pi pi-users"></i> {{ p.groupName }}</span>
+          <span class="rd-cp-amt">{{ fmtMoney(p.amount) }}</span>
+        </div>
+        <div class="rd-cp-split" *ngIf="p.split as sp">
+          <span class="rd-cp-part">Банк {{ sp.bankPercent }}% <b>{{ fmtMoney(sp.bank.amount) }}</b></span>
+          <span class="rd-cp-part" *ngFor="let m of clanMercs(sp)">{{ m.value.name }} <b>{{ fmtMoney(m.value.amount) }}</b></span>
+          <span class="rd-cp-part">{{ sp.leaderName }} <b>{{ fmtMoney(sp.leader.amount) }}</b></span>
+        </div>
+      </div>
+      <div class="rd-muted" *ngIf="!clanSellPreview().length">У этого убийства не отмечено ни одного пака</div>
+    </div>
+    <div class="rd-cp-warn" *ngIf="clanEditing()">
+      <i class="pi pi-exclamation-triangle"></i> При изменении количества или цены отметки «выдано» у этой продажи сбросятся
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button pButton type="button" label="Отмена" class="p-button-sm p-button-text" (click)="closeClanSell()"></button>
+    <button pButton type="button" class="p-button-sm"
+      [label]="clanEditing() ? 'Сохранить' : 'Продать'"
+      [disabled]="savingClanSale() || !clanSellPreview().length" (click)="submitClanSell()"></button>
   </ng-template>
 </p-dialog>
 

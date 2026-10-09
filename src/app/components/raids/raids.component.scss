@@ -1796,3 +1796,355 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ---------------------------------------------------- per-item comments */
+.rd-loot-row:has(.rd-loot-comment) {
+  flex-wrap: wrap;
+  row-gap: 0.35rem;
+}
+.rd-loot-comment {
+  flex: 1 1 100%;
+  margin-left: 1.5rem;
+  padding: 0.3rem 0.5rem !important;
+  font-size: 0.78rem !important;
+}
+.rd-has-comment {
+  color: #6366f1;
+  font-size: 0.8rem;
+}
+.rd-line-comment {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.76rem;
+  color: #4f46e5;
+}
+.rd-line-comment .pi {
+  font-size: 0.72rem;
+  flex: none;
+}
+.rd-drop-chip-comment {
+  font-size: 0.7rem;
+  color: #6366f1;
+  cursor: help;
+}
+
+/* ---------------------------------------------------- drop destination (shared kills) */
+.rd-dest {
+  display: inline-flex;
+  flex: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.rd-dest-btn {
+  padding: 0.2rem 0.55rem;
+  border: 0;
+  background: #fff;
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.rd-dest-btn + .rd-dest-btn {
+  border-left: 1px solid #e2e8f0;
+}
+.rd-dest-btn.is-on {
+  background: #e2e8f0;
+  color: #334155;
+}
+.rd-dest-btn--pack.is-on {
+  background: #dcfce7;
+  color: #15803d;
+}
+.rd-dest-btn--clan.is-on {
+  background: #e0e7ff;
+  color: #4338ca;
+}
+.rd-drop-chip.is-clan-dest {
+  border: 1px solid #c7d2fe;
+}
+.rd-drop-chip-tag.is-clan {
+  color: #4338ca;
+  background: #e0e7ff;
+}
+
+/* ---------------------------------------------------- «Склад клана» tab */
+.rd-clan-access {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.76rem;
+  color: #b45309;
+}
+.rd-clan-intro {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 0.8rem;
+  border-radius: 10px;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  color: #3730a3;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+.rd-clan-stock,
+.rd-clan-sales {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+.rd-clan-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  font-size: 0.84rem;
+}
+.rd-clan-line-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+.rd-clan-packs {
+  font-size: 0.76rem;
+  color: #4338ca;
+}
+.rd-clan-empty {
+  padding: 0.75rem 0;
+}
+.rd-clan-sales-h {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.rd-clan-unpaid {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #b45309;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.rd-clan-sale {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+.rd-clan-sale.is-locked {
+  background: #f8fafc;
+}
+.rd-clan-sale-h {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+  margin-bottom: 0.45rem;
+}
+.rd-clan-price {
+  color: #15803d;
+}
+.rd-clan-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #15803d;
+}
+.rd-clan-pack {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0;
+}
+.rd-clan-share {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: #fff;
+  color: #334155;
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+.rd-clan-share:disabled {
+  cursor: default;
+}
+.rd-clan-share.is-paid {
+  border-color: #86efac;
+  background: #dcfce7;
+  color: #15803d;
+}
+.rd-clan-share--pack {
+  font-weight: 700;
+  border-color: #c7d2fe;
+}
+.rd-clan-share--pack.is-paid {
+  border-color: #86efac;
+}
+.rd-clan-amt {
+  font-variant-numeric: tabular-nums;
+  color: #64748b;
+}
+.rd-clan-share.is-paid .rd-clan-amt {
+  color: #15803d;
+}
+.rd-clan-preview-h {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  margin-bottom: 0.3rem;
+}
+.rd-payout-row--pack {
+  font-weight: 700;
+}
+.rd-payout-row--person {
+  padding-left: 1rem;
+  font-size: 0.82rem;
+}
+
+/* ---------------------------------------------------- clan split cards */
+.rd-cp {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.rd-cp-h {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+}
+.rd-cp-pack {
+  padding: 0.5rem 0.7rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+.rd-cp-pack.is-ours {
+  border-color: #c7d2fe;
+  background: #eef2ff;
+}
+.rd-cp-pack--sale {
+  margin-top: 0.35rem;
+  background: #fff;
+}
+.rd-cp-pack--sale.is-paid {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+.rd-cp-pack-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+.rd-cp-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
+  font-size: 0.86rem;
+  color: #0f172a;
+}
+.rd-cp-name .pi {
+  font-size: 0.75rem;
+  color: #6366f1;
+}
+.rd-cp-amt {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #15803d;
+}
+.rd-cp-split {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.4rem;
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 1px dashed #c7d2fe;
+}
+.rd-cp-part {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid #e0e7ff;
+  font-size: 0.76rem;
+  color: #334155;
+}
+.rd-cp-part b {
+  font-variant-numeric: tabular-nums;
+  color: #4338ca;
+}
+.rd-cp-warn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.76rem;
+  color: #b45309;
+}
+
+/* ---------------------------------------------------- clan sales: open / closed */
+.rd-clan-ready {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #15803d;
+}
+.rd-clan-done {
+  color: #64748b;
+}
+.rd-clan-closed {
+  margin-top: 0.5rem;
+}
+.rd-clan-closed-h {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.5rem;
+  padding: 0.35rem 0.6rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #475569;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.rd-clan-closed-h:hover {
+  background: #f1f5f9;
+}
+.rd-clan-sale.is-locked {
+  opacity: 0.85;
+}

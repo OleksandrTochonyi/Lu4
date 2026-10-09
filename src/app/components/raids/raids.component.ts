@@ -29,6 +29,11 @@ import {
   normName,
 } from '../../services/craft-catalog.service';
 import {
+  ClanPackShare,
+  ClanShareTarget,
+  DropDest,
+  clanPackSettled,
+  clanSaleSettled,
   MercShare,
   NewRaidKill,
   PayoutConfig,
@@ -39,6 +44,7 @@ import {
   RaidListingLine,
   RaidLootService,
   RaidParticipant,
+  RaidClanSale,
   RaidSale,
   RosterPreset,
   SalePayout,
@@ -54,10 +60,12 @@ interface LootRow {
   checked: boolean;
   qty: number;
   catalogId: string | null;
-  /** «на баланс» — only asked on a kill farmed with another clan */
-  ours: boolean;
+  /** pack / clan / none — only asked on a kill farmed with Feels / another clan */
+  dest: DropDest;
   /** added by hand, not from the boss's drop table (removable) */
   extra: boolean;
+  /** note on this item */
+  comment: string;
 }
 
 /** an item the «добавить любой предмет» picker offers */
@@ -202,7 +210,7 @@ export class RaidsComponent {
   /** «Дубль в NG» (set on the Bookmarks page) — only for the hint; the write is central */
   readonly ngMirror = inject(NgMirrorService);
 
-  readonly view = signal<'kills' | 'drop' | 'sales' | 'listings' | 'stats'>('kills');
+  readonly view = signal<'kills' | 'drop' | 'clan' | 'sales' | 'listings' | 'stats'>('kills');
 
   /* ------------------------------------------------------------------ data */
 
@@ -325,15 +333,24 @@ export class RaidsComponent {
    *  at all counts as "done" straight away (nothing left to deal with) */
   isKillFullySold(kill: RaidKill): boolean {
     const own = this.balanceDrops(kill);
-    if (!own.length) return true;
+    const clan = this.clanDrops(kill);
+    if (!own.length && !clan.length) return true;
     const sold = this.soldByKey();
-    return own.every((d) => (sold.get(`${kill.id}:${d.id}`) ?? 0) >= d.qty);
+    const clanSold = this.clanSoldByKey();
+    return (
+      own.every((d) => (sold.get(`${kill.id}:${d.id}`) ?? 0) >= d.qty) &&
+      clan.every((d) => (clanSold.get(`${kill.id}:${d.id}`) ?? 0) >= d.qty)
+    );
+  }
+  /** something of this kill is still on our «Дроп» or «Склад клана» */
+  hasStock(kill: RaidKill): boolean {
+    return this.balanceDrops(kill).length + this.clanDrops(kill).length > 0;
   }
 
   /** drops that reach our balance («Дроп»): all of them, except on a kill farmed with
-   *  another clan — there only the ones marked «на баланс» */
+   *  Feels / another clan — there only the ones sent to «наш склад» */
   balanceDrops(kill: RaidKill): RaidDrop[] {
-    return kill.withClan ? kill.drops.filter((d) => d.ours) : kill.drops;
+    return this.isSharedKill(kill) ? kill.drops.filter((d) => d.dest === 'pack') : kill.drops;
   }
 
   /** how much of this one drop line has already been sold */
@@ -427,12 +444,12 @@ export class RaidsComponent {
         const existing = byName.get(key);
         if (!existing) return r;
         matched.add(key);
-        return { ...r, checked: true, qty: existing.qty, ours: existing.ours };
+        return { ...r, checked: true, qty: existing.qty, dest: existing.dest, comment: existing.comment };
       });
       // drops that aren't in the boss's table (added by hand) come back as extra rows
       for (const d of kill.drops) {
         if (matched.has(d.name.trim().toLowerCase())) continue;
-        out.push(this.extraRow({ name: d.name, icon: d.icon, grade: d.grade, catalogId: d.catalogId }, d.qty, d.ours));
+        out.push(this.extraRow({ name: d.name, icon: d.icon, grade: d.grade, catalogId: d.catalogId }, d.qty, d.dest, d.comment));
       }
       return out;
     });
@@ -461,8 +478,9 @@ export class RaidsComponent {
           checked: false,
           qty,
           catalogId: index.get(normName(loot.displayName))?.id ?? null,
-          ours: !this.killWithClan(),
+          dest: this.defaultDest(),
           extra: false,
+          comment: '',
         };
       }),
       ...extras,
@@ -478,15 +496,33 @@ export class RaidsComponent {
       rows.map((r) => (r.key === key ? { ...r, qty: Math.max(1, Math.round(qty || 1)) } : r)),
     );
   }
-  /** «Зафармили с кланом» switch: with a clan the drop is history-only by default */
-  setKillWithClan(on: boolean): void {
-    this.killWithClan.set(on);
-    this.killLootRows.update((rows) => rows.map((r) => ({ ...r, ours: !on })));
+  /** the kill being edited is shared (Feels / another clan) → each drop picks where it goes */
+  readonly killShared = computed(() => this.killWithClan() || this.killWithFeels());
+  /** new rows: our «Дроп» on a normal kill, «не наш» on a shared one */
+  private defaultDest(): DropDest {
+    return this.killShared() ? 'none' : 'pack';
   }
-
-  /** «на баланс» / «не наш» on one drop row (kills farmed with another clan) */
-  toggleLootOurs(key: string): void {
-    this.killLootRows.update((rows) => rows.map((r) => (r.key === key ? { ...r, ours: !r.ours } : r)));
+  /** a shared flag flipped → reset every row to that mode's default */
+  private applySharedChange(wasShared: boolean): void {
+    if (wasShared === this.killShared()) return;
+    const dest = this.defaultDest();
+    this.killLootRows.update((rows) => rows.map((r) => ({ ...r, dest })));
+  }
+  setKillWithClan(on: boolean): void {
+    const was = this.killShared();
+    this.killWithClan.set(on);
+    this.applySharedChange(was);
+  }
+  setKillWithFeels(on: boolean): void {
+    const was = this.killShared();
+    this.killWithFeels.set(on);
+    this.applySharedChange(was);
+  }
+  setLootDest(key: string, dest: DropDest): void {
+    this.killLootRows.update((rows) => rows.map((r) => (r.key === key ? { ...r, dest } : r)));
+  }
+  setLootRowComment(key: string, comment: string): void {
+    this.killLootRows.update((rows) => rows.map((r) => (r.key === key ? { ...r, comment } : r)));
   }
   removeExtraRow(key: string): void {
     this.killLootRows.update((rows) => rows.filter((r) => r.key !== key));
@@ -516,15 +552,16 @@ export class RaidsComponent {
     return [...out.values()].sort((a, b) => a.name.localeCompare(b.name));
   });
 
-  private extraRow(o: ExtraItemOption, qty = 1, ours = !this.killWithClan()): LootRow {
+  private extraRow(o: ExtraItemOption, qty = 1, dest: DropDest = this.defaultDest(), comment = ''): LootRow {
     return {
       key: `extra-${newLocalId()}`,
       loot: { displayName: o.name, imgUrl: o.icon ?? '', grade: o.grade ?? undefined },
       checked: true,
       qty: Math.max(1, Math.round(qty || 1)),
       catalogId: o.catalogId,
-      ours,
+      dest,
       extra: true,
+      comment,
     };
   }
 
@@ -642,7 +679,9 @@ export class RaidsComponent {
           icon: r.loot.imgUrl || null,
           grade: r.loot.grade ?? null,
           qty: Math.max(1, Math.round(r.qty || 1)),
-          ours: r.ours,
+          dest: r.dest,
+          ours: r.dest === 'pack',
+          comment: (r.comment ?? '').trim(),
         };
       });
 
@@ -756,6 +795,14 @@ export class RaidsComponent {
     }
     return m;
   });
+
+  /** «Дроп» hover: every comment on this item's stock lines, one per line */
+  groupComments(lines: DropLine[]): string {
+    return lines
+      .filter((l) => l.drop.comment)
+      .map((l) => (lines.length > 1 ? `${l.kill.bossName}, ${this.fmtDate(l.kill.killedAt)}: ` : '') + l.drop.comment)
+      .join('\n');
+  }
 
   readonly dropLines = computed<DropLine[]>(() => {
     const sold = this.soldByKey();
@@ -874,6 +921,293 @@ export class RaidsComponent {
   isDropGroupOpen(key: string): boolean {
     return this.openDropGroups().has(key);
   }
+
+/* ========================================================= СКЛАД КЛАНА === */
+
+  /** may sell from «Склад клана» and mark its payouts (admin + clan-warehouse switch) */
+  readonly canClan = toSignal(this.siteUsers.canClanWarehouse$, { initialValue: false });
+  readonly clanSales = toSignal(this.raidLoot.clanSales$, { initialValue: [] as RaidClanSale[] });
+
+  /** Feels / another clan on this kill → each drop picks pack / clan / none */
+  isSharedKill(kill: RaidKill): boolean {
+    return kill.withClan || kill.withFeels;
+  }
+  /** drops of this kill that went to «Склад клана» */
+  clanDrops(kill: RaidKill): RaidDrop[] {
+    return this.isSharedKill(kill) ? kill.drops.filter((d) => d.dest === 'clan') : [];
+  }
+
+  private readonly clanSoldByKey = computed(() => {
+    const m = new Map<string, number>();
+    for (const s of this.clanSales()) {
+      const key = `${s.killId}:${s.dropId}`;
+      m.set(key, (m.get(key) ?? 0) + s.qty);
+    }
+    return m;
+  });
+
+  /** what's still on «Склад клана», newest kill first */
+  readonly clanDropLines = computed<DropLine[]>(() => {
+    const sold = this.clanSoldByKey();
+    const lines: DropLine[] = [];
+    for (const k of this.kills()) {
+      for (const d of this.clanDrops(k)) {
+        const key = `${k.id}:${d.id}`;
+        const remaining = d.qty - (sold.get(key) ?? 0);
+        if (remaining > 0) lines.push({ key, kill: k, drop: d, remaining });
+      }
+    }
+    return lines;
+  });
+
+  readonly clanSearch = signal('');
+  readonly filteredClanLines = computed(() => {
+    const q = this.clanSearch().trim().toLowerCase();
+    if (!q) return this.clanDropLines();
+    return this.clanDropLines().filter((l) =>
+      `${l.drop.name} ${l.kill.bossName} ${l.drop.comment}`.toLowerCase().includes(q),
+    );
+  });
+  readonly filteredClanSales = computed(() => {
+    const q = this.clanSearch().trim().toLowerCase();
+    if (!q) return this.clanSales();
+    return this.clanSales().filter((s) =>
+      `${s.itemName} ${s.bossName} ${s.packs.map((p) => p.groupName + ' ' + p.people.map((x) => x.name).join(' ')).join(' ')}`
+        .toLowerCase()
+        .includes(q),
+    );
+  });
+
+  /** not yet handed out across all clan sales */
+  readonly clanUnpaid = computed(() =>
+    round2(
+      this.clanSales().reduce(
+        (sum, s) =>
+          sum +
+          s.packs.reduce(
+            (acc, p) =>
+              acc + (p.people.length ? p.people.filter((x) => !x.paid).reduce((a, x) => a + x.amount, 0) : p.paid ? 0 : p.amount),
+            0,
+          ),
+        0,
+      ),
+    ),
+  );
+
+  /**
+   * price → equal per pack that was at the kill. OUR pack (the payout leader's) splits
+   * its cut like a normal sale: bank % → mercenaries → leader. Other packs get theirs whole.
+   */
+  computeClanPayout(price: number, kill: RaidKill): ClanPackShare[] {
+    const ids = kill.packIds.length ? kill.packIds : [...new Set(kill.participants.map((p) => p.groupId))];
+    if (!ids.length) return [];
+    const cfg = this.config();
+    const perPack = round2(price / ids.length);
+    return ids.map((groupId, i) => {
+      const groupName =
+        kill.packNames[i] ?? kill.participants.find((p) => p.groupId === groupId)?.groupName ?? groupId;
+      const ours = !!cfg?.leaderUserId && cfg.leaderGroupId === groupId;
+      // mercenaries: anyone from the roster who was there, except people of another
+      // pack on this kill — that pack already gets its own cut
+      const others = new Set(ids.filter((id) => id !== groupId));
+      const split = ours
+        ? this.computePayout(perPack, { ...kill, participants: kill.participants.filter((p) => !others.has(p.groupId)) }, cfg!)
+        : null;
+      return { groupId, groupName, amount: perPack, split, people: [], paid: false, paidAt: null };
+    });
+  }
+
+  /** mercenary shares of our pack's split, for *ngFor */
+  clanMercs(sp: SalePayout): { key: string; value: MercShare }[] {
+    return Object.entries(sp.mercenaries).map(([key, value]) => ({ key, value }));
+  }
+
+  readonly clanSellLine = signal<DropLine | null>(null);
+  /** set while «Изменить» edits an existing clan sale */
+  readonly clanEditing = signal<RaidClanSale | null>(null);
+  readonly clanSellQty = signal(1);
+  readonly clanSellUnitPrice = signal(0);
+  readonly savingClanSale = signal(false);
+  readonly clanSellTotal = computed(() => round2(this.clanSellUnitPrice() * this.clanSellQty()));
+  readonly clanSellPreview = computed(() => {
+    const l = this.clanSellLine();
+    return l ? this.computeClanPayout(this.clanSellTotal(), l.kill) : [];
+  });
+
+  openClanSell(line: DropLine): void {
+    if (!this.canClan()) return;
+    this.clanSellLine.set(line);
+    this.clanSellQty.set(1);
+    this.clanSellUnitPrice.set(0);
+  }
+  closeClanSell(): void {
+    this.clanSellLine.set(null);
+    this.clanEditing.set(null);
+  }
+
+  /** reopen the sell dialog on an existing clan sale (qty / price) */
+  openClanEdit(sale: RaidClanSale): void {
+    if (!this.canClan()) return;
+    const kill = this.kills().find((k) => k.id === sale.killId);
+    const drop = kill?.drops.find((d) => d.id === sale.dropId);
+    if (!kill || !drop) {
+      this.toast('warn', 'Нельзя изменить', 'Убийство или предмет этой продажи уже удалены');
+      return;
+    }
+    const key = `${kill.id}:${drop.id}`;
+    const left = this.clanDropLines().find((l) => l.key === key)?.remaining ?? 0;
+    this.clanEditing.set(sale);
+    this.clanSellLine.set({ key, kill, drop, remaining: left + sale.qty });
+    this.clanSellQty.set(sale.qty);
+    this.clanSellUnitPrice.set(sale.qty ? round2(sale.price / sale.qty) : sale.price);
+  }
+
+  async submitClanSell(): Promise<void> {
+    const line = this.clanSellLine();
+    if (!line || this.savingClanSale() || !this.canClan()) return;
+    const qty = Math.max(1, Math.min(line.remaining, Math.round(this.clanSellQty() || 1)));
+    const price = Math.max(0, round2(this.clanSellUnitPrice() * qty));
+    const packs = this.computeClanPayout(price, line.kill);
+    if (!packs.length) {
+      this.toast('warn', 'Не на кого делить', 'У этого убийства не отмечено ни одного пака');
+      return;
+    }
+    this.savingClanSale.set(true);
+    const editing = this.clanEditing();
+    if (editing) {
+      try {
+        if (editing.qty !== qty || editing.price !== price) {
+          await this.raidLoot.updateClanSale(editing.id, { qty, price, packs });
+          this.toast('success', 'Продажа изменена', 'Выплаты пересчитаны — отметки «выдано» сброшены');
+        }
+        this.closeClanSell();
+      } catch (e) {
+        this.toast('error', 'Ошибка', this.msg(e));
+      } finally {
+        this.savingClanSale.set(false);
+      }
+      return;
+    }
+    try {
+      await this.raidLoot.addClanSale(
+        {
+          killId: line.kill.id,
+          dropId: line.drop.id,
+          bossName: line.kill.bossName,
+          itemName: line.drop.name,
+          icon: line.drop.icon,
+          catalogId: line.drop.catalogId,
+          grade: line.drop.grade,
+          qty,
+          price,
+          packs,
+        },
+        this.myEmail(),
+      );
+      this.toast('success', 'Продано со склада клана', `${line.drop.name} ×${qty}`);
+      this.closeClanSell();
+    } catch (e) {
+      this.toast('error', 'Ошибка', this.msg(e));
+    } finally {
+      this.savingClanSale.set(false);
+    }
+  }
+
+  /** every share of this pack's cut is paid */
+  clanPackPaid(p: ClanPackShare): boolean {
+    return clanPackSettled(p);
+  }
+  async toggleClanShare(sale: RaidClanSale, p: ClanPackShare, target: ClanShareTarget, paidNow: boolean): Promise<void> {
+    if (sale.locked || !this.canClan()) return;
+    try {
+      await this.raidLoot.setClanSharePaid(sale, p.groupId, target, !paidNow);
+    } catch (e) {
+      this.toast('error', 'Ошибка', this.msg(e));
+    }
+  }
+  async setClanLocked(sale: RaidClanSale, locked: boolean): Promise<void> {
+    if (!this.canClan()) return;
+    try {
+      await this.raidLoot.setClanSaleLocked(sale.id, locked);
+    } catch (e) {
+      this.toast('error', 'Ошибка', this.msg(e));
+    }
+  }
+  /** open (not yet closed) clan sales vs closed ones */
+  readonly openClanSales = computed(() => this.filteredClanSales().filter((s) => !s.locked));
+  readonly closedClanSales = computed(() => this.filteredClanSales().filter((s) => s.locked));
+  readonly clanClosedOpen = signal(false);
+
+  clanSaleSettled(s: RaidClanSale): boolean {
+    return clanSaleSettled(s);
+  }
+
+  /** close one sale — asks first; a sale not fully marked «выдано» says so */
+  confirmCloseClanSale(sale: RaidClanSale): void {
+    if (!this.canClan() || sale.locked) return;
+    const settled = clanSaleSettled(sale);
+    this.confirmationService.confirm({
+      header: 'Закрыть продажу',
+      message: settled
+        ? `Закрыть продажу «${sale.itemName}» ×${sale.qty}? Отметки «выдано» больше нельзя будет менять (пока не откроешь заново).`
+        : `Не все доли отмечены «выдано». Всё равно закрыть продажу «${sale.itemName}» ×${sale.qty}?`,
+      icon: settled ? 'pi pi-lock' : 'pi pi-exclamation-triangle',
+      acceptLabel: 'Закрыть',
+      rejectLabel: 'Отмена',
+      acceptButtonStyleClass: settled ? undefined : 'p-button-warning',
+      accept: () => void this.setClanLocked(sale, true),
+    });
+  }
+  confirmReopenClanSale(sale: RaidClanSale): void {
+    if (!this.canClan() || !sale.locked) return;
+    this.confirmationService.confirm({
+      header: 'Открыть продажу заново',
+      message: `Открыть «${sale.itemName}» ×${sale.qty} для правки выплат?`,
+      icon: 'pi pi-lock-open',
+      acceptLabel: 'Открыть',
+      rejectLabel: 'Отмена',
+      accept: () => void this.setClanLocked(sale, false),
+    });
+  }
+
+  confirmSettleClan(): void {
+    const open = this.clanSales().filter((s) => !s.locked);
+    if (!open.length || !this.canClan()) return;
+    this.confirmationService.confirm({
+      header: 'Всем выдано',
+      message: `Отметить выданными все доли и закрыть ${open.length} открытых продаж склада клана (на сумму ${this.fmtMoney(this.clanUnpaid())})?`,
+      icon: 'pi pi-check-circle',
+      acceptLabel: 'Да, всем выдано',
+      rejectLabel: 'Отмена',
+      accept: async () => {
+        try {
+          await this.raidLoot.settleClanSales(open);
+          this.voice.action('raidSettleAll');
+        } catch (e) {
+          this.toast('error', 'Ошибка', this.msg(e));
+        }
+      },
+    });
+  }
+  confirmDeleteClanSale(sale: RaidClanSale): void {
+    if (!this.canClan()) return;
+    this.confirmationService.confirm({
+      header: 'Удалить продажу',
+      message: `Удалить продажу «${sale.itemName}» ×${sale.qty}? Предмет вернётся на склад клана.`,
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Удалить',
+      rejectLabel: 'Отмена',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: async () => {
+        try {
+          await this.raidLoot.removeClanSale(sale.id);
+        } catch (e) {
+          this.toast('error', 'Ошибка', this.msg(e));
+        }
+      },
+    });
+  }
+  trackClanSale = (_: number, s: RaidClanSale) => s.id;
 
   /* ================================================================ SELL === */
 

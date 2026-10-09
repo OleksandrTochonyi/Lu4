@@ -38,6 +38,132 @@ export interface RaidParticipant {
   name: string;
 }
 
+/** where one drop line of a kill farmed with Feels / another clan goes */
+export type DropDest = 'pack' | 'clan' | 'none';
+
+/** one person's cut of a clan sale */
+export interface ClanPersonShare {
+  userId: string;
+  name: string;
+  amount: number;
+  paid: boolean;
+  paidAt: number | null;
+}
+
+/** one pack's equal cut of a clan sale */
+export interface ClanPackShare {
+  groupId: string;
+  groupName: string;
+  amount: number;
+  /** OUR pack (the payout leader's): its cut is split like a normal sale — bank % →
+   *  mercenaries → leader. null for every other pack (paid as a whole). */
+  split: SalePayout | null;
+  /** legacy (early clan sales split per person) — new sales keep it empty */
+  people: ClanPersonShare[];
+  /** pack-level flag — for a pack paid as a whole */
+  paid: boolean;
+  paidAt: number | null;
+}
+
+/** what one «выдано» click on a clan sale targets */
+export type ClanShareTarget =
+  | { kind: 'pack' }
+  | { kind: 'person'; userId: string }
+  | { kind: 'bank' }
+  | { kind: 'leader' }
+  | { kind: 'merc'; userId: string };
+
+/** a sale from «Склад клана»: price split equally per pack present, then per person */
+export interface RaidClanSale {
+  id: string;
+  killId: string;
+  dropId: string;
+  bossName: string;
+  itemName: string;
+  icon: string | null;
+  catalogId: string | null;
+  grade: string | null;
+  qty: number;
+  price: number;
+  packs: ClanPackShare[];
+  soldAt: number;
+  soldBy: string;
+  locked: boolean;
+}
+
+export type NewRaidClanSale = Omit<RaidClanSale, 'id' | 'soldAt' | 'soldBy' | 'locked'>;
+
+/** every share of this pack's cut is paid */
+export function clanPackSettled(p: ClanPackShare): boolean {
+  if (p.split) {
+    return p.split.bank.paid && p.split.leader.paid && Object.values(p.split.mercenaries).every((m) => m.paid);
+  }
+  return p.people.length ? p.people.every((x) => x.paid) : p.paid;
+}
+
+/** every share of a clan sale is paid */
+export function clanSaleSettled(s: RaidClanSale): boolean {
+  return s.packs.every(clanPackSettled);
+}
+
+/** mark one share (or the whole pack) of a clan sale paid / not paid */
+function markClanShare(p: ClanPackShare, t: ClanShareTarget, paid: boolean, at: number | null): ClanPackShare {
+  const mark = <T extends { paid: boolean; paidAt: number | null }>(x: T): T => ({ ...x, paid, paidAt: paid ? (x.paidAt ?? at) : null });
+  const sp = p.split;
+  switch (t.kind) {
+    case 'pack':
+      if (sp) {
+        const mercenaries = Object.fromEntries(Object.entries(sp.mercenaries).map(([k, m]) => [k, mark(m)]));
+        return { ...p, split: { ...sp, bank: mark(sp.bank), leader: mark(sp.leader), mercenaries } };
+      }
+      return p.people.length ? { ...p, people: p.people.map(mark) } : mark(p);
+    case 'person':
+      return { ...p, people: p.people.map((x) => (x.userId === t.userId ? mark(x) : x)) };
+    case 'bank':
+      return sp ? { ...p, split: { ...sp, bank: mark(sp.bank) } } : p;
+    case 'leader':
+      return sp ? { ...p, split: { ...sp, leader: mark(sp.leader) } } : p;
+    case 'merc':
+      return sp && sp.mercenaries[t.userId]
+        ? { ...p, split: { ...sp, mercenaries: { ...sp.mercenaries, [t.userId]: mark(sp.mercenaries[t.userId]) } } }
+        : p;
+  }
+}
+
+function normalizeClanSale(raw: any): RaidClanSale {
+  const n = (v: any) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  return {
+    id: String(raw?.id ?? ''),
+    killId: String(raw?.killId ?? ''),
+    dropId: String(raw?.dropId ?? ''),
+    bossName: String(raw?.bossName ?? ''),
+    itemName: String(raw?.itemName ?? ''),
+    icon: raw?.icon ? String(raw.icon) : null,
+    catalogId: raw?.catalogId ? String(raw.catalogId) : null,
+    grade: raw?.grade ? String(raw.grade) : null,
+    qty: Math.max(0, Math.round(n(raw?.qty))),
+    price: n(raw?.price),
+    packs: (Array.isArray(raw?.packs) ? raw.packs : []).map((p: any) => ({
+      groupId: String(p?.groupId ?? ''),
+      groupName: String(p?.groupName ?? ''),
+      amount: n(p?.amount),
+      split: p?.split ? normalizePayout(p.split) : null,
+      paid: !!p?.paid,
+      paidAt: p?.paidAt != null ? n(p.paidAt) : null,
+      people: (Array.isArray(p?.people) ? p.people : []).map((x: any) => ({
+        userId: String(x?.userId ?? ''),
+        name: String(x?.name ?? ''),
+        amount: n(x?.amount),
+        paid: !!x?.paid,
+        paidAt: x?.paidAt != null ? n(x.paidAt) : null,
+      })),
+    })),
+    soldAt: n(raw?.soldAt) || Date.now(),
+    soldBy: String(raw?.soldBy ?? ''),
+    locked: !!raw?.locked,
+  };
+}
+
 export interface RaidDrop {
   /** stable id within the kill doc, so a sale can reference this exact line */
   id: string;
@@ -46,8 +172,12 @@ export interface RaidDrop {
   icon: string | null;
   grade: string | null;
   qty: number;
-  /** goes to OUR balance («Дроп») — only matters on a kill farmed with another clan */
+  /** legacy mirror of `dest === 'pack'` (kept so older readers still work) */
   ours: boolean;
+  /** kill farmed with Feels / another clan: our «Дроп» (pack), «Склад клана» (clan), or not ours */
+  dest: DropDest;
+  /** free note on this item (who it's for, enchant, …) — shown on hover in «Дроп» */
+  comment: string;
 }
 
 export interface RaidKill {
@@ -199,6 +329,12 @@ function toNum(v: unknown): number {
 }
 
 function normalizeDrop(raw: any): RaidDrop {
+  const dest: DropDest =
+    raw?.dest === 'pack' || raw?.dest === 'clan' || raw?.dest === 'none'
+      ? raw.dest
+      : raw?.ours === false
+        ? 'none'
+        : 'pack';
   return {
     id: String(raw?.id ?? ''),
     catalogId: raw?.catalogId ? String(raw.catalogId) : null,
@@ -206,7 +342,9 @@ function normalizeDrop(raw: any): RaidDrop {
     icon: raw?.icon ? String(raw.icon) : null,
     grade: raw?.grade ? String(raw.grade) : null,
     qty: toInt(raw?.qty),
-    ours: raw?.ours !== false,
+    ours: dest === 'pack',
+    dest,
+    comment: String(raw?.comment ?? ''),
   };
 }
 
@@ -493,6 +631,61 @@ export class RaidLootService {
   /** finalize (or reopen) a sale — locked sales can't have their payout buttons touched */
   async setSaleLocked(saleId: string, locked: boolean): Promise<void> {
     await updateDoc(doc(this.firestore, `raid-sales/${saleId}`), { locked });
+  }
+
+/* ------------------------------------------------------- «Склад клана» sales */
+
+  private clanSalesCol = collection(this.firestore, 'raid-clan-sales');
+
+  readonly clanSales$: Observable<RaidClanSale[]> = (
+    collectionData(this.clanSalesCol, { idField: 'id' }) as Observable<any[]>
+  ).pipe(map((list) => (list ?? []).map(normalizeClanSale).sort((a, b) => b.soldAt - a.soldAt)));
+
+  async addClanSale(data: NewRaidClanSale, actorEmail: string): Promise<string> {
+    if (!data.killId) throw new Error('Не указано, с какого убийства продан дроп');
+    if (data.qty <= 0) throw new Error('Количество должно быть больше нуля');
+    const ref = doc(this.clanSalesCol);
+    await setDoc(ref, { ...data, soldBy: actorEmail || 'неизвестно', soldAt: Date.now(), locked: false });
+    this.activityLog.log('Продал дроп со склада клана', `${data.itemName} ×${data.qty}`);
+    this.voice.action('raidSale');
+    return ref.id;
+  }
+
+  async removeClanSale(id: string): Promise<void> {
+    await deleteDoc(doc(this.firestore, `raid-clan-sales/${id}`));
+    this.activityLog.log('Удалил продажу со склада клана');
+    this.voice.action('raidSaleDelete');
+  }
+
+  /** mark one share of a clan sale paid / not paid. Closing the sale is a separate,
+   *  confirmed step — until then every mark can be undone. */
+  async setClanSharePaid(sale: RaidClanSale, groupId: string, target: ClanShareTarget, paid: boolean): Promise<void> {
+    const at = Date.now();
+    const packs = sale.packs.map((p) => (p.groupId === groupId ? markClanShare(p, target, paid, at) : p));
+    await updateDoc(doc(this.firestore, `raid-clan-sales/${sale.id}`), { packs });
+  }
+
+  /** edit qty / price — the split is recomputed, so payout marks start over */
+  async updateClanSale(id: string, data: Pick<RaidClanSale, 'qty' | 'price' | 'packs'>): Promise<void> {
+    await updateDoc(doc(this.firestore, `raid-clan-sales/${id}`), { ...data, locked: false });
+    this.activityLog.log('Изменил продажу со склада клана', `×${data.qty}`);
+  }
+
+  /** every share of every given clan sale → paid, and lock them («Всем выдано») */
+  async settleClanSales(sales: RaidClanSale[]): Promise<void> {
+    const at = Date.now();
+    await Promise.all(
+      sales.map((s) =>
+        updateDoc(doc(this.firestore, `raid-clan-sales/${s.id}`), {
+          locked: true,
+          packs: s.packs.map((p) => markClanShare(p, { kind: 'pack' }, true, at)),
+        }),
+      ),
+    );
+  }
+
+  async setClanSaleLocked(id: string, locked: boolean): Promise<void> {
+    await updateDoc(doc(this.firestore, `raid-clan-sales/${id}`), { locked });
   }
 
   async saveConfig(cfg: Omit<PayoutConfig, 'updatedAt' | 'updatedBy'>, actorEmail: string): Promise<void> {
