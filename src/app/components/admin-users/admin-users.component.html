@@ -74,6 +74,8 @@
         <span class="au-role" [ngClass]="'au-role--' + u.role">{{ roleLabel(u.role) }}</span>
         <i class="pi pi-box au-wh-flag" *ngIf="u.role === 'admin' && u.clanWarehouse"
           pTooltip="Есть доступ к «Складу клана»" tooltipPosition="top"></i>
+        <i class="pi pi-send au-wh-flag" *ngIf="u.role === 'admin' && u.bot"
+          pTooltip="Есть доступ к «Бот»" tooltipPosition="top"></i>
       </span>
       <span>
         <span class="au-status" [class.au-status--blocked]="u.blocked">
@@ -173,6 +175,14 @@
       <span>
         Доступ к «Складу клана»
         <small class="au-field-hint">Только для роли «Администратор».</small>
+      </span>
+    </label>
+    <label class="au-check" [class.is-disabled]="editRole() !== 'admin' && !editIsSelf()">
+      <input type="checkbox" [ngModel]="editBot()" (ngModelChange)="editBot.set($event)"
+        [disabled]="editRole() !== 'admin' && !editIsSelf()" />
+      <span>
+        Доступ к «Бот»
+        <small class="au-field-hint">Страница с предложениями респов от бота. Только для роли «Администратор».</small>
       </span>
     </label>
     <label class="au-field">

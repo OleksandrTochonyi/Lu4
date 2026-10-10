@@ -131,6 +131,9 @@ const BOOKMARKS_TOUR_STEPS: TourStep[] = [
 
 /** «перенести только первые респы»: killed & waiting (incl. the hour before) or in the 1st resp */
 const FIRST_RESP_STATUSES = new Set<RbStatus>([RbStatus.NotInResp, RbStatus.SoonResp, RbStatus.InResp]);
+/** the target already went past its 1st resp — with «только первые респы» a newer
+ *  first-cycle time replaces it even when «перезатереть» is off */
+const PAST_FIRST_STATUSES = new Set<RbStatus>([RbStatus.FirstRespPassed, RbStatus.SoonSecondResp, RbStatus.SecondResp]);
 
 interface CustomBossTab {
   id: string;
@@ -781,11 +784,14 @@ export class BookmarksNewComponent {
         }
         const ours = oursById.get(id);
         const ourTime: Date | null = ours?.deadTime instanceof Date ? ours.deadTime : null;
-        const ourMissed =
-          !!ourTime &&
-          calculateStatus(ours.minResp ?? null, ours.maxResp ?? null, ours.secondMinResp ?? null, ours.secondMaxResp ?? null, now) ===
-            RbStatus.Missed;
-        if (ourTime && !ourMissed && (!overwrite || ourTime.getTime() >= ngTime.getTime())) {
+        const ourStatus = ourTime
+          ? calculateStatus(ours.minResp ?? null, ours.maxResp ?? null, ours.secondMinResp ?? null, ours.secondMaxResp ?? null, now)
+          : RbStatus.Unknown;
+        const ourMissed = !!ourTime && ourStatus === RbStatus.Missed;
+        const newer = !!ourTime && ngTime.getTime() > ourTime.getTime();
+        // «только первые респы»: ours already past its 1st resp + NG has a newer kill → take it
+        const ourPastFirst = firstOnly && newer && PAST_FIRST_STATUSES.has(ourStatus);
+        if (ourTime && !ourMissed && !ourPastFirst && (!overwrite || !newer)) {
           oursKept++;
           continue;
         }

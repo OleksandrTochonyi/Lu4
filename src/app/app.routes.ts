@@ -17,6 +17,8 @@ import { AdminUsersComponent } from './components/admin-users/admin-users.compon
 import { authGuard } from './guards/auth.guard';
 import { adminGuard } from './guards/admin.guard';
 import { loginRedirectGuard } from './guards/login-redirect.guard';
+import { botGuard } from './guards/bot.guard';
+import { BotComponent } from './components/bot/bot.component';
 
 export const routes: Routes = [
 	{ path: '', component: BookmarksNewComponent, canActivate: [authGuard] },
@@ -31,6 +33,7 @@ export const routes: Routes = [
 	{ path: 'home-new', component: HomeNewComponent, canActivate: [authGuard] },
 	{ path: 'bookmarks-new', component: BookmarksNewComponent, canActivate: [authGuard] },
 	{ path: 'bookmarks-ng', component: BookmarksNgComponent, canActivate: [authGuard] },
+	{ path: 'bot', component: BotComponent, canActivate: [authGuard, botGuard] },
 	{ path: 'rb-list-new', component: RbListNewComponent, canActivate: [authGuard, adminGuard] },
 	{ path: 'rb-map-new', component: RbMapNewComponent, canActivate: [authGuard] },
 	{ path: 'admin/users', component: AdminUsersComponent, canActivate: [authGuard, adminGuard] },

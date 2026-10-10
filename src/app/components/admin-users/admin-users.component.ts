@@ -242,6 +242,7 @@ export class AdminUsersComponent {
   readonly editNote = signal('');
   readonly editRole = signal<SiteRole>('kp');
   readonly editClanWh = signal(false);
+  readonly editBot = signal(false);
 
   /** editing your own row — role is locked to admin, email is locked (tied to the Firebase account) */
   readonly editIsSelf = computed(() => this.editOrigEmail() === this.myEmail());
@@ -254,6 +255,7 @@ export class AdminUsersComponent {
     this.editNote.set(u.note);
     this.editRole.set(u.role);
     this.editClanWh.set(u.clanWarehouse);
+    this.editBot.set(u.bot);
     this.editOpen.set(true);
   }
   closeEdit(): void {
@@ -289,6 +291,7 @@ export class AdminUsersComponent {
       // only meaningful for admins — cleared on demotion so a later re-promotion
       // doesn't silently bring the access back
       clanWarehouse: newRole === 'admin' && this.editClanWh(),
+      bot: newRole === 'admin' && this.editBot(),
     };
 
     const run = async () => {

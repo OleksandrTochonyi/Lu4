@@ -1,0 +1,247 @@
+<p-confirmDialog></p-confirmDialog>
+
+<div class="bt">
+	<header class="bt-head">
+		<div class="bt-title">
+			<i class="pi pi-send"></i>
+			<div>
+				<h1>Бот</h1>
+				<p>Предложения респов от бота: он видит, что РБ убит, и присылает время. Перенеси их в наши респы по одному или пачкой.</p>
+			</div>
+		</div>
+		<div class="bt-stats">
+			<div class="bt-stat">
+				<b>{{ newCount() }}</b>
+				<span>новых предложений</span>
+			</div>
+			<div class="bt-stat">
+				<b>{{ groups().length }}</b>
+				<span>РБ</span>
+			</div>
+		</div>
+	</header>
+
+	<section class="bt-live">
+		<div class="bt-live-h">
+			<i class="pi pi-wave-pulse"></i> Статус бота
+			<span class="bt-live-hint">обновляется сам, как только бот присылает данные</span>
+		</div>
+		@if (live().length) {
+			<div class="bt-live-list">
+				@for (st of live(); track st.id) {
+					<div class="bt-live-card" [class.is-on]="isOnline(st) && st.state !== 'error'" [class.is-err]="isOnline(st) && st.state === 'error'"
+						[class.is-off]="!isOnline(st)">
+						<div class="bt-live-top">
+							<span class="bt-dot"></span>
+							<b class="bt-live-state">{{ liveLabel(st) }}</b>
+							<span class="bt-live-acc"><i class="pi pi-user"></i> {{ st.account || st.id }}</span>
+							<span class="bt-spacer"></span>
+							<span class="bt-live-ago" [title]="fmt(st.updatedAt)">{{ ago(st.updatedAt) }}</span>
+						</div>
+
+						@if (st.currentBoss || st.currentBossId) {
+							<div class="bt-live-now">
+								<span class="bt-live-label">Сейчас</span>
+								<b>{{ bossOf(st.currentBoss, st.currentBossId)?.displayName || st.currentBoss || st.currentBossId }}</b>
+								@if (bossOf(st.currentBoss, st.currentBossId); as b) {
+									<span class="bt-lvl">ур. {{ b.level }}</span>
+								}
+								@if (st.state && st.state !== 'stopped') {
+									<span class="bt-live-chip">{{ stateLabel(st.state) }}</span>
+								}
+								@if (st.location) {
+									<span class="bt-live-loc"><i class="pi pi-map-marker"></i> {{ st.location }}</span>
+								}
+							</div>
+						}
+						@if (st.message) {
+							<div class="bt-live-msg"><i class="pi pi-comment"></i> {{ st.message }}</div>
+						}
+						@if (st.queue.length) {
+							<div class="bt-live-queue">
+								<span class="bt-live-label">Дальше</span>
+								<ol>
+									@for (q of queueOpen().has(st.id) ? st.queue : st.queue.slice(0, 1); track queueTrack($index, q)) {
+										<li>
+											<b>{{ bossOf(q.bossName, q.bossId)?.displayName || q.bossName || q.bossId }}</b>
+											@if (bossOf(q.bossName, q.bossId); as b) {
+												<span class="bt-lvl">ур. {{ b.level }}</span>
+											}
+											@if (q.at) {
+												<span class="bt-live-eta">{{ eta(q.at) }}</span>
+											}
+											@if (q.note) {
+												<span class="bt-live-qnote">{{ q.note }}</span>
+											}
+										</li>
+									}
+								</ol>
+								@if (st.queue.length > 1) {
+									<button type="button" class="bt-live-more" (click)="toggleQueue(st.id)">
+										<i class="pi" [class.pi-chevron-up]="queueOpen().has(st.id)" [class.pi-chevron-down]="!queueOpen().has(st.id)"></i>
+										{{ queueOpen().has(st.id) ? 'Скрыть' : 'Весь список (' + st.queue.length + ')' }}
+									</button>
+								}
+							</div>
+						}
+						@if (st.version) {
+							<div class="bt-live-ver">v{{ st.version }}</div>
+						}
+					</div>
+				}
+			</div>
+		} @else {
+			<div class="bt-live-empty">
+				<span class="bt-dot"></span> Бот ещё ни разу не присылал статус — см. раздел «Статус» в docs/bot-api.md
+			</div>
+		}
+	</section>
+
+	<div class="bt-toolbar">
+		<label class="bt-check">
+			<p-checkbox [binary]="true" [ngModel]="allSelected()" (ngModelChange)="toggleAll()" [disabled]="!selectableKeys().length"></p-checkbox>
+			<span>Выбрать все</span>
+		</label>
+		<label class="bt-check">
+			<p-checkbox [binary]="true" [ngModel]="onlyNewer()" (ngModelChange)="onlyNewer.set($event)"></p-checkbox>
+			<span>Только новее наших</span>
+		</label>
+		<label class="bt-check" pTooltip="Иначе при массовом переносе РБ, у которых наше время свежее, пропускаются" tooltipPosition="top">
+			<p-checkbox [binary]="true" [ngModel]="overwriteNewer()" (ngModelChange)="overwriteNewer.set($event)"></p-checkbox>
+			<span>Перезатирать, даже если наше свежее</span>
+		</label>
+		<span class="bt-spacer"></span>
+		<span class="bt-mirror" *ngIf="ngMirror.enabled()" pTooltip="Включено на странице закладок — перенесённое время запишется и в Bookmarks NG" tooltipPosition="top">
+			<i class="pi pi-clone"></i> + в NG
+		</span>
+		<button pButton type="button" icon="pi pi-sync" class="p-button-sm"
+			[label]="'Перенести выбранные' + (selectedCount() ? ' (' + selectedCount() + ')' : '')"
+			[disabled]="!selectedCount() || busy()" (click)="applySelected()"></button>
+	</div>
+
+	@if (visibleGroups().length) {
+		<div class="bt-list">
+			@for (g of visibleGroups(); track g.key) {
+				<div class="bt-card" [class.is-unmatched]="!g.boss" [class.is-newer]="g.boss && isNewer(g)" [class.is-selected]="selected().has(g.key)">
+					<div class="bt-card-main">
+						<p-checkbox [binary]="true" [ngModel]="selected().has(g.key)" (ngModelChange)="toggleSelect(g.key)" [disabled]="!g.boss"></p-checkbox>
+
+						<div class="bt-boss">
+							<div class="bt-boss-name">
+								{{ g.name }}
+								@if (g.boss) {
+									<span class="bt-lvl">ур. {{ g.boss.level }}</span>
+								}
+								<span class="bt-count" [pTooltip]="g.items.length > 1 ? 'Предложений от бота по этому РБ' : ''" tooltipPosition="top">
+									{{ g.items.length }} {{ g.items.length === 1 ? 'предложение' : g.items.length < 5 ? 'предложения' : 'предложений' }}
+								</span>
+							</div>
+							@if (!g.boss) {
+								<div class="bt-unmatched">
+									<i class="pi pi-exclamation-triangle"></i> Не нашли РБ «{{ g.items[0].bossName }}» — выбери вручную:
+									<p-dropdown [options]="bossOptions()" optionLabel="label" optionValue="value" [filter]="true" filterBy="label"
+										placeholder="Какой это РБ?" appendTo="body" styleClass="bt-boss-pick" (onChange)="assignBoss(g, $event.value)"></p-dropdown>
+								</div>
+							}
+						</div>
+
+						<div class="bt-times">
+							<div class="bt-time">
+								<span class="bt-time-label">Бот</span>
+								<b>{{ fmt(g.latest.killedAt) }}</b>
+							</div>
+							<div class="bt-time">
+								<span class="bt-time-label">У нас</span>
+								<span>{{ fmt(g.ourMs) }}</span>
+							</div>
+							@if (g.boss) {
+								<span class="bt-diff" [class.is-newer]="isNewer(g)">{{ diff(g) }}</span>
+							}
+						</div>
+
+						<div class="bt-actions">
+							@if (g.latest.hasPhoto) {
+								<button pButton type="button" icon="pi pi-image" class="p-button-sm p-button-text" pTooltip="Скриншот" tooltipPosition="top"
+									(click)="openPhoto(g.latest, g.name)"></button>
+							}
+							@if (g.items.length > 1) {
+								<button pButton type="button" class="p-button-sm p-button-text" [icon]="expanded().has(g.key) ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
+									pTooltip="Все предложения" tooltipPosition="top" (click)="toggleExpanded(g.key)"></button>
+							}
+							<button pButton type="button" icon="pi pi-check" label="В респ" class="p-button-sm"
+								[disabled]="!g.boss || busy()" (click)="apply(g)"></button>
+							<button pButton type="button" icon="pi pi-times" class="p-button-sm p-button-text p-button-danger"
+								pTooltip="Отклонить" tooltipPosition="top" (click)="reject(g)"></button>
+						</div>
+					</div>
+
+					@if (g.latest.note && !expanded().has(g.key)) {
+						<div class="bt-note"><i class="pi pi-comment"></i> {{ g.latest.note }}</div>
+					}
+
+					@if (expanded().has(g.key)) {
+						<div class="bt-items">
+							@for (s of g.items; track s.id) {
+								<div class="bt-item">
+									<b>{{ fmt(s.killedAt) }}</b>
+									@if (g.boss) {
+										<span class="bt-diff" [class.is-newer]="g.ourMs == null || s.killedAt > g.ourMs">{{ diff(g, s.killedAt) }}</span>
+									}
+									<span class="bt-item-note">{{ s.note }}</span>
+									<span class="bt-spacer"></span>
+									<span class="bt-item-sent">прислано {{ fmt(s.sentAt) }}</span>
+									@if (s.hasPhoto) {
+										<button pButton type="button" icon="pi pi-image" class="p-button-sm p-button-text" (click)="openPhoto(s, g.name)"></button>
+									}
+									<button pButton type="button" label="Это время" class="p-button-sm p-button-outlined" [disabled]="!g.boss || busy()" (click)="apply(g, s)"></button>
+									<button pButton type="button" icon="pi pi-times" class="p-button-sm p-button-text p-button-danger" (click)="rejectOne(s)"></button>
+								</div>
+							}
+						</div>
+					}
+				</div>
+			}
+		</div>
+	} @else {
+		<div class="bt-empty">
+			<i class="pi pi-inbox"></i>
+			<p>{{ onlyNewer() && groups().length ? 'Нет предложений новее наших' : 'Новых предложений от бота нет' }}</p>
+		</div>
+	}
+
+	@if (handled().length) {
+		<div class="bt-handled">
+			<button type="button" class="bt-handled-h" (click)="showHandled.set(!showHandled())">
+				<i class="pi" [class.pi-chevron-down]="showHandled()" [class.pi-chevron-right]="!showHandled()"></i>
+				Обработанные <span class="bt-count">{{ handled().length }}</span>
+			</button>
+			@if (showHandled()) {
+				<button pButton type="button" icon="pi pi-trash" label="Удалить обработанные" class="p-button-sm p-button-text p-button-danger" (click)="clearHandled()"></button>
+				<div class="bt-items bt-items--handled">
+					@for (s of handled().slice(0, 200); track s.id) {
+						<div class="bt-item">
+							<span class="bt-status" [class.is-applied]="s.status === 'applied'">{{ s.status === 'applied' ? 'перенесено' : 'отклонено' }}</span>
+							<b>{{ match(s)?.displayName || match(s)?.name || s.bossName }}</b>
+							<span>{{ fmt(s.killedAt) }}</span>
+							<span class="bt-spacer"></span>
+							<span class="bt-item-sent">{{ who(s.handledBy) }} · {{ fmt(s.handledAt) }}</span>
+							@if (s.hasPhoto) {
+								<button pButton type="button" icon="pi pi-image" class="p-button-sm p-button-text" (click)="openPhoto(s, s.bossName)"></button>
+							}
+							<button pButton type="button" icon="pi pi-undo" class="p-button-sm p-button-text" pTooltip="Вернуть в новые" tooltipPosition="left" (click)="reopen(s)"></button>
+						</div>
+					}
+				</div>
+			}
+		</div>
+	}
+</div>
+
+<p-dialog [visible]="photoUrl() !== null" (visibleChange)="$event || closePhoto()" [modal]="true" [dismissableMask]="true"
+	[draggable]="false" [header]="photoTitle()" [style]="{ width: 'min(1100px, 96vw)' }">
+	@if (photoLoading()) {
+		<div class="bt-photo-loading"><i class="pi pi-spin pi-spinner"></i></div>
+	} @else if (photoUrl()) {
+		<img class="bt-photo no-invert" [src]="photoUrl()" alt="Скриншот" />
+	}
+</p-dialog>

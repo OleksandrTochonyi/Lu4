@@ -28,6 +28,9 @@ import { CLEAR_STATUS_OPTIONS, RbStatus } from '../../constants/status';
 
 /** «Перенести только первые респы»: killed & waiting (incl. the hour before) or in the 1st resp */
 const FIRST_RESP_STATUSES = new Set<RbStatus>([RbStatus.NotInResp, RbStatus.SoonResp, RbStatus.InResp]);
+/** the target already went past its 1st resp — with «только первые респы» a newer
+ *  first-cycle time replaces it even when «перезатереть» is off */
+const PAST_FIRST_STATUSES = new Set<RbStatus>([RbStatus.FirstRespPassed, RbStatus.SoonSecondResp, RbStatus.SecondResp]);
 import { JsonRbCardComponent } from '../shared/json-rb-card/json-rb-card.component';
 
 interface CustomBossTab {
@@ -326,11 +329,14 @@ export class BookmarksNgComponent {
         }
         const ng = ngById.get(id);
         const ngTime: Date | null = ng?.deadTime instanceof Date ? ng.deadTime : null;
-        const ngMissed =
-          !!ngTime &&
-          calculateStatus(ng.minResp ?? null, ng.maxResp ?? null, ng.secondMinResp ?? null, ng.secondMaxResp ?? null, now) ===
-            RbStatus.Missed;
-        if (ngTime && !ngMissed && (!overwrite || ngTime.getTime() >= ourTime.getTime())) {
+        const ngStatus = ngTime
+          ? calculateStatus(ng.minResp ?? null, ng.maxResp ?? null, ng.secondMinResp ?? null, ng.secondMaxResp ?? null, now)
+          : RbStatus.Unknown;
+        const ngMissed = !!ngTime && ngStatus === RbStatus.Missed;
+        const newer = !!ngTime && ourTime.getTime() > ngTime.getTime();
+        // «только первые респы»: NG already past its 1st resp + ours is a newer kill → take it
+        const ngPastFirst = firstOnly && newer && PAST_FIRST_STATUSES.has(ngStatus);
+        if (ngTime && !ngMissed && !ngPastFirst && (!overwrite || !newer)) {
           ngKept++;
           continue;
         }

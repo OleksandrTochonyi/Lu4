@@ -52,11 +52,18 @@ export interface SiteUser {
    * admins — see {@link canClanWarehouse}; an admin still needs it switched on.
    */
   clanWarehouse: boolean;
+  /** may open the «Бот» page — like clanWarehouse, only honoured for admins */
+  bot: boolean;
 }
 
 /** "Склад клана" access = role admin AND the per-user switch turned on */
 export function canClanWarehouse(u: SiteUser | null | undefined): boolean {
   return !!u && !u.blocked && u.role === 'admin' && u.clanWarehouse;
+}
+
+/** «Бот» page access = role admin AND the per-user switch turned on */
+export function canBot(u: SiteUser | null | undefined): boolean {
+  return !!u && !u.blocked && u.role === 'admin' && u.bot;
 }
 
 export interface SiteUserIp {
@@ -149,6 +156,7 @@ function normalize(raw: any): SiteUser {
     lastSeenAt: Number(raw?.lastSeenAt) || 0,
     ips: normalizeIps(raw?.ips),
     clanWarehouse: raw?.clanWarehouse === true,
+    bot: raw?.bot === true,
   };
 }
 
@@ -262,6 +270,7 @@ export class SiteUsersService {
 
   /** current user may open the "Склад клана" */
   readonly canClanWarehouse$: Observable<boolean> = this.myRow$.pipe(map((row) => canClanWarehouse(row)));
+  readonly canBot$: Observable<boolean> = this.myRow$.pipe(map((row) => canBot(row)));
 
   readonly isBlocked$: Observable<boolean> = this.myRow$.pipe(
     map((row) => row?.blocked === true),
@@ -426,6 +435,7 @@ export class SiteUsersService {
         name: next.name.trim(),
         note: next.note.trim(),
         clanWarehouse: !!next.clanWarehouse,
+        bot: !!next.bot,
       });
       return;
     }
@@ -441,6 +451,7 @@ export class SiteUsersService {
       lastSeenAt: 0,
       ips: next.ips ?? [],
       clanWarehouse: !!next.clanWarehouse,
+      bot: !!next.bot,
     });
     await deleteDoc(doc(this.firestore, `site-users/${oldId}`));
   }

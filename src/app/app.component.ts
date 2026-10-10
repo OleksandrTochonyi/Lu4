@@ -14,8 +14,8 @@ import { MenubarModule } from 'primeng/menubar';
 import { RippleModule } from 'primeng/ripple';
 import { ToastModule } from 'primeng/toast';
 import { MenuItem } from 'primeng/api';
-import { combineLatest } from 'rxjs';
-import { filter } from 'rxjs/operators';
+import { combineLatest, of } from 'rxjs';
+import { filter, startWith, switchMap } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { AuthService } from './services/auth.service';
@@ -23,6 +23,7 @@ import { SiteUsersService } from './services/site-users.service';
 import { ActivityLogService } from './services/activity-log.service';
 import { ThemeService } from './services/theme.service';
 import { RespVoiceService } from './services/resp-voice.service';
+import { RbBotService } from './services/rb-bot.service';
 import { VoiceSettingsComponent } from './components/shared/voice-settings/voice-settings.component';
 
 const PAGE_NAMES: Record<string, string> = {
@@ -30,6 +31,7 @@ const PAGE_NAMES: Record<string, string> = {
   '/bookmarks': 'Букмарки',
   '/bookmarks-new': 'Букмарки',
   '/bookmarks-ng': 'Букмарки NoGrade',
+  '/bot': 'Бот',
   '/home-new': 'Главная',
   '/users': 'Клан',
   '/const-party': 'Клан',
@@ -67,6 +69,7 @@ export class AppComponent {
   private activityLog = inject(ActivityLogService);
   readonly theme = inject(ThemeService);
   private voice = inject(RespVoiceService);
+  private bot = inject(RbBotService);
   private location = inject(Location);
   private destroyRef = inject(DestroyRef);
 
@@ -99,6 +102,8 @@ export class AppComponent {
 
   private readonly allMenuItems: (MenuItem & {
     adminOnly?: boolean;
+    /** «Бот» — admins with the bot switch */
+    botOnly?: boolean;
   })[] = [
     {
       label: 'Bookmarks',
@@ -110,6 +115,12 @@ export class AppComponent {
       badge: 'NG',
       icon: 'pi pi-bookmark',
       routerLink: '/bookmarks-ng',
+    },
+    {
+      label: 'Bot',
+      icon: 'pi pi-send',
+      routerLink: '/bot',
+      botOnly: true,
     },
     {
       label: 'RB Map',
@@ -208,16 +219,22 @@ export class AppComponent {
         this.activityLog.log('Открыл', PAGE_NAMES[path] ?? path, 'nav');
       });
 
-    combineLatest([this.siteUsers.isAdmin$, this.siteUsers.newIpAlerts$])
+    // the bot collection is only read for people who may see the page
+    const botNew$ = this.siteUsers.canBot$.pipe(
+      switchMap((ok) => (ok ? this.bot.newCount$.pipe(startWith(0)) : of(0))),
+    );
+    combineLatest([this.siteUsers.isAdmin$, this.siteUsers.newIpAlerts$, this.siteUsers.canBot$, botNew$])
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(([isAdmin, alerts]) => {
+      .subscribe(([isAdmin, alerts, canBot, botNew]) => {
         this.items = this.allMenuItems
-          .filter((item) => isAdmin || !item.adminOnly)
+          .filter((item) => (isAdmin || !item.adminOnly) && (canBot || !item.botOnly))
           .map((item) =>
             // unseen "new IP" alerts show as a badge on Users
             item.routerLink === '/admin/users' && alerts.length
               ? { ...item, badge: String(alerts.length), badgeStyleClass: 'ip-alert-badge' }
-              : item,
+              : item.routerLink === '/bot' && botNew
+                ? { ...item, badge: String(botNew), badgeStyleClass: 'ip-alert-badge' }
+                : item,
           );
       });
 
