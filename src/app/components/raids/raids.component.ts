@@ -114,6 +114,11 @@ interface DropCategoryBlock {
 }
 
 /** one row of the "new listing" dialog — a stock item that can be put up for sale */
+/** «На продаже» dialog rows: by item name (our stock before clan stock on a tie) */
+function byListingName(a: { name: string; clan: boolean }, b: { name: string; clan: boolean }): number {
+  return a.name.localeCompare(b.name, 'ru', { sensitivity: 'base' }) || Number(a.clan) - Number(b.clan);
+}
+
 /** «На продаже» line keys for «Склад клана» stock */
 const CLAN_KEY = 'clan:';
 
@@ -1833,7 +1838,8 @@ export class RaidsComponent {
           listedQty: 1,
           unitPrice: 0,
           clan: g.clan,
-        })),
+        }))
+        .sort(byListingName),
     );
     this.listingDialogOpen.set(true);
   }
@@ -1881,7 +1887,10 @@ export class RaidsComponent {
         clan: g.clan,
       });
     }
-    this.listingRows.set(rows);
+    this.listingRows.set([
+      ...rows.filter((r) => r.checked).sort(byListingName),
+      ...rows.filter((r) => !r.checked).sort(byListingName),
+    ]);
     this.listingDialogOpen.set(true);
   }
   closeListingDialog(): void {
