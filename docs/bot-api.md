@@ -43,7 +43,7 @@ The response has `id_token`, a new token for another hour.
 
 ---
 
-## 2. Send a suggestion «РБ убит»
+## 2. Send «РБ убит» (event `killed`)
 
 Generate an id yourself (any unique string, e.g. a UUID). The screenshot is stored under the same id.
 
@@ -66,6 +66,7 @@ Content-Type: application/json
 
 | Field | Required | Description |
 |---|---|---|
+| `event` | no | `"killed"` (default) — for a kill. «РБ жив» is `"alive"`, see 2b. |
 | `bossName` | **yes** | RB name, as in the game / on the site (English, as on the bookmarks). Case, spaces and punctuation don't matter. |
 | `killedAt` | **yes** | Time of the kill. `timestampValue` in ISO 8601: UTC with `Z` (`2026-10-10T14:23:05Z`) or with an offset (`2026-10-10T17:23:05+03:00`). It must be the real moment: the site shows it in Kyiv time. |
 | `bossId` | no | RB id from the site's `db.json` (e.g. `"25375"`). If given, it is matched by id, not by name. |
@@ -81,6 +82,47 @@ Notes:
 - `(default)` in the URL is written literally, parentheses included.
 
 Success is `200 OK` with the created document. `401/403` means a bad or expired token, or Firestore rules (see step 0).
+
+---
+
+## 2b. «РБ встал / жив» (event `alive`)
+
+The same request into the same collection `rb-bot-suggestions`, but with `"event": "alive"` and the time it was seen (`seenAt`) instead of `killedAt`. A screenshot is attached the same way (step 3, same `<ID>`).
+
+```
+POST https://firestore.googleapis.com/v1/projects/lu4-serv/databases/(default)/documents/rb-bot-suggestions?documentId=<ID>
+Authorization: Bearer <idToken>
+Content-Type: application/json
+
+{
+  "fields": {
+    "event":    { "stringValue": "alive" },
+    "bossName": { "stringValue": "Zombie Lord Ferkel" },
+    "seenAt":   { "timestampValue": "2026-10-10T14:05:12Z" },
+    "hasPhoto": { "booleanValue": true },
+    "note":     { "stringValue": "встал, на месте" }
+  }
+}
+```
+
+| Field | For `alive` |
+|---|---|
+| `event` | `"alive"`. For a kill send `"killed"` or leave the field out — no `event` means «убит», as in step 2. |
+| `seenAt` | **Required.** When the RB was seen alive (UTC `Z` or with an offset). |
+| `bossName` / `bossId`, `hasPhoto`, `note`, `sentAt`, `source` | Same as in step 2. |
+
+**Typical sequence for one RB:**
+1. The RB spawned: send `event: "alive"` with `seenAt` and a screenshot.
+2. The RB died: send `event: "killed"` (or no `event`) with `killedAt` and a screenshot.
+
+Each event is a separate document with its own `<ID>`. The page groups them by RB:
+
+- **«Жив»**: the latest «alive» — time, how long ago, screenshot. If it is the newest event for that RB, the card is green with «стоит».
+- **«Убит»**: the latest «killed» — time, «новее/старше нашего», screenshot.
+- **«В респ»** moves only the kill time. «Жив» is information only and is not moved into the kill time.
+- **🗑** deletes all events of this RB together with their screenshots.
+
+Don't send «alive» for the same RB too often. Once when it spawns is enough, or again after a long time if it's still standing.
 
 ---
 
@@ -232,8 +274,30 @@ def send_kill(token, boss_name, killed_at: dt.datetime, photo_bytes: bytes | Non
                   json={"fields": fields}, timeout=15).raise_for_status()
     return doc_id
 
+def send_alive(token, boss_name, seen_at: dt.datetime, photo_bytes: bytes | None = None, note=""):
+    """«РБ встал / жив» — same as send_kill, but event=alive + seenAt"""
+    doc_id = uuid.uuid4().hex
+    headers = {"Authorization": f"Bearer {token}"}
+    iso = lambda t: t.astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    if photo_bytes:
+        data_url = "data:image/jpeg;base64," + base64.b64encode(photo_bytes).decode()
+        requests.post(f"{BASE}/rb-bot-photos?documentId={doc_id}", headers=headers,
+                      json={"fields": {"photo": {"stringValue": data_url}}}, timeout=30).raise_for_status()
+    fields = {
+        "event":    {"stringValue": "alive"},
+        "bossName": {"stringValue": boss_name},
+        "seenAt":   {"timestampValue": iso(seen_at)},
+        "sentAt":   {"timestampValue": iso(dt.datetime.now(dt.timezone.utc))},
+        "hasPhoto": {"booleanValue": bool(photo_bytes)},
+        "note":     {"stringValue": note},
+    }
+    requests.post(f"{BASE}/rb-bot-suggestions?documentId={doc_id}", headers=headers,
+                  json={"fields": fields}, timeout=15).raise_for_status()
+    return doc_id
+
 token = login()
-send_kill(token, "Zombie Lord Ferkel", dt.datetime.now(dt.timezone.utc), note="тест")
+send_alive(token, "Zombie Lord Ferkel", dt.datetime.now(dt.timezone.utc), note="встал")   # РБ появился
+send_kill(token, "Zombie Lord Ferkel", dt.datetime.now(dt.timezone.utc), note="тест")     # РБ убит
 ```
 
 ## Example (curl)

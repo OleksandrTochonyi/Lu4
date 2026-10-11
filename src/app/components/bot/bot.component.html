@@ -6,17 +6,21 @@
 			<i class="pi pi-send"></i>
 			<div>
 				<h1>Бот</h1>
-				<p>Предложения респов от бота: он видит, что РБ убит, и присылает время. Перенеси их в наши респы по одному или пачкой.</p>
+				<p>Бот присылает, когда РБ <b>встал</b> и когда его <b>убили</b> (со скриншотом). Время убийства переносится в наши респы — по одному или пачкой.</p>
 			</div>
 		</div>
 		<div class="bt-stats">
-			<div class="bt-stat">
-				<b>{{ newCount() }}</b>
-				<span>новых предложений</span>
+			<div class="bt-stat bt-stat--alive">
+				<b>{{ aliveCount() }}</b>
+				<span>стоят сейчас</span>
+			</div>
+			<div class="bt-stat bt-stat--dead">
+				<b>{{ killCount() }}</b>
+				<span>убиты — в респ</span>
 			</div>
 			<div class="bt-stat">
-				<b>{{ groups().length }}</b>
-				<span>РБ</span>
+				<b>{{ newCount() }}</b>
+				<span>событий</span>
 			</div>
 		</div>
 	</header>
@@ -104,7 +108,7 @@
 		</label>
 		<label class="bt-check">
 			<p-checkbox [binary]="true" [ngModel]="onlyNewer()" (ngModelChange)="onlyNewer.set($event)"></p-checkbox>
-			<span>Только новее наших</span>
+			<span>Только убийства новее наших</span>
 		</label>
 		<label class="bt-check" pTooltip="Иначе при массовом переносе РБ, у которых наше время свежее, пропускаются" tooltipPosition="top">
 			<p-checkbox [binary]="true" [ngModel]="overwriteNewer()" (ngModelChange)="overwriteNewer.set($event)"></p-checkbox>
@@ -122,9 +126,10 @@
 	@if (visibleGroups().length) {
 		<div class="bt-list">
 			@for (g of visibleGroups(); track g.key) {
-				<div class="bt-card" [class.is-unmatched]="!g.boss" [class.is-newer]="g.boss && isNewer(g)" [class.is-selected]="selected().has(g.key)">
+				<div class="bt-card" [class.is-unmatched]="!g.boss" [class.is-newer]="g.boss && isNewer(g)" [class.is-alive]="aliveNow(g)"
+					[class.is-selected]="selected().has(g.key)">
 					<div class="bt-card-main">
-						<p-checkbox [binary]="true" [ngModel]="selected().has(g.key)" (ngModelChange)="toggleSelect(g.key)" [disabled]="!g.boss"></p-checkbox>
+						<p-checkbox [binary]="true" [ngModel]="selected().has(g.key)" (ngModelChange)="toggleSelect(g.key)" [disabled]="!g.boss || !g.kill"></p-checkbox>
 
 						<div class="bt-boss">
 							<div class="bt-boss-name">
@@ -132,9 +137,12 @@
 								@if (g.boss) {
 									<span class="bt-lvl">ур. {{ g.boss.level }}</span>
 								}
-								<span class="bt-count" [pTooltip]="g.items.length > 1 ? 'Предложений от бота по этому РБ' : ''" tooltipPosition="top">
-									{{ g.items.length }} {{ g.items.length === 1 ? 'предложение' : g.items.length < 5 ? 'предложения' : 'предложений' }}
-								</span>
+								@if (aliveNow(g)) {
+									<span class="bt-alive-badge"><span class="bt-alive-dot"></span> стоит</span>
+								}
+								@if (g.items.length > 1) {
+									<span class="bt-count">{{ g.items.length }} событ.</span>
+								}
 							</div>
 							@if (!g.boss) {
 								<div class="bt-unmatched">
@@ -143,49 +151,75 @@
 										placeholder="Какой это РБ?" appendTo="body" styleClass="bt-boss-pick" (onChange)="assignBoss(g, $event.value)"></p-dropdown>
 								</div>
 							}
+							<div class="bt-ours">У нас: <b>{{ fmt(g.ourMs) }}</b></div>
 						</div>
 
-						<div class="bt-times">
-							<div class="bt-time">
-								<span class="bt-time-label">Бот</span>
-								<b>{{ fmt(g.latest.killedAt) }}</b>
+						<!-- timeline: встал → убит -->
+						<div class="bt-events">
+							<div class="bt-ev bt-ev--alive" [class.is-empty]="!g.alive" [class.is-current]="aliveNow(g)">
+								<span class="bt-ev-ic"><i class="pi pi-heart-fill"></i></span>
+								<div class="bt-ev-body">
+									<span class="bt-ev-label">Жив</span>
+									@if (g.alive) {
+										<b>{{ fmt(g.alive.at) }}</b>
+										<small>{{ ago(g.alive.at) }}</small>
+									} @else {
+										<small>не видели</small>
+									}
+								</div>
+								@if (g.alive?.hasPhoto) {
+									<button type="button" class="bt-ev-photo" pTooltip="Скриншот: жив" tooltipPosition="top" (click)="openPhoto(g.alive!, g.name)">
+										<i class="pi pi-image"></i>
+									</button>
+								}
 							</div>
-							<div class="bt-time">
-								<span class="bt-time-label">У нас</span>
-								<span>{{ fmt(g.ourMs) }}</span>
+							<i class="pi pi-arrow-right bt-ev-arrow"></i>
+							<div class="bt-ev bt-ev--dead" [class.is-empty]="!g.kill">
+								<span class="bt-ev-ic"><i class="pi pi-times-circle"></i></span>
+								<div class="bt-ev-body">
+									<span class="bt-ev-label">Убит</span>
+									@if (g.kill) {
+										<b>{{ fmt(g.kill.at) }}</b>
+										@if (g.boss) {
+											<small class="bt-diff" [class.is-newer]="isNewer(g)">{{ diff(g) }}</small>
+										}
+									} @else {
+										<small>ещё нет</small>
+									}
+								</div>
+								@if (g.kill?.hasPhoto) {
+									<button type="button" class="bt-ev-photo" pTooltip="Скриншот: убит" tooltipPosition="top" (click)="openPhoto(g.kill!, g.name)">
+										<i class="pi pi-image"></i>
+									</button>
+								}
 							</div>
-							@if (g.boss) {
-								<span class="bt-diff" [class.is-newer]="isNewer(g)">{{ diff(g) }}</span>
-							}
 						</div>
 
 						<div class="bt-actions">
-							@if (g.latest.hasPhoto) {
-								<button pButton type="button" icon="pi pi-image" class="p-button-sm p-button-text" pTooltip="Скриншот" tooltipPosition="top"
-									(click)="openPhoto(g.latest, g.name)"></button>
-							}
 							@if (g.items.length > 1) {
 								<button pButton type="button" class="p-button-sm p-button-text" [icon]="expanded().has(g.key) ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
-									pTooltip="Все предложения" tooltipPosition="top" (click)="toggleExpanded(g.key)"></button>
+									pTooltip="Все события" tooltipPosition="top" (click)="toggleExpanded(g.key)"></button>
 							}
 							<button pButton type="button" icon="pi pi-check" label="В респ" class="p-button-sm"
-								[disabled]="!g.boss || busy()" (click)="apply(g)"></button>
-							<button pButton type="button" icon="pi pi-times" class="p-button-sm p-button-text p-button-danger"
-								pTooltip="Отклонить" tooltipPosition="top" (click)="reject(g)"></button>
+								[disabled]="!g.boss || !g.kill || busy()" [pTooltip]="g.kill ? 'Записать время убийства в наши респы' : 'Есть только «жив» — переносить нечего'"
+								tooltipPosition="top" (click)="apply(g)"></button>
+							<button pButton type="button" icon="pi pi-trash" class="p-button-sm p-button-text p-button-danger"
+								pTooltip="Удалить события по этому РБ" tooltipPosition="top" (click)="removeGroup(g)"></button>
 						</div>
 					</div>
 
-					@if (g.latest.note && !expanded().has(g.key)) {
-						<div class="bt-note"><i class="pi pi-comment"></i> {{ g.latest.note }}</div>
+					@if (g.last.note && !expanded().has(g.key)) {
+						<div class="bt-note"><i class="pi pi-comment"></i> {{ g.last.note }}</div>
 					}
 
 					@if (expanded().has(g.key)) {
 						<div class="bt-items">
 							@for (s of g.items; track s.id) {
 								<div class="bt-item">
-									<b>{{ fmt(s.killedAt) }}</b>
-									@if (g.boss) {
-										<span class="bt-diff" [class.is-newer]="g.ourMs == null || s.killedAt > g.ourMs">{{ diff(g, s.killedAt) }}</span>
+									<span class="bt-ev-tag" [class.is-alive]="s.event === 'alive'">{{ s.event === 'alive' ? 'жив' : 'убит' }}</span>
+									<b>{{ fmt(s.at) }}</b>
+									@if (g.boss && s.event === 'killed') {
+										<span class="bt-diff" [class.is-newer]="g.ourMs == null || s.at > g.ourMs">{{ diff(g, s.at) }}</span>
 									}
 									<span class="bt-item-note">{{ s.note }}</span>
 									<span class="bt-spacer"></span>
@@ -193,8 +227,10 @@
 									@if (s.hasPhoto) {
 										<button pButton type="button" icon="pi pi-image" class="p-button-sm p-button-text" (click)="openPhoto(s, g.name)"></button>
 									}
-									<button pButton type="button" label="Это время" class="p-button-sm p-button-outlined" [disabled]="!g.boss || busy()" (click)="apply(g, s)"></button>
-									<button pButton type="button" icon="pi pi-times" class="p-button-sm p-button-text p-button-danger" (click)="rejectOne(s)"></button>
+									@if (s.event === 'killed') {
+										<button pButton type="button" label="Это время" class="p-button-sm p-button-outlined" [disabled]="!g.boss || busy()" (click)="apply(g, s)"></button>
+									}
+									<button pButton type="button" icon="pi pi-trash" class="p-button-sm p-button-text p-button-danger" pTooltip="Удалить" tooltipPosition="left" (click)="removeOne(s)"></button>
 								</div>
 							}
 						</div>
@@ -205,7 +241,7 @@
 	} @else {
 		<div class="bt-empty">
 			<i class="pi pi-inbox"></i>
-			<p>{{ onlyNewer() && groups().length ? 'Нет предложений новее наших' : 'Новых предложений от бота нет' }}</p>
+			<p>{{ onlyNewer() && groups().length ? 'Нет убийств новее наших' : 'Новых событий от бота нет' }}</p>
 		</div>
 	}
 
@@ -221,8 +257,9 @@
 					@for (s of handled().slice(0, 200); track s.id) {
 						<div class="bt-item">
 							<span class="bt-status" [class.is-applied]="s.status === 'applied'">{{ s.status === 'applied' ? 'перенесено' : 'отклонено' }}</span>
+							<span class="bt-ev-tag" [class.is-alive]="s.event === 'alive'">{{ s.event === 'alive' ? 'жив' : 'убит' }}</span>
 							<b>{{ match(s)?.displayName || match(s)?.name || s.bossName }}</b>
-							<span>{{ fmt(s.killedAt) }}</span>
+							<span>{{ fmt(s.at) }}</span>
 							<span class="bt-spacer"></span>
 							<span class="bt-item-sent">{{ who(s.handledBy) }} · {{ fmt(s.handledAt) }}</span>
 							@if (s.hasPhoto) {

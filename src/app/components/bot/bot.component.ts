@@ -17,13 +17,19 @@ import { BotLiveStatus, BotQueueItem, BotSuggestion, RbBotService, bossKey } fro
 import { NgMirrorService } from '../../services/ng-mirror.service';
 import { SiteUsersService, actorLabel } from '../../services/site-users.service';
 
-/** pending suggestions for one boss (or one unmatched name) */
+/** pending bot events for one boss (or one unmatched name) */
 interface BotGroup {
   key: string;
   boss: JsonRb | null;
   name: string;
+  /** every event, newest first */
   items: BotSuggestion[];
-  latest: BotSuggestion;
+  /** latest «убит» — the one that goes to the resp */
+  kill: BotSuggestion | null;
+  /** latest «жив» */
+  alive: BotSuggestion | null;
+  /** newest event of any kind (sorting) */
+  last: BotSuggestion;
   /** our current kill time (ms), null = none */
   ourMs: number | null;
 }
@@ -142,26 +148,35 @@ export class BotComponent {
     return (s.bossId && this.byId().get(s.bossId)) || this.byKey().get(bossKey(s.bossName)) || null;
   }
 
-  /** pending suggestions, one card per boss, most recent kill first */
+  /** pending events, one card per boss, most recent event first */
   readonly groups = computed<BotGroup[]>(() => {
     const map = new Map<string, BotGroup>();
     for (const s of this.suggestions()) {
       if (s.status !== 'new') continue;
       const boss = this.match(s);
       const key = boss ? `id:${boss.id}` : `raw:${bossKey(s.bossName)}`;
-      const g = map.get(key);
-      if (g) {
-        g.items.push(s);
-        if (s.killedAt > g.latest.killedAt) g.latest = s;
-      } else {
+      let g = map.get(key);
+      if (!g) {
         const ours = boss?.lastDeadTime ? boss.lastDeadTime.toMillis() : null;
-        map.set(key, { key, boss, name: boss ? boss.displayName || boss.name : s.bossName || '(без имени)', items: [s], latest: s, ourMs: ours });
+        g = { key, boss, name: boss ? boss.displayName || boss.name : s.bossName || '(без имени)', items: [], kill: null, alive: null, last: s, ourMs: ours };
+        map.set(key, g);
       }
+      g.items.push(s);
+      if (s.at > g.last.at) g.last = s;
+      if (s.event === 'killed' && (!g.kill || s.at > g.kill.at)) g.kill = s;
+      if (s.event === 'alive' && (!g.alive || s.at > g.alive.at)) g.alive = s;
     }
     return [...map.values()]
-      .map((g) => ({ ...g, items: g.items.sort((a, b) => b.killedAt - a.killedAt) }))
-      .sort((a, b) => b.latest.killedAt - a.latest.killedAt);
+      .map((g) => ({ ...g, items: g.items.sort((a, b) => b.at - a.at) }))
+      .sort((a, b) => b.last.at - a.last.at);
   });
+
+  /** the latest thing the bot saw is «жив» — it's standing right now */
+  aliveNow(g: BotGroup): boolean {
+    return !!g.alive && (!g.kill || g.alive.at > g.kill.at);
+  }
+  readonly aliveCount = computed(() => this.groups().filter((g) => this.aliveNow(g)).length);
+  readonly killCount = computed(() => this.groups().filter((g) => !!g.kill).length);
 
   readonly newCount = computed(() => this.groups().reduce((s, g) => s + g.items.length, 0));
   readonly handled = computed(() => this.suggestions().filter((s) => s.status !== 'new').sort((a, b) => (b.handledAt ?? 0) - (a.handledAt ?? 0)));
@@ -177,15 +192,16 @@ export class BotComponent {
   readonly visibleGroups = computed(() =>
     this.onlyNewer() ? this.groups().filter((g) => this.isNewer(g)) : this.groups(),
   );
-  readonly selectableKeys = computed(() => this.visibleGroups().filter((g) => g.boss).map((g) => g.key));
+  readonly selectableKeys = computed(() => this.visibleGroups().filter((g) => g.boss && g.kill).map((g) => g.key));
   readonly selectedCount = computed(() => this.selectableKeys().filter((k) => this.selected().has(k)).length);
   readonly allSelected = computed(() => {
     const keys = this.selectableKeys();
     return keys.length > 0 && keys.every((k) => this.selected().has(k));
   });
 
+  /** has a kill that's newer than ours */
   isNewer(g: BotGroup): boolean {
-    return g.ourMs == null || g.latest.killedAt > g.ourMs;
+    return !!g.kill && (g.ourMs == null || g.kill.at > g.ourMs);
   }
   toggleSelect(key: string): void {
     const next = new Set(this.selected());
@@ -209,7 +225,7 @@ export class BotComponent {
     return `${p(d.getDate())}.${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
   }
   /** «новее на 2 ч 15 м» / «старше на 40 м» / «то же время» */
-  diff(g: BotGroup, killedAt = g.latest.killedAt): string {
+  diff(g: BotGroup, killedAt = g.kill?.at ?? 0): string {
     if (g.ourMs == null) return 'у нас времени нет';
     const d = killedAt - g.ourMs;
     if (Math.abs(d) < 60_000) return 'то же время';
@@ -224,28 +240,28 @@ export class BotComponent {
   // ---------------------------------------------------------------- actions
   private async write(g: BotGroup, s: BotSuggestion): Promise<void> {
     const boss = g.boss!;
-    await this.rbJsonResp.setKillTime(String(boss.id), new Date(s.killedAt), { bossName: boss.displayName || boss.name });
+    await this.rbJsonResp.setKillTime(String(boss.id), new Date(s.at), { bossName: boss.displayName || boss.name });
     await this.bot.setStatus(g.items.map((x) => x.id), 'applied');
   }
 
-  /** one boss: accept its latest (or a specific) suggestion */
-  apply(g: BotGroup, s: BotSuggestion = g.latest): void {
-    if (!g.boss || this.busy()) return;
+  /** one boss: its latest (or a specific) «убит» → our kill time */
+  apply(g: BotGroup, s: BotSuggestion | null = g.kill): void {
+    if (!g.boss || !s || s.event !== 'killed' || this.busy()) return;
     const run = async () => {
       this.busy.set(true);
       try {
         await this.write(g, s);
-        this.toast('success', 'Перенесено в респ', `${g.name}: ${this.fmt(s.killedAt)}`);
+        this.toast('success', 'Перенесено в респ', `${g.name}: ${this.fmt(s.at)}`);
       } catch (e) {
         this.toast('error', 'Ошибка', this.msg(e));
       } finally {
         this.busy.set(false);
       }
     };
-    if (g.ourMs != null && s.killedAt <= g.ourMs) {
+    if (g.ourMs != null && s.at <= g.ourMs) {
       this.confirm.confirm({
         header: 'Наше время свежее',
-        message: `У нас ${this.fmt(g.ourMs)}, у бота ${this.fmt(s.killedAt)} (${this.diff(g, s.killedAt)}). Всё равно заменить?`,
+        message: `У нас ${this.fmt(g.ourMs)}, у бота ${this.fmt(s.at)} (${this.diff(g, s.at)}). Всё равно заменить?`,
         icon: 'pi pi-exclamation-triangle',
         acceptLabel: 'Заменить',
         rejectLabel: 'Отмена',
@@ -258,7 +274,7 @@ export class BotComponent {
 
   /** selected bosses → their latest suggestion; ours-is-newer ones skipped unless asked */
   applySelected(): void {
-    const groups = this.visibleGroups().filter((g) => g.boss && this.selected().has(g.key));
+    const groups = this.visibleGroups().filter((g) => g.boss && g.kill && this.selected().has(g.key));
     if (!groups.length || this.busy()) return;
     const overwrite = this.overwriteNewer();
     const todo = overwrite ? groups : groups.filter((g) => this.isNewer(g));
@@ -277,7 +293,7 @@ export class BotComponent {
         let failed = 0;
         for (const g of todo) {
           try {
-            await this.write(g, g.latest);
+            await this.write(g, g.kill!);
             done++;
           } catch {
             failed++;
@@ -290,11 +306,20 @@ export class BotComponent {
     });
   }
 
-  reject(g: BotGroup): void {
-    void this.bot.setStatus(g.items.map((x) => x.id), 'rejected').catch((e) => this.toast('error', 'Ошибка', this.msg(e)));
+  /** drop every event of this RB (with screenshots) */
+  removeGroup(g: BotGroup): void {
+    this.confirm.confirm({
+      header: 'Удалить',
+      message: `Удалить ${g.items.length} ${g.items.length === 1 ? 'событие' : 'событий'} по «${g.name}» вместе со скриншотами?`,
+      icon: 'pi pi-trash',
+      acceptLabel: 'Удалить',
+      rejectLabel: 'Отмена',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => void this.bot.remove(g.items.map((x) => x.id)).catch((e) => this.toast('error', 'Ошибка', this.msg(e))),
+    });
   }
-  rejectOne(s: BotSuggestion): void {
-    void this.bot.setStatus([s.id], 'rejected').catch((e) => this.toast('error', 'Ошибка', this.msg(e)));
+  removeOne(s: BotSuggestion): void {
+    void this.bot.remove([s.id]).catch((e) => this.toast('error', 'Ошибка', this.msg(e)));
   }
   reopen(s: BotSuggestion): void {
     void this.bot.reopen(s.id).catch((e) => this.toast('error', 'Ошибка', this.msg(e)));
@@ -325,7 +350,7 @@ export class BotComponent {
   readonly photoTitle = signal('');
   readonly photoLoading = signal(false);
   async openPhoto(s: BotSuggestion, title: string): Promise<void> {
-    this.photoTitle.set(`${title} · ${this.fmt(s.killedAt)}`);
+    this.photoTitle.set(`${title} · ${s.event === 'alive' ? 'жив' : 'убит'} · ${this.fmt(s.at)}`);
     this.photoUrl.set('');
     this.photoLoading.set(true);
     try {

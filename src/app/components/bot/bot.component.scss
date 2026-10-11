@@ -547,3 +547,148 @@
 .bt-live-more .pi {
   font-size: 0.7rem;
 }
+
+/* ---------------------------------------------------- alive / killed timeline */
+.bt-stat--alive b {
+  color: #16a34a;
+}
+.bt-stat--dead b {
+  color: #dc2626;
+}
+.bt-card.is-alive {
+  border-left-color: #22c55e;
+  background: linear-gradient(90deg, #f0fdf4, #fff 40%);
+}
+.bt-ours {
+  margin-top: 0.25rem;
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+.bt-ours b {
+  color: #334155;
+  font-variant-numeric: tabular-nums;
+}
+.bt-alive-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.bt-alive-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: bt-pulse 1.8s infinite;
+}
+.bt-events {
+  display: flex;
+  align-items: stretch;
+  gap: 0.35rem;
+  flex: 0 1 auto;
+}
+.bt-ev-arrow {
+  align-self: center;
+  font-size: 0.7rem;
+  color: #cbd5e1;
+}
+.bt-ev {
+  --c: #16a34a;
+  --bg: #f0fdf4;
+  --bd: #bbf7d0;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 9.5rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--bd);
+  border-radius: 10px;
+  background: var(--bg);
+}
+.bt-ev--dead {
+  --c: #dc2626;
+  --bg: #fef2f2;
+  --bd: #fecaca;
+}
+.bt-ev.is-empty {
+  --c: #cbd5e1;
+  --bg: #f8fafc;
+  --bd: #e2e8f0;
+}
+.bt-ev.is-current {
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25);
+}
+.bt-ev-ic {
+  display: inline-flex;
+  color: var(--c);
+  font-size: 0.95rem;
+}
+.bt-ev-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+.bt-ev-label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--c);
+}
+.bt-ev-body b {
+  font-size: 0.86rem;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.bt-ev-body small {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.bt-ev-body .bt-diff {
+  align-self: flex-start;
+  margin-top: 0.15rem;
+  font-size: 0.66rem;
+}
+.bt-ev-photo {
+  display: inline-flex;
+  margin-left: auto;
+  padding: 0.25rem;
+  border: 0;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--c);
+  cursor: pointer;
+}
+.bt-ev-photo:hover {
+  background: #fff;
+}
+.bt-ev-tag {
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.bt-ev-tag.is-alive {
+  background: #dcfce7;
+  color: #15803d;
+}
+@media (max-width: 640px) {
+  .bt-events {
+    flex: 1 1 100%;
+  }
+  .bt-ev {
+    flex: 1;
+    min-width: 0;
+  }
+}

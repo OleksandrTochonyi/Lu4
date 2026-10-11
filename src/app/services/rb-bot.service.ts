@@ -20,6 +20,8 @@ export const BOT_COLLECTION = 'rb-bot-suggestions';
 export const BOT_PHOTO_COLLECTION = 'rb-bot-photos';
 
 export type BotStatus = 'new' | 'applied' | 'rejected';
+/** what the bot saw: the RB killed, or the RB standing alive (spawned) */
+export type BotEvent = 'killed' | 'alive';
 
 /** live status the bot keeps upserting (one doc per bot, id = botId) */
 export const BOT_STATUS_COLLECTION = 'rb-bot-status';
@@ -53,13 +55,18 @@ export interface BotLiveStatus {
   version: string;
 }
 
-/** «бот видел, что РБ убит в …» — a resp suggestion waiting to be accepted */
+/** «бот видел, что РБ убит / жив в …» — waiting to be accepted or removed */
 export interface BotSuggestion {
   id: string;
+  /** killed (→ can go to the resp) or alive (info: it's standing) */
+  event: BotEvent;
   /** as the bot sent it */
   bossName: string;
   /** optional — the db.json id, when the bot knows it */
   bossId: string | null;
+  /** time of the event: kill time for «killed», when it was seen for «alive» */
+  at: number;
+  /** = at for «killed», 0 for «alive» */
   killedAt: number;
   /** when the bot sent it (falls back to killedAt) */
   sentAt: number;
@@ -115,14 +122,21 @@ function normalizeStatus(raw: any): BotLiveStatus {
 }
 
 function normalize(raw: any): BotSuggestion {
-  const killedAt = toMs(raw?.killedAt);
+  const ev = String(raw?.event ?? '').trim().toLowerCase();
+  const event: BotEvent = ev === 'alive' || ev === 'spawned' || ev === 'spawn' ? 'alive' : 'killed';
+  const at =
+    event === 'alive'
+      ? toMs(raw?.seenAt) || toMs(raw?.at) || toMs(raw?.killedAt) || toMs(raw?.sentAt)
+      : toMs(raw?.killedAt) || toMs(raw?.at);
   const status = raw?.status === 'applied' || raw?.status === 'rejected' ? raw.status : 'new';
   return {
     id: String(raw?.id ?? ''),
+    event,
     bossName: String(raw?.bossName ?? raw?.name ?? '').trim(),
     bossId: raw?.bossId != null && String(raw.bossId).trim() ? String(raw.bossId).trim() : null,
-    killedAt,
-    sentAt: toMs(raw?.sentAt) || killedAt,
+    at,
+    killedAt: event === 'killed' ? at : 0,
+    sentAt: toMs(raw?.sentAt) || at,
     hasPhoto: !!raw?.hasPhoto,
     note: String(raw?.note ?? ''),
     source: String(raw?.source ?? ''),
@@ -151,7 +165,7 @@ export class RbBotService {
         ? (collectionData(this.col, { idField: 'id' }) as Observable<any[]>).pipe(catchError(() => of([] as any[])))
         : of([] as any[]),
     ),
-    map((rows) => (rows ?? []).map(normalize).filter((s) => s.killedAt > 0).sort((a, b) => b.killedAt - a.killedAt)),
+    map((rows) => (rows ?? []).map(normalize).filter((s) => s.at > 0).sort((a, b) => b.at - a.at)),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
