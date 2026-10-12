@@ -2472,7 +2472,14 @@ export class RaidsComponent {
   readonly cfgMercKeys = signal<Set<string>>(new Set());
 
   /** all packs, for grouping the mercenary-roster picker in the config dialog */
-  readonly allGroupsForRoster = computed(() => this.groups());
+  /** «Текущий состав» is only our pack — PH by name, else the payout leader's pack */
+  readonly allGroupsForRoster = computed(() => {
+    const groups = this.groups();
+    const ph = groups.filter((g) => (g.displayName ?? '').trim().toLowerCase() === 'ph');
+    if (ph.length) return ph;
+    const leaderGroup = this.config()?.leaderGroupId;
+    return leaderGroup ? groups.filter((g) => g.id === leaderGroup) : groups;
+  });
 
   openConfig(): void {
     const cfg = this.config();
@@ -2566,7 +2573,10 @@ export class RaidsComponent {
   isRosterCfgUser(groupId: string, userId: string): boolean {
     return this.rosterCfgKeys().has(`${groupId}:${userId}`);
   }
-  readonly rosterCfgCount = computed(() => this.rosterCfgKeys().size);
+  readonly rosterCfgCount = computed(() => {
+    const shown = new Set(this.allGroupsForRoster().map((g) => g.id));
+    return [...this.rosterCfgKeys()].filter((k) => shown.has(k.split(':')[0])).length;
+  });
 
   rosterCfgGroupCount(g: ConstPartyGroup): number {
     return this.mainUsers(g).filter((u) => this.isRosterCfgUser(g.id, u.id)).length;
@@ -2590,6 +2600,8 @@ export class RaidsComponent {
         return this.allPlayers().find((p) => p.groupId === gId && p.userId === uId);
       })
       .filter((p): p is PlayerRef => !!p)
+      // only packs shown in the dialog (PH) — older picks from other packs are dropped
+      .filter((p) => this.allGroupsForRoster().some((g) => g.id === p.groupId))
       .map((p) => ({ groupId: p.groupId, userId: p.userId, name: p.name }));
 
     this.savingRosterConfig.set(true);

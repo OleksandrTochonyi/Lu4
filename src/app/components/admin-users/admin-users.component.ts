@@ -12,6 +12,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
 
 import { AuthService } from '../../services/auth.service';
+import { BroadcastSoundService } from '../../services/broadcast-sound.service';
 import { NewIpAlert, SiteRole, SiteUser, SiteUsersService } from '../../services/site-users.service';
 import { ActivityEntry, ActivityLogService } from '../../services/activity-log.service';
 
@@ -34,6 +35,34 @@ import { ActivityEntry, ActivityLogService } from '../../services/activity-log.s
 })
 export class AdminUsersComponent {
   private siteUsers = inject(SiteUsersService);
+  readonly sound = inject(BroadcastSoundService);
+  /** picked track in «Звук всем» */
+  readonly soundPick = signal<string>('');
+  readonly soundSending = signal(false);
+  /** the picked track, or the first one */
+  readonly soundCurrent = computed(() => this.soundPick() || this.sound.tracks()[0]?.file || '');
+
+  async broadcastSound(): Promise<void> {
+    const track = this.sound.tracks().find((t) => t.file === this.soundPick()) ?? this.sound.tracks()[0];
+    if (!track || this.soundSending()) return;
+    this.soundSending.set(true);
+    try {
+      await this.sound.broadcast(track);
+      this.toast('success', 'Отправлено всем', track.label);
+    } catch (e) {
+      this.toast('error', 'Не отправилось', e instanceof Error ? e.message : '');
+    } finally {
+      this.soundSending.set(false);
+    }
+  }
+  previewSound(): void {
+    const track = this.sound.tracks().find((t) => t.file === this.soundPick()) ?? this.sound.tracks()[0];
+    if (track) this.sound.playLocal(track.file);
+  }
+  fmtAgo(ms: number): string {
+    const s = Math.max(0, Math.round((Date.now() - ms) / 1000));
+    return s < 60 ? `${s} сек назад` : s < 3600 ? `${Math.round(s / 60)} мин назад` : this.fmtDate(ms);
+  }
   private auth = inject(AuthService);
   private activityLog = inject(ActivityLogService);
   private messageService = inject(MessageService);

@@ -9,6 +9,20 @@
     <button pButton type="button" icon="pi pi-plus" label="Добавить" (click)="openAdd()"></button>
   </div>
 
+  <div class="au-sound" *ngIf="sound.isOwner">
+    <div class="au-sound-title"><i class="pi pi-megaphone"></i> Звук всем</div>
+    <select class="au-sound-select" [ngModel]="soundCurrent()" (ngModelChange)="soundPick.set($event)">
+      <option *ngFor="let t of sound.tracks()" [value]="t.file">{{ t.label }}</option>
+    </select>
+    <button pButton type="button" icon="pi pi-headphones" class="p-button-sm p-button-text" pTooltip="Прослушать только у себя"
+      tooltipPosition="top" [disabled]="!sound.tracks().length" (click)="previewSound()"></button>
+    <button pButton type="button" icon="pi pi-play" label="Воспроизвести у всех" class="p-button-sm p-button-warning"
+      [disabled]="!sound.tracks().length || soundSending()" (click)="broadcastSound()"></button>
+    <span class="au-sound-last" *ngIf="sound.last() as l">
+      последний: <b>{{ l.label }}</b> · {{ fmtAgo(l.at) }}
+    </span>
+  </div>
+
   <div class="au-note">
     Зайти на сайт может только тот, кто есть в этом списке и не заблокирован. Аккаунт (email + пароль)
     заводится вручную в консоли Firebase, а сюда его добавляешь кнопкой «Добавить». «Заблокировать» —

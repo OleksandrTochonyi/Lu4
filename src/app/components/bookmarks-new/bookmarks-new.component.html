@@ -92,6 +92,62 @@
 	</ng-template>
 </p-dialog>
 
+<!-- «История изменений» of every boss in the bookmarks -->
+<p-dialog
+	[visible]="allHistoryOpen()"
+	(visibleChange)="$event || allHistoryOpen.set(false)"
+	[modal]="true"
+	[draggable]="false"
+	[resizable]="false"
+	[dismissableMask]="true"
+	header="История изменений респов"
+	[style]="{ width: 'min(820px, 96vw)' }"
+>
+	<div class="ah">
+		<div class="ah-toolbar">
+			<div class="ah-seg">
+				<button type="button" [class.is-on]="allHistoryScope() === 'tab'" (click)="allHistoryScope.set('tab')">
+					Эта закладка{{ activeTab() ? ': ' + activeTab()!.name : '' }}
+				</button>
+				<button type="button" [class.is-on]="allHistoryScope() === 'all'" (click)="allHistoryScope.set('all')">Все закладки</button>
+			</div>
+			<span class="ah-search">
+				<i class="pi pi-search"></i>
+				<input type="text" placeholder="РБ или кто менял…" [ngModel]="allHistorySearch()" (ngModelChange)="allHistorySearch.set($event)" />
+			</span>
+		</div>
+
+		@if (allHistoryRows().length) {
+			<div class="ah-list">
+				<div class="ah-row ah-row--h">
+					<span>Когда</span>
+					<span>Кто</span>
+					<span>РБ</span>
+					<span>Было → Стало</span>
+				</div>
+				@for (r of allHistoryRows(); track r.key) {
+					<div class="ah-row">
+						<span class="ah-when">{{ fmtHist(r.at) }}</span>
+						<span class="ah-who">{{ r.who }}</span>
+						<span class="ah-boss"><span class="ah-lvl">{{ r.lvl }}</span><b>{{ r.boss }}</b></span>
+						<span class="ah-change">
+							<span class="ah-from" [class.is-empty]="r.from == null">{{ r.from == null ? 'без времени' : fmtHist(r.from) }}</span>
+							<i class="pi pi-arrow-right"></i>
+							<span class="ah-to" [class.is-empty]="r.to == null">{{ r.to == null ? 'стёрто' : fmtHist(r.to) }}</span>
+						</span>
+					</div>
+				}
+			</div>
+			<small class="ah-hint">У каждого РБ хранятся последние 5 изменений. Откатить время можно в истории самого босса (иконка часов на карточке).</small>
+		} @else {
+			<div class="ah-empty">
+				<i class="pi pi-history"></i>
+				{{ allHistorySearch() ? 'Ничего не найдено' : 'Изменений пока нет' }}
+			</div>
+		}
+	</div>
+</p-dialog>
+
 <app-guided-tour [steps]="tourSteps" [active]="tourActive()" (finished)="onTourFinished($event)"></app-guided-tour>
 
 <div class="bookmarks flex flex-col h-full border border-surface rounded bg-surface-0 dark:bg-surface-900 overflow-hidden">
@@ -292,6 +348,17 @@
 								(onClick)="openSyncWithNg(tab, $event)"
 							></p-button>
 						}
+						<p-button
+							icon="pi pi-history"
+							label="История"
+							[text]="true"
+							[severity]="'secondary'"
+							size="small"
+							pTooltip="Кто, когда и каких РБ менял — по всем боссам"
+							tooltipPosition="top"
+							ariaLabel="История изменений по всем РБ"
+							(onClick)="openAllHistory()"
+						></p-button>
 						<p-button
 							icon="pi pi-sliders-h"
 							[label]="'Фильтры' + (rbFilter.activeCount() ? ' • ' + rbFilter.activeCount() : '')"

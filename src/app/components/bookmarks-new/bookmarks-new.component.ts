@@ -19,7 +19,7 @@ import { RbJsonDataService } from '../../services/rb-json-data.service';
 import { RbJsonRespService } from '../../services/rb-json-resp.service';
 import { NoGradeRbService } from '../../services/nograde-rb.service';
 import { NgMirrorService } from '../../services/ng-mirror.service';
-import { SiteUsersService } from '../../services/site-users.service';
+import { SiteUsersService, actorLabel } from '../../services/site-users.service';
 import { ActivityLogService } from '../../services/activity-log.service';
 import { RespVoiceService, RespVoiceWatcher } from '../../services/resp-voice.service';
 import { AuthService } from '../../services/auth.service';
@@ -182,6 +182,9 @@ export class BookmarksNewComponent {
   /** «Дубль в NG» switch */
   readonly ngMirror = inject(NgMirrorService);
   readonly isAdmin = toSignal(inject(SiteUsersService).isAdmin$, { initialValue: false });
+  private readonly actorNames = toSignal(inject(SiteUsersService).namesByEmail$, {
+    initialValue: new Map<string, string>(),
+  });
   private activityLog = inject(ActivityLogService);
   private confirmationService = inject(ConfirmationService);
   private messageService = inject(MessageService);
@@ -701,6 +704,64 @@ export class BookmarksNewComponent {
         this.messageService.add({ severity: 'success', summary: 'Респы очищены', life: 2500 });
       }
     });
+  }
+
+  /* ------------------------------------------------ «История изменений» — all bosses */
+
+  readonly allHistoryOpen = signal(false);
+  /** 'tab' = the open bookmark, 'all' = every boss in any bookmark */
+  readonly allHistoryScope = signal<'tab' | 'all'>('tab');
+  readonly allHistorySearch = signal('');
+
+  openAllHistory(): void {
+    this.allHistorySearch.set('');
+    this.allHistoryOpen.set(true);
+  }
+
+  /**
+   * Every kill-time change of the bosses in scope, newest first. Each boss keeps its
+   * last 5 changes; an entry stores the value it REPLACED, so it's paired with the
+   * value it was replaced BY (the next newer entry, or the current time).
+   */
+  readonly allHistoryRows = computed(() => {
+    if (!this.allHistoryOpen()) return [];
+    const scope = this.allHistoryScope();
+    const tab = this.activeTab();
+    const ids = new Set(
+      scope === 'tab' ? (tab?.rbIds ?? []) : this.tabs().flatMap((t) => t.rbIds ?? []),
+    );
+    const q = this.allHistorySearch().trim().toLowerCase();
+    const ms = (t: any): number | null =>
+      t instanceof Date ? t.getTime() : t && typeof t.toMillis === 'function' ? t.toMillis() : null;
+    const rows: { key: string; at: number; who: string; boss: string; lvl: number; from: number | null; to: number | null }[] = [];
+    for (const item of this.items()) {
+      if (!ids.has(item?.id)) continue;
+      const hist: any[] = item?.respHistory ?? [];
+      hist.forEach((h, i) => {
+        const at = ms(h?.changedAt);
+        if (!at) return;
+        rows.push({
+          key: `${item.id}:${i}:${at}`,
+          at,
+          who: actorLabel(h?.changedBy, this.actorNames()),
+          boss: item.displayName || item.name,
+          lvl: Number(item.lvl ?? item.level ?? 0),
+          from: ms(h?.killTime),
+          to: i === 0 ? ms(item.lastDeadTime) : ms(hist[i - 1]?.killTime),
+        });
+      });
+    }
+    return rows
+      .filter((r) => !q || `${r.boss} ${r.who}`.toLowerCase().includes(q))
+      .sort((a, b) => b.at - a.at);
+  });
+
+  /** «13.10 21:05» */
+  fmtHist(ms: number | null): string {
+    if (ms == null) return '—';
+    const d = new Date(ms);
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${p(d.getDate())}.${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
   }
 
   /* ------------------------------------------------ sync with Bookmarks NG */
