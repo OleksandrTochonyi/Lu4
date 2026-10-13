@@ -68,6 +68,11 @@
         <label for="pm-twink">Твинк</label>
       </div>
 
+      <div class="pm-field pm-check">
+        <p-checkbox formControlName="isMerc" [binary]="true" inputId="pm-merc"></p-checkbox>
+        <label for="pm-merc" title="Считается наёмником в выплатах с РБ (Рейды)">Наёмник</label>
+      </div>
+
       <div class="pm-viewonly pm-full" *ngIf="!canManage() && !canSelfEdit()">
         <i class="pi pi-lock"></i> Только просмотр
       </div>

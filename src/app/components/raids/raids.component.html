@@ -1211,13 +1211,19 @@
 
     <div class="rd-field">
       <span>Список наёмников (выбрано {{ cfgMercCount() }})</span>
+      <small class="rd-hint rd-merc-auto-hint">
+        <i class="pi pi-bolt"></i> Наёмником игрок становится и сам — если в КП у него стоит «Наёмник», или его почта в КП
+        совпадает с пользователем с ролью «Наёмник» в «Пользователях». Такие отмечены молнией и выключить их тут нельзя.
+      </small>
       <div class="rd-participants">
-        <div class="rd-part-group" *ngFor="let g of allGroupsForRoster(); trackBy: trackByGroup">
+        <div class="rd-part-group" *ngFor="let g of allGroupsForMercs(); trackBy: trackByGroup">
           <div class="rd-part-group-h">{{ g.displayName }}</div>
           <div class="rd-part-grid">
             <button type="button" class="rd-part-pill" *ngFor="let u of g.users; trackBy: trackByUser"
-              [class.active]="isCfgMerc(g.id, u.id)" (click)="toggleCfgMerc(g.id, u.id)">
-              <i class="pi" [ngClass]="isCfgMerc(g.id, u.id) ? 'pi-check-circle' : 'pi-circle'"></i>
+              [class.active]="isCfgMerc(g.id, u.id) || !!autoMercReason(u)" [class.is-auto-merc]="!!autoMercReason(u)"
+              [disabled]="!!autoMercReason(u)" [pTooltip]="autoMercReason(u) ? 'Наёмник автоматически: ' + autoMercReason(u) : ''"
+              tooltipPosition="top" (click)="toggleCfgMerc(g.id, u.id)">
+              <i class="pi" [ngClass]="autoMercReason(u) ? 'pi-bolt' : isCfgMerc(g.id, u.id) ? 'pi-check-circle' : 'pi-circle'"></i>
               {{ u.name }}
               <span class="rd-part-twink" *ngIf="u.isTwink">твинк</span>
             </button>

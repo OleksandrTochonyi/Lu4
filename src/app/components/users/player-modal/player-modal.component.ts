@@ -156,6 +156,7 @@ export class PlayerModalComponent {
     role: ['', [Validators.required]],
     isPL: [false],
     isTwink: [false],
+    isMerc: [false],
     premiumUntil: [null as Date | null],
   });
 
@@ -444,6 +445,7 @@ export class PlayerModalComponent {
       role: u?.role ?? '',
       isPL: !!u?.isPL,
       isTwink: !!u?.isTwink,
+      isMerc: !!u?.isMerc,
       premiumUntil: premiumUntil && !Number.isNaN(premiumUntil.getTime()) ? premiumUntil : null,
     });
     this.selectedRaceId.set(u?.race ?? '');

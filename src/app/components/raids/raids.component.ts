@@ -755,7 +755,26 @@ export class RaidsComponent {
   }
 
   /** the configured mercenary roster, by userId — for badging participants below */
-  readonly mercRosterIds = computed(() => new Set((this.config()?.mercenaries ?? []).map((m) => m.userId)));
+  /** site users with role «Наёмник», by e-mail */
+  private readonly siteMercEmails = toSignal(
+    this.siteUsers.siteUsers$.pipe(
+      map((list) => new Set(list.filter((u) => u.role === 'merc' && !u.blocked).map((u) => u.email.toLowerCase()))),
+    ),
+    { initialValue: new Set<string>() },
+  );
+  /** why a КП player counts as a mercenary without being ticked in «Выплаты» */
+  autoMercReason(u: ConstPartyUser): string | null {
+    if (u.isMerc) return 'отмечен «Наёмник» в КП';
+    const email = (u.email ?? '').trim().toLowerCase();
+    if (email && this.siteMercEmails().has(email)) return 'роль «Наёмник» в Пользователях';
+    return null;
+  }
+  /** ticked in «Выплаты» + flagged in КП + KП e-mail of a site user with role «Наёмник» */
+  readonly mercRosterIds = computed(() => {
+    const ids = new Set((this.config()?.mercenaries ?? []).map((m) => m.userId));
+    for (const g of this.groups()) for (const u of g.users ?? []) if (this.autoMercReason(u)) ids.add(u.id);
+    return ids;
+  });
   isMercRosterMember(userId: string): boolean {
     return this.mercRosterIds().has(userId);
   }
@@ -1317,7 +1336,7 @@ export class RaidsComponent {
     const bankAmount = round2((price * cfg.bankPercent) / 100);
     // only the designated mercenary roster qualifies — and only if they were
     // actually at THIS kill. Everyone else who attended gets nothing.
-    const mercRoster = new Set((cfg.mercenaries ?? []).map((m) => m.userId));
+    const mercRoster = this.mercRosterIds();
     const mercs = kill.participants.filter(
       (p) => p.userId !== cfg.leaderUserId && mercRoster.has(p.userId),
     );
@@ -2503,6 +2522,8 @@ export class RaidsComponent {
     return this.cfgMercKeys().has(`${groupId}:${userId}`);
   }
   readonly cfgMercCount = computed(() => this.cfgMercKeys().size);
+  /** «Выплаты» → list of mercenaries: every pack, not just PH */
+  readonly allGroupsForMercs = computed(() => this.groups());
 
   async saveConfig(): Promise<void> {
     if (this.savingConfig()) return;

@@ -2262,3 +2262,18 @@
   font-size: 0.74rem;
   color: #94a3b8;
 }
+
+/* mercenary by КП flag / site role — not toggled in «Выплаты» */
+.rd-part-pill.is-auto-merc {
+  border-color: #fcd34d !important;
+  background: #fffbeb !important;
+  color: #92400e !important;
+  cursor: default;
+}
+.rd-merc-auto-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  margin: 0 0 0.35rem;
+  font-size: 0.74rem;
+}

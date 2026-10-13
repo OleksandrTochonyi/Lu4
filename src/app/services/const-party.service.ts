@@ -34,6 +34,8 @@ export interface ConstPartyUser {
   isPL: boolean;
   /** alt / secondary character */
   isTwink: boolean;
+  /** hired mercenary — counted as a mercenary in raid payouts */
+  isMerc: boolean;
   /** premium-account end date, `YYYY-MM-DD` (empty string = no premium) */
   premiumUntil: string;
   /** slotId -> catalog item id */
@@ -89,6 +91,7 @@ export function normalizeUser(raw: any): ConstPartyUser {
     role: isLegacyRole ? '' : String(raw?.role ?? '').trim(),
     isPL: typeof raw?.isPL === 'boolean' ? raw.isPL : legacyLeader,
     isTwink: typeof raw?.isTwink === 'boolean' ? raw.isTwink : false,
+    isMerc: raw?.isMerc === true,
     premiumUntil: toDateOnly(raw?.premiumUntil),
     equipment,
   };
@@ -105,6 +108,7 @@ function serializeUser(u: ConstPartyUser): ConstPartyUser {
     role: (u.role ?? '').trim(),
     isPL: !!u.isPL,
     isTwink: !!u.isTwink,
+    isMerc: !!u.isMerc,
     premiumUntil: toDateOnly(u.premiumUntil),
     equipment: u.equipment ?? {},
   };
