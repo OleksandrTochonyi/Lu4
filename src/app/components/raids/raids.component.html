@@ -65,6 +65,9 @@
           (click)="killStatusFilter.set('clan')"><i class="pi pi-flag"></i> С кланом</button>
       </div>
       <span class="rd-spacer"></span>
+      <button pButton type="button" label="📷 Рейд по скрину" class="p-button-outlined"
+        pTooltip="Вставь скриншот после убийства — РБ, дроп и паки заполнятся сами" tooltipPosition="top"
+        (click)="openScreenshotPage()"></button>
       <button pButton type="button" icon="pi pi-plus" label="Добавить РБ" (click)="openKillDialog()"></button>
     </div>
 

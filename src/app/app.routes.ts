@@ -19,6 +19,7 @@ import { adminGuard } from './guards/admin.guard';
 import { loginRedirectGuard } from './guards/login-redirect.guard';
 import { botGuard } from './guards/bot.guard';
 import { BotComponent } from './components/bot/bot.component';
+import { RaidScreenshotComponent } from './components/raid-screenshot/raid-screenshot.component';
 
 export const routes: Routes = [
 	{ path: '', component: BookmarksNewComponent, canActivate: [authGuard] },
@@ -26,6 +27,7 @@ export const routes: Routes = [
 	{ path: 'const-party', component: UsersComponent, canActivate: [authGuard] },
 	{ path: 'warehouse', component: WarehouseComponent, canActivate: [authGuard] },
 	{ path: 'raids', component: RaidsComponent, canActivate: [authGuard, adminGuard] },
+	{ path: 'raids/screenshot', component: RaidScreenshotComponent, canActivate: [authGuard, adminGuard] },
 	{ path: 'rb-list', component: RaidBossListComponent, canActivate: [authGuard, adminGuard] },
 	{ path: 'rb-map', component: RbMapComponent, canActivate: [authGuard] },
 	{ path: 'bookmarks', component: BookmarksComponent, canActivate: [authGuard] },

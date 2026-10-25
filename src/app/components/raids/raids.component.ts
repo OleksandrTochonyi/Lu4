@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
@@ -218,6 +219,12 @@ export class RaidsComponent {
   private confirmationService = inject(ConfirmationService);
   private destroyRef = inject(DestroyRef);
   private voice = inject(RespVoiceService);
+  private router = inject(Router);
+
+  /** «📷 Рейд по скрину» */
+  openScreenshotPage(): void {
+    void this.router.navigateByUrl('/raids/screenshot');
+  }
   /** «Дубль в NG» (set on the Bookmarks page) — only for the hint; the write is central */
   readonly ngMirror = inject(NgMirrorService);
 

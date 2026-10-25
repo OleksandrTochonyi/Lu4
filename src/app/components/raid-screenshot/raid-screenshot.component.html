@@ -1,0 +1,334 @@
+<div class="rs">
+	<header class="rs-head">
+		<div>
+			<h1>📷 Рейд по скрину</h1>
+			<p>Вставь скриншот сразу после убийства РБ (Ctrl+V), перетащи файл или выбери кнопкой. Распознаём РБ, дроп и паки — потом проверь форму и нажми «Сохранить».</p>
+		</div>
+		<button pButton type="button" icon="pi pi-arrow-left" label="К рейдам" class="p-button-sm p-button-text" (click)="cancel()"></button>
+	</header>
+
+	@if (!imageUrl()) {
+		<label class="rs-drop" (dragover)="$event.preventDefault()" (drop)="onDrop($event)">
+			<i class="pi pi-image"></i>
+			<b>Ctrl+V — вставить скрин</b>
+			<span>или перетащи файл сюда / нажми, чтобы выбрать</span>
+			<input type="file" accept="image/*" (change)="onPick($event)" hidden />
+		</label>
+	} @else {
+		<div class="rs-tools">
+			@for (k of regionKeys; track k) {
+				<button type="button" class="rs-reg-btn" [class]="'rs-reg-btn rs-reg-btn--' + k" [class.is-on]="drawing() === k" (click)="startRedraw(k)">
+					<span class="rs-swatch"></span> {{ regionLabel[k] }}: {{ drawing() === k ? 'обведи мышкой…' : 'перерисовать' }}
+				</button>
+			}
+			<span class="rs-spacer"></span>
+			<button pButton type="button" icon="pi pi-undo" label="Сбросить области" class="p-button-sm p-button-text" (click)="resetRegions()"></button>
+			<button pButton type="button" icon="pi pi-refresh" label="Распознать заново" class="p-button-sm p-button-outlined" [disabled]="busy()" (click)="recognize()"></button>
+			<label class="rs-file">
+				<i class="pi pi-upload"></i> Другой скрин
+				<input type="file" accept="image/*" (change)="onPick($event)" hidden />
+			</label>
+		</div>
+
+		<div class="rs-shot" [class.is-drawing]="!!drawing()" (mousedown)="onDown($event)" (mousemove)="onMove($event)" (mouseup)="onUp()"
+			(mouseleave)="onUp()" (dragover)="$event.preventDefault()" (drop)="onDrop($event)">
+			<img class="no-invert" [src]="imageUrl()" alt="скриншот" draggable="false" />
+			@for (k of regionKeys; track k) {
+				<div class="rs-box" [class]="'rs-box rs-box--' + k"
+					[style.left]="pct(regions()[k].x)" [style.top]="pct(regions()[k].y)"
+					[style.width]="pct(regions()[k].w)" [style.height]="pct(regions()[k].h)">
+					<span class="rs-box-label">{{ regionLabel[k] }}</span>
+				</div>
+			}
+			@if (draft(); as d) {
+				<div class="rs-box rs-box--draft" [style.left]="pct(d.x)" [style.top]="pct(d.y)" [style.width]="pct(d.w)" [style.height]="pct(d.h)"></div>
+			}
+		</div>
+
+		@if (busy()) {
+			<div class="rs-progress">
+				<i class="pi pi-spin pi-spinner"></i> {{ progress() || 'распознаю…' }}
+				@if (progressPct() > 0 && progressPct() < 100) {
+					<span class="rs-bar"><span [style.width.%]="progressPct()"></span></span>
+				}
+			</div>
+		}
+
+		<!-- ======================================================== summary -->
+		@if (party() || cc() || drop()) {
+			<section class="rs-sum">
+				<div class="rs-sum-item" [class.is-bad]="!drop()?.boss">
+					<span class="rs-sum-h">РБ</span>
+					@if (drop()?.boss; as b) {
+						<b>{{ b.name }}</b> <span class="rs-ok">найден</span>
+					} @else if (drop()?.bossRead) {
+						прочитан «{{ drop()!.bossRead }}» — <span class="rs-bad">нет в справочнике</span>, выбери в форме
+					} @else {
+						<span class="rs-bad">не найден</span> — выбери в форме
+					}
+				</div>
+
+				<div class="rs-sum-item" [class.is-bad]="!party()?.groupId">
+					<span class="rs-sum-h">Наш пак</span>
+					@if (party()?.groupId) {
+						<b>{{ party()!.groupName }}</b> · распознано ников: {{ party()!.players.length }}
+					} @else {
+						<span class="rs-bad">не определён</span>
+					}
+					@if (party()?.doubtful?.length) {
+						<div class="rs-doubt">
+							под вопросом:
+							@for (d of party()!.doubtful; track $index) {
+								<span class="rs-chip rs-chip--warn">{{ d.player ? d.player.name + ' (' + d.player.groupName + ')' : d.raw }}</span>
+							}
+						</div>
+					}
+				</div>
+
+				<div class="rs-sum-item">
+					<span class="rs-sum-h">Command Channel</span>
+					@if (cc()?.packs?.length) {
+						@for (p of cc()!.packs; track p.groupId) {
+							<span class="rs-chip" [class.rs-chip--warn]="p.inGame != null && p.inGame !== rosterSize(p.groupId)"
+								[pTooltip]="p.inGame == null ? 'В окне CC нет числа людей — проверь состав пака в форме' : ''" tooltipPosition="top">
+								{{ p.groupName }} · {{ p.leader }} · {{ p.inGame ?? '?' }} / {{ rosterSize(p.groupId) }}
+							</span>
+						}
+					} @else {
+						<span class="rs-muted">других паков нет — был только наш</span>
+					}
+					@if (cc()?.foreign?.length) {
+						<div class="rs-doubt">
+							не наш клан:
+							@for (f of cc()!.foreign; track $index) {
+								<span class="rs-chip rs-chip--bad">{{ f.raw }}{{ f.inGame != null ? ' · ' + f.inGame : '' }}</span>
+							}
+						</div>
+					}
+				</div>
+
+				<div class="rs-sum-item" [class.is-bad]="!!drop()?.unmatchedLines?.length">
+					<span class="rs-sum-h">Дроп</span>
+					@if (drop()?.items?.length) {
+						@for (i of drop()!.items; track i.name) {
+							<span class="rs-chip" [class.rs-chip--bad]="!i.matched" [class.rs-chip--warn]="i.matched && i.ocrQty != null"
+								[pTooltip]="i.ocrQty != null ? 'OCR прочитал ×' + i.ocrQty + ' — больше, чем вообще падает; исправлено. Проверь в форме' : ''" tooltipPosition="top">
+								{{ i.name }} × {{ i.qty }}@if (i.ocrQty != null) {<s class="rs-ocr-qty">{{ i.ocrQty }}</s>}
+							</span>
+						}
+					} @else {
+						<span class="rs-muted">строк дропа не нашли</span>
+					}
+					@if (drop()?.unmatchedLines?.length) {
+						<div class="rs-doubt">
+							не распознан предмет:
+							@for (l of drop()!.unmatchedLines; track $index) {
+								<code>{{ l }}</code>
+							}
+						</div>
+					}
+				</div>
+
+				<details class="rs-raw">
+					<summary>Что прочитал OCR</summary>
+					<div class="rs-raw-grid">
+						<div><b>Пати</b><pre>{{ party()?.raw }}</pre></div>
+						<div><b>Command Channel</b><pre>{{ cc()?.raw }}</pre></div>
+						<div><b>Дроп</b><pre>{{ drop()?.raw }}</pre></div>
+					</div>
+				</details>
+			</section>
+
+			<!-- =========================================================== form -->
+			<section class="rs-form">
+				<h2>Рейд — проверь и сохрани</h2>
+
+				<div class="rs-row">
+					<label class="rs-field rs-field--grow">
+						<span>Рейд-босс</span>
+						<p-dropdown [options]="bossOptions()" optionLabel="label" optionValue="value" [filter]="true" filterBy="label"
+							[ngModel]="bossId()" (ngModelChange)="bossId.set($event)" placeholder="Выбрать" appendTo="body"></p-dropdown>
+					</label>
+					<label class="rs-field">
+						<span>Дата и время</span>
+						<input type="datetime-local" class="rs-input" [ngModel]="killDate()" (ngModelChange)="killDate.set($event)" />
+					</label>
+				</div>
+
+				<div class="rs-switches">
+					<label class="rs-switch"><p-toggleswitch [ngModel]="markAsDead()" (ngModelChange)="markAsDead.set($event)" /> Пометить как убитый (время в закладки)</label>
+					<label class="rs-switch"><p-toggleswitch [ngModel]="withFeels()" (ngModelChange)="setShared('feels', $event)" /> С филзом</label>
+					<label class="rs-switch"><p-toggleswitch [ngModel]="withClan()" (ngModelChange)="setShared('clan', $event)" /> С кланом</label>
+				</div>
+
+				<div class="rs-field">
+					<span>Паки, которые были</span>
+					<div class="rs-chips">
+						@for (g of groups(); track g.id) {
+							<button type="button" class="rs-pack" [class.is-on]="packIds().has(g.id)" (click)="togglePack(g.id)">{{ g.displayName }}</button>
+						}
+					</div>
+				</div>
+
+				@for (g of selectedGroups(); track g.id) {
+					<div class="rs-group">
+						<div class="rs-group-h">
+							<b>{{ g.displayName }}</b> <span class="rs-muted">{{ groupCount(g) }}/{{ mainUsers(g).length }}</span>
+							<span class="rs-spacer"></span>
+							<button type="button" class="rs-link" (click)="setAllInGroup(g, true)">все</button>
+							<button type="button" class="rs-link" (click)="setAllInGroup(g, false)">никого</button>
+						</div>
+						<div class="rs-people">
+							@for (u of mainUsers(g); track u.id) {
+								<button type="button" class="rs-person" [class.is-on]="isUserOn(g, u)" (click)="toggleUser(g, u)">
+									<i class="pi" [class.pi-check-circle]="isUserOn(g, u)" [class.pi-circle]="!isUserOn(g, u)"></i> {{ u.name }}
+								</button>
+							}
+						</div>
+					</div>
+				}
+
+				<div class="rs-field">
+					<div class="rs-drops-h">
+						<span>Дроп</span>
+						<span class="rs-drops-n">{{ dropRows().length }}</span>
+						@if (shared()) {
+							<span class="rs-drops-hint">у каждого предмета выбери, куда он идёт</span>
+						}
+					</div>
+					<div class="rs-drops">
+						@for (r of dropRows(); track r.key) {
+							<div class="rs-drop-row" [class.is-unknown]="rowUnknown(r)" [class.is-shared]="shared()">
+								<span class="rs-drop-ic">
+									@if (rowIcon(r); as ic) {
+										<img [src]="ic" alt="" />
+									} @else {
+										<i class="pi pi-box"></i>
+									}
+								</span>
+
+								<div class="rs-drop-main">
+									<button type="button" class="rs-pick" (click)="openPicker(r.key)" pTooltip="Заменить предмет" tooltipPosition="top">
+										<span class="rs-pick-name">{{ r.name || 'Выбрать предмет' }}</span>
+										<i class="pi pi-pencil"></i>
+									</button>
+									@if (rowUnknown(r)) {
+										<span class="rs-drop-warn"><i class="pi pi-exclamation-triangle"></i> нет в дропе этого РБ — проверь или оставь своим названием</span>
+									}
+								</div>
+
+								<div class="rs-step">
+									<button type="button" (click)="patchRow(r.key, { qty: r.qty > 1 ? r.qty - 1 : 1 })" aria-label="Меньше"><i class="pi pi-minus"></i></button>
+									<input type="number" min="1" [ngModel]="r.qty" (ngModelChange)="patchRow(r.key, { qty: $event > 0 ? $event : 1 })" />
+									<button type="button" (click)="patchRow(r.key, { qty: r.qty + 1 })" aria-label="Больше"><i class="pi pi-plus"></i></button>
+								</div>
+
+								@if (shared()) {
+									<div class="rs-seg" role="radiogroup">
+										<button type="button" [class.is-on]="r.dest === 'none'" (click)="patchRow(r.key, { dest: 'none' })">не наш</button>
+										<button type="button" class="is-pack" [class.is-on]="r.dest === 'pack'" (click)="patchRow(r.key, { dest: 'pack' })">наш склад</button>
+										<button type="button" class="is-clan" [class.is-on]="r.dest === 'clan'" (click)="patchRow(r.key, { dest: 'clan' })">склад клана</button>
+									</div>
+								}
+
+								<button type="button" class="rs-x" pTooltip="Убрать" tooltipPosition="left" (click)="removeRow(r.key)"><i class="pi pi-trash"></i></button>
+							</div>
+						}
+						<button type="button" class="rs-add-row" (click)="addRow()"><i class="pi pi-plus"></i> Добавить предмет</button>
+					</div>
+				</div>
+
+				<label class="rs-field">
+					<span>Заметка (необязательно)</span>
+					<input pInputText type="text" [ngModel]="note()" (ngModelChange)="note.set($event)" />
+				</label>
+
+				<div class="rs-actions">
+					<button pButton type="button" label="Отмена" class="p-button-text" (click)="cancel()"></button>
+					<button pButton type="button" icon="pi pi-check" label="Сохранить" [disabled]="saving() || busy()" (click)="save()"></button>
+				</div>
+			</section>
+		}
+	}
+</div>
+
+<!-- ================================================= item picker -->
+<p-dialog [visible]="pickerOpen()" (visibleChange)="$event || closePicker()" [modal]="true" [dismissableMask]="true"
+	[draggable]="false" [resizable]="false" [style]="{ width: 'min(760px, 96vw)' }"
+	[header]="pickerRowKey() ? 'Заменить предмет' : 'Добавить предмет'">
+	<div class="ip">
+		<span class="ip-search">
+			<i class="pi pi-search"></i>
+			<input type="text" placeholder="Начни печатать название… (Enter — выбрать первое)" autofocus
+				[ngModel]="pickerQuery()" (ngModelChange)="pickerQuery.set($event)" (keydown.enter)="pickFirst()" />
+			@if (pickerQuery()) {
+				<button type="button" class="ip-clear" (click)="pickerQuery.set('')"><i class="pi pi-times"></i></button>
+			}
+		</span>
+
+		@if (pickerCanAddCustom()) {
+			<button type="button" class="ip-custom" (click)="pick(pickerQuery())">
+				<i class="pi pi-plus"></i> Добавить «<b>{{ pickerQuery().trim() }}</b>» своим названием
+			</button>
+		}
+
+		<div class="ip-section">
+			<div class="ip-h">
+				{{ selectedBoss() ? 'Дроп: ' + selectedBoss()!.name : 'Дроп РБ' }}
+				<span class="ip-n">{{ pickerOwn().length }}</span>
+			</div>
+			@if (!selectedBoss()) {
+				<div class="ip-empty">Сначала выбери рейд-босса в форме — тут появится его дроп</div>
+			} @else if (pickerOwn().length) {
+				<div class="ip-tiles">
+					@for (o of pickerOwn(); track o.value) {
+						<button type="button" class="ip-tile" [class.is-current]="isPickerCurrent(o.value)" (click)="pick(o.value)"
+							[title]="o.label">
+							<span class="ip-tile-ic">
+								@if (optIcon(o); as ic) {
+									<img [src]="ic" alt="" />
+								} @else {
+									<i class="pi pi-box"></i>
+								}
+							</span>
+							<span class="ip-tile-name">{{ o.label }}</span>
+							@if (o.grade) {
+								<app-grade-badge [grade]="o.grade" />
+							}
+						</button>
+					}
+				</div>
+			} @else {
+				<div class="ip-empty">В дропе этого РБ ничего не нашлось по «{{ pickerQuery() }}»</div>
+			}
+		</div>
+
+		<div class="ip-section">
+			<div class="ip-h">
+				Остальные предметы
+				<span class="ip-n">{{ pickerRest().total }}</span>
+				@if (pickerRest().total > pickerRest().items.length) {
+					<span class="ip-more">показаны первые {{ pickerRest().items.length }} — уточни поиск</span>
+				}
+			</div>
+			<div class="ip-list">
+				@for (o of pickerRest().items; track o.value) {
+					<button type="button" class="ip-row" (click)="pick(o.value)">
+						<span class="ip-row-ic">
+							@if (optIcon(o); as ic) {
+								<img [src]="ic" alt="" />
+							}
+						</span>
+						<span class="ip-row-name">{{ o.label }}</span>
+						@if (o.custom) {
+							<span class="ip-tag">своё</span>
+						}
+						@if (o.grade) {
+							<app-grade-badge [grade]="o.grade" />
+						}
+					</button>
+				}
+			</div>
+		</div>
+	</div>
+</p-dialog>
