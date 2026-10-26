@@ -1029,25 +1029,9 @@
         </div>
       </ng-template>
 
-      <div class="rd-extra-add">
-        <p-dropdown [options]="extraItemOptions()" optionLabel="name" [filter]="true" filterBy="name"
-          [virtualScroll]="true" [virtualScrollItemSize]="38" [ngModel]="extraPick()"
-          (ngModelChange)="addExtraItem($event)" placeholder="+ Добавить любой предмет…" appendTo="body"
-          styleClass="rd-extra-select">
-          <ng-template #item let-o>
-            <div class="rd-extra-opt">
-              <img *ngIf="o.icon" [src]="o.icon" (error)="imgError($event)" alt="" />
-              <span>{{ o.name }}</span>
-              <app-grade-badge *ngIf="o.grade" [grade]="o.grade" />
-            </div>
-          </ng-template>
-        </p-dropdown>
-        <input pInputText type="text" class="rd-extra-custom" placeholder="или своё название"
-          [ngModel]="customItemName()" (ngModelChange)="customItemName.set($event)" (keydown.enter)="addCustomItem()" />
-        <button pButton type="button" icon="pi pi-plus" class="p-button-sm p-button-outlined"
-          [disabled]="!customItemName().trim()" pTooltip="Добавить своё" tooltipPosition="top"
-          (click)="addCustomItem()"></button>
-      </div>
+      <button type="button" class="rd-add-item" (click)="itemPickerOpen.set(true)">
+        <i class="pi pi-plus"></i> Добавить любой предмет
+      </button>
     </div>
 
     <button type="button" class="dc-card" [class.is-ok]="killDropChecked()" (click)="killDropChecked.set(!killDropChecked())" role="switch" [attr.aria-checked]="killDropChecked()">
@@ -1417,3 +1401,7 @@
       [title]="shotZoom() ? 'Уместить в окно' : 'Увеличить'" />
   </div>
 </p-dialog>
+
+<!-- «Добавить любой предмет» in the kill dialog -->
+<app-item-picker [visible]="itemPickerOpen()" header="Добавить предмет" [bossName]="selectedBoss()?.name ?? null"
+  [own]="pickerOwnItems()" [rest]="pickerRestItems()" (picked)="onItemPicked($event)" (closed)="itemPickerOpen.set(false)" />

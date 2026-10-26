@@ -52,6 +52,7 @@ import {
   SalePayout,
 } from '../../services/raid-loot.service';
 import { GradeBadgeComponent } from '../shared/grade-badge/grade-badge.component';
+import { ItemPickerComponent, PickerItem } from '../shared/item-picker/item-picker.component';
 import { OverflowTipDirective } from './overflow-tip.directive';
 import { SiteUsersService, actorLabel } from '../../services/site-users.service';
 
@@ -199,6 +200,7 @@ function newLocalId(): string {
     TooltipModule,
     ToggleSwitchModule,
     GradeBadgeComponent,
+    ItemPickerComponent,
     GuidedTourComponent,
     OverflowTipDirective,
   ],
@@ -649,6 +651,21 @@ export class RaidsComponent {
       return;
     }
     this.killLootRows.set([...rows, this.extraRow(o)]);
+  }
+
+  /* ---- «Добавить любой предмет» — modal picker (same as «Рейд по скрину») */
+  readonly itemPickerOpen = signal(false);
+  /** the picked boss's drop table, as picker tiles */
+  readonly pickerOwnItems = computed<PickerItem[]>(() =>
+    (this.selectedBoss()?.loot ?? []).map((l) => ({ name: l.displayName, icon: l.imgUrl || null, grade: l.grade ?? null })),
+  );
+  readonly pickerRestItems = computed<PickerItem[]>(() =>
+    this.extraItemOptions().map((o) => ({ name: o.name, icon: o.icon, grade: o.grade })),
+  );
+  onItemPicked(name: string): void {
+    const known = this.extraItemOptions().find((o) => o.name.trim().toLowerCase() === name.trim().toLowerCase());
+    this.addExtraItem(known ?? { name, icon: null, grade: null, catalogId: this.catalogNameIndex().get(normName(name))?.id ?? null });
+    this.itemPickerOpen.set(false);
   }
 
   /** a name that isn't in any list — matched to the catalogue when possible */

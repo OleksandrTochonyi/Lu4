@@ -1,0 +1,74 @@
+<p-dialog [visible]="visible()" (visibleChange)="$event || close()" [modal]="true" [dismissableMask]="true"
+	[draggable]="false" [resizable]="false" [style]="{ width: 'min(760px, 96vw)' }" [header]="header()" appendTo="body">
+	<div class="ip">
+		<span class="ip-search">
+			<i class="pi pi-search"></i>
+			<input type="text" placeholder="Начни печатать название… (Enter — выбрать первое)" autofocus
+				[ngModel]="query()" (ngModelChange)="query.set($event)" (keydown.enter)="pickFirst()" />
+			@if (query()) {
+				<button type="button" class="ip-clear" (click)="query.set('')"><i class="pi pi-times"></i></button>
+			}
+		</span>
+
+		@if (canAddCustom()) {
+			<button type="button" class="ip-custom" (click)="pick(query())">
+				<i class="pi pi-plus"></i> Добавить «<b>{{ query().trim() }}</b>» своим названием
+			</button>
+		}
+
+		<div class="ip-section">
+			<div class="ip-h">
+				{{ bossName() ? 'Дроп: ' + bossName() : 'Дроп РБ' }}
+				<span class="ip-n">{{ ownHits().length }}</span>
+			</div>
+			@if (!bossName()) {
+				<div class="ip-empty">Сначала выбери рейд-босса — тут появится его дроп</div>
+			} @else if (ownHits().length) {
+				<div class="ip-tiles">
+					@for (o of ownHits(); track o.name) {
+						<button type="button" class="ip-tile" [class.is-current]="isCurrent(o.name)" (click)="pick(o.name)" [title]="o.name">
+							<span class="ip-tile-ic">
+								@if (iconOf(o); as ic) {
+									<img [src]="ic" alt="" />
+								} @else {
+									<i class="pi pi-box"></i>
+								}
+							</span>
+							<span class="ip-tile-name">{{ o.name }}</span>
+							@if (o.grade) {
+								<app-grade-badge [grade]="o.grade" />
+							}
+						</button>
+					}
+				</div>
+			} @else {
+				<div class="ip-empty">В дропе этого РБ ничего не нашлось по «{{ query() }}»</div>
+			}
+		</div>
+
+		<div class="ip-section">
+			<div class="ip-h">
+				Остальные предметы
+				<span class="ip-n">{{ restHits().total }}</span>
+				@if (restHits().total > restHits().items.length) {
+					<span class="ip-more">показаны первые {{ restHits().items.length }} — уточни поиск</span>
+				}
+			</div>
+			<div class="ip-list">
+				@for (o of restHits().items; track o.name) {
+					<button type="button" class="ip-row" (click)="pick(o.name)">
+						<span class="ip-row-ic">
+							@if (iconOf(o); as ic) {
+								<img [src]="ic" alt="" />
+							}
+						</span>
+						<span class="ip-row-name">{{ o.name }}</span>
+						@if (o.grade) {
+							<app-grade-badge [grade]="o.grade" />
+						}
+					</button>
+				}
+			</div>
+		</div>
+	</div>
+</p-dialog>

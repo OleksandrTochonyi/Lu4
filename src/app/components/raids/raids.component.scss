@@ -2487,3 +2487,24 @@
   padding: 0.2rem 0.65rem;
   box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
 }
+
+/* «Добавить любой предмет» → the modal picker */
+.rd-add-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.55rem;
+  border: 1px dashed #c7d2fe;
+  border-radius: 10px;
+  background: #f8faff;
+  color: #4f46e5;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.rd-add-item:hover {
+  background: #eef2ff;
+}
