@@ -6,6 +6,7 @@ import {
   deleteDoc,
   doc,
   docData,
+  getDoc,
   setDoc,
   updateDoc,
 } from '@angular/fire/firestore';
@@ -210,6 +211,12 @@ export interface RaidKill {
   withClan: boolean;
   /** which clan (optional, free text) */
   clanName: string;
+  /** added from a game screenshot that's kept in `raid-kill-shots/<kill id>` */
+  hasShot?: boolean;
+  /** «Дроп проверен» — someone looked the drop over (absent on old kills = checked) */
+  dropChecked?: boolean;
+  dropCheckedBy?: string;
+  dropCheckedAt?: number | null;
   createdBy: string;
   createdAt: number;
 }
@@ -386,6 +393,10 @@ function normalizeKill(raw: any): RaidKill {
     withFeels: !!raw?.withFeels,
     withClan: !!raw?.withClan,
     clanName: String(raw?.clanName ?? ''),
+    hasShot: raw?.hasShot === true,
+    dropChecked: raw?.dropChecked !== false,
+    dropCheckedBy: String(raw?.dropCheckedBy ?? ''),
+    dropCheckedAt: raw?.dropCheckedAt != null ? toNum(raw.dropCheckedAt) : null,
     createdBy: String(raw?.createdBy ?? ''),
     createdAt: toNum(raw?.createdAt),
   };
@@ -570,8 +581,33 @@ export class RaidLootService {
     this.voice.action('raidKillEdit');
   }
 
+  /* ---- screenshot a kill was added from (separate doc, so the kill list never loads pictures) */
+
+  async saveKillShot(killId: string, photo: string): Promise<void> {
+    await setDoc(doc(this.firestore, `raid-kill-shots/${killId}`), { photo, createdAt: Date.now() });
+    await updateDoc(doc(this.firestore, `raid-kills/${killId}`), { hasShot: true });
+  }
+
+  /** «Дроп проверен» on / off, with who and when */
+  async setDropChecked(killId: string, checked: boolean, actorEmail: string): Promise<void> {
+    await updateDoc(doc(this.firestore, `raid-kills/${killId}`), {
+      dropChecked: checked,
+      dropCheckedBy: checked ? actorEmail || 'неизвестно' : '',
+      dropCheckedAt: checked ? Date.now() : null,
+    });
+    if (checked) this.activityLog.log('Проверил дроп РБ');
+  }
+
+  /** the stored picture (data URL), or null */
+  async killShot(killId: string): Promise<string | null> {
+    const snap = await getDoc(doc(this.firestore, `raid-kill-shots/${killId}`));
+    const v = snap.exists() ? snap.data()?.['photo'] : null;
+    return typeof v === 'string' && v ? v : null;
+  }
+
   async removeKill(id: string): Promise<void> {
     await deleteDoc(doc(this.firestore, `raid-kills/${id}`));
+    await deleteDoc(doc(this.firestore, `raid-kill-shots/${id}`)).catch(() => null);
     this.activityLog.log('Удалил убийство РБ');
     this.voice.action('raidKillDelete');
   }

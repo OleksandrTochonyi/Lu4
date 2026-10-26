@@ -2277,3 +2277,213 @@
   margin: 0 0 0.35rem;
   font-size: 0.74rem;
 }
+
+/* «📷 Скрин» on a kill added from a screenshot */
+.rd-kill-shot {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex: none;
+  padding: 0.15rem 0.55rem;
+  border: 1px solid #bae6fd;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+.rd-kill-shot:hover {
+  background: #bae6fd;
+}
+.rd-kill-shot .pi {
+  font-size: 0.72rem;
+}
+.rd-shot {
+  display: block;
+  max-width: 100%;
+  max-height: 78vh;
+  margin: 0 auto;
+  border-radius: 8px;
+}
+.rd-shot-wrap {
+  max-height: 78vh;
+  overflow: auto;
+}
+.rd-shot-wrap .rd-shot {
+  cursor: zoom-in;
+}
+.rd-shot-wrap.is-zoom .rd-shot {
+  max-width: none;
+  max-height: none;
+  cursor: zoom-out;
+}
+.rd-shot-loading {
+  display: flex;
+  justify-content: center;
+  padding: 3rem;
+  font-size: 2rem;
+  color: #94a3b8;
+}
+
+.rd-toggle-chip--shot {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.rd-toggle-chip--shot .pi {
+  font-size: 0.72rem;
+}
+.rd-toggle-chip--shot.active {
+  background: #e0f2fe !important;
+  border-color: #7dd3fc !important;
+  color: #0369a1 !important;
+}
+
+/* «Дроп не проверен» / «Проверен» on a kill */
+.rd-kill-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex: none;
+  padding: 0.15rem 0.55rem;
+  border: 1px solid #fcd34d;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #b45309;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+.rd-kill-check:hover {
+  background: #fde68a;
+}
+.rd-kill-check.is-ok {
+  border-color: #86efac;
+  background: #dcfce7;
+  color: #15803d;
+}
+.rd-kill-check.is-ok:hover {
+  background: #bbf7d0;
+}
+.rd-kill-check .pi {
+  font-size: 0.72rem;
+}
+.rd-toggle-chip--unchecked {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.rd-toggle-chip--unchecked .pi {
+  font-size: 0.72rem;
+}
+.rd-toggle-chip--unchecked.active {
+  background: #fef3c7 !important;
+  border-color: #fcd34d !important;
+  color: #b45309 !important;
+}
+.rd-chip-n {
+  min-width: 1.1rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: #f59e0b;
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* «Дроп проверен» — big switch card */
+.dc-card {
+  --c: #b45309;
+  --bg: #fffbeb;
+  --bd: #fcd34d;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  border: 2px solid var(--bd);
+  border-radius: 12px;
+  background: var(--bg);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.dc-card.is-ok {
+  --c: #15803d;
+  --bg: #f0fdf4;
+  --bd: #86efac;
+}
+.dc-ic {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 2.3rem;
+  height: 2.3rem;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--c);
+  font-size: 1.1rem;
+}
+.dc-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  flex: 1;
+  min-width: 0;
+}
+.dc-text b {
+  font-size: 0.95rem;
+  color: var(--c);
+}
+.dc-text small {
+  font-size: 0.76rem;
+  color: #64748b;
+}
+.dc-toggle {
+  position: relative;
+  flex: none;
+  width: 2.8rem;
+  height: 1.55rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  transition: background-color 0.15s ease;
+}
+.dc-card.is-ok .dc-toggle {
+  background: #22c55e;
+}
+.dc-knob {
+  position: absolute;
+  top: 0.15rem;
+  left: 0.15rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+  transition: transform 0.15s ease;
+}
+.dc-card.is-ok .dc-knob {
+  transform: translateX(1.25rem);
+}
+
+/* a kill whose drop isn't checked yet — the whole card stands out */
+.rd-kill.is-unchecked {
+  border-color: #fcd34d;
+  box-shadow: 0 0 0 1px #fcd34d;
+  background: #fffdf5;
+}
+.rd-kill.is-unchecked .rd-kill-head {
+  background: #fffbeb;
+}
+.rd-kill-check:not(.is-ok) {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.65rem;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+}

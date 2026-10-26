@@ -9,7 +9,7 @@
     <button pButton type="button" icon="pi pi-plus" label="Добавить" (click)="openAdd()"></button>
   </div>
 
-  <div class="au-sound" *ngIf="sound.isOwner">
+  <div class="au-sound">
     <div class="au-sound-title"><i class="pi pi-megaphone"></i> Звук всем</div>
     <select class="au-sound-select" [ngModel]="soundCurrent()" (ngModelChange)="soundPick.set($event)">
       <option *ngFor="let t of sound.tracks()" [value]="t.file">{{ t.label }}</option>

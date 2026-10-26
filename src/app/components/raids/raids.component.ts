@@ -221,6 +221,52 @@ export class RaidsComponent {
   private voice = inject(RespVoiceService);
   private router = inject(Router);
 
+  /** one click on the kill row: «Дроп не проверен» ↔ «Проверен» */
+  async toggleDropChecked(kill: RaidKill): Promise<void> {
+    try {
+      await this.raidLoot.setDropChecked(kill.id, kill.dropChecked === false, this.myEmail());
+    } catch (e) {
+      this.toast('error', 'Ошибка', this.msg(e));
+    }
+  }
+  readonly uncheckedCount = computed(() => this.kills().filter((k) => k.dropChecked === false).length);
+  dropCheckedTip(kill: RaidKill): string {
+    if (kill.dropChecked === false) return 'Дроп добавлен без проверки — нажми, когда проверишь';
+    const who = kill.dropCheckedBy ? this.who(kill.dropCheckedBy) : '';
+    const when = kill.dropCheckedAt ? this.fmtDate(kill.dropCheckedAt) : '';
+    return ['Дроп проверен', who, when].filter(Boolean).join(' · ') + ' — нажми, чтобы снять';
+  }
+
+  /* ---- the screenshot a kill was added from */
+  readonly shotUrl = signal<string | null>(null);
+  readonly shotTitle = signal('');
+  readonly shotLoading = signal(false);
+  /** full size (scrollable) vs fit to the window */
+  readonly shotZoom = signal(false);
+  async openKillShot(kill: RaidKill): Promise<void> {
+    this.shotTitle.set(`${kill.bossName} · ${this.fmtDate(kill.killedAt)}`);
+    this.shotUrl.set('');
+    this.shotZoom.set(false);
+    this.shotLoading.set(true);
+    try {
+      const url = await this.raidLoot.killShot(kill.id);
+      if (!url) {
+        this.shotUrl.set(null);
+        this.toast('warn', 'Скрина нет', 'Картинка этого убийства не найдена');
+        return;
+      }
+      this.shotUrl.set(url);
+    } catch (e) {
+      this.shotUrl.set(null);
+      this.toast('error', 'Не удалось загрузить скрин', this.msg(e));
+    } finally {
+      this.shotLoading.set(false);
+    }
+  }
+  closeKillShot(): void {
+    this.shotUrl.set(null);
+  }
+
   /** «📷 Рейд по скрину» */
   openScreenshotPage(): void {
     void this.router.navigateByUrl('/raids/screenshot');
@@ -316,7 +362,7 @@ export class RaidsComponent {
   /** search across boss name, participant names, drop names, and the kill date */
   readonly killSearch = signal('');
   /** all kills / only ones with drop still unsold / only fully sold-out ones / farmed with Feels */
-  readonly killStatusFilter = signal<'all' | 'open' | 'closed' | 'feels' | 'clan'>('all');
+  readonly killStatusFilter = signal<'all' | 'open' | 'closed' | 'feels' | 'clan' | 'shot' | 'unchecked'>('all');
 
   readonly filteredKills = computed(() => {
     const q = this.killSearch().trim().toLowerCase();
@@ -327,6 +373,8 @@ export class RaidsComponent {
       if (status === 'closed' && !soldOut) return false;
       if (status === 'feels' && !k.withFeels) return false;
       if (status === 'clan' && !k.withClan) return false;
+      if (status === 'shot' && !k.hasShot) return false;
+      if (status === 'unchecked' && k.dropChecked !== false) return false;
       if (!q) return true;
       const haystack = [
         k.bossName,
@@ -392,6 +440,8 @@ export class RaidsComponent {
   readonly killMarkAsDead = signal(true);
   /** «Зафармили с филзом» */
   readonly killWithFeels = signal(false);
+  /** «Дроп проверен» in the dialog */
+  readonly killDropChecked = signal(true);
   /** «Зафармили с кланом» + which clan */
   readonly killWithClan = signal(false);
   readonly killClanName = signal('');
@@ -423,6 +473,7 @@ export class RaidsComponent {
     this.killNote.set('');
     this.killMarkAsDead.set(true);
     this.killWithFeels.set(false);
+    this.killDropChecked.set(true);
     this.killWithClan.set(false);
     this.killClanName.set('');
     this.customItemName.set('');
@@ -447,6 +498,7 @@ export class RaidsComponent {
     // editing never touches the bookmarks' kill time (the switch is hidden too)
     this.killMarkAsDead.set(false);
     this.killWithFeels.set(kill.withFeels);
+    this.killDropChecked.set(kill.dropChecked !== false);
     this.killWithClan.set(kill.withClan);
     this.killClanName.set(kill.clanName ?? '');
     this.customItemName.set('');
@@ -626,6 +678,14 @@ export class RaidsComponent {
       // no participants pre-checked — pick who actually showed up
     }
     this.killPackIds.set(packs);
+    // any pack besides ours (PH) on the kill → farmed with a clan
+    this.setKillWithClan(this.hasForeignPack(packs));
+  }
+
+  /** packs other than ours (PH — the «Текущий состав» pack) */
+  private hasForeignPack(packs: Set<string>): boolean {
+    const ours = new Set(this.allGroupsForRoster().map((g) => g.id));
+    return [...packs].some((id) => !ours.has(id));
   }
   isKillPackOn(groupId: string): boolean {
     return this.killPackIds().has(groupId);
@@ -716,6 +776,11 @@ export class RaidsComponent {
       drops,
       note: this.killNote().trim(),
       withFeels: this.killWithFeels(),
+      dropChecked: this.killDropChecked(),
+      // who / when — only when it flips to «проверен» here
+      ...(this.killDropChecked() && this.kills().find((k) => k.id === this.editingKillId())?.dropChecked !== true
+        ? { dropCheckedBy: this.myEmail() || 'неизвестно', dropCheckedAt: Date.now() }
+        : {}),
       withClan: this.killWithClan(),
       clanName: '',
     };

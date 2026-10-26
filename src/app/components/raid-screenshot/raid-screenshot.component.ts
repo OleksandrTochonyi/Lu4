@@ -283,6 +283,8 @@ export class RaidScreenshotComponent {
   readonly markAsDead = signal(true);
   readonly withFeels = signal(false);
   readonly withClan = signal(false);
+  /** off by default: add fast from screenshots, check the drop later */
+  readonly dropChecked = signal(false);
   readonly note = signal('');
   readonly packIds = signal<Set<string>>(new Set());
   /** `${groupId}:${userId}` */
@@ -379,6 +381,14 @@ export class RaidScreenshotComponent {
       packs.add(id);
     }
     this.packIds.set(packs);
+    // any pack besides ours (PH) → farmed with a clan
+    const ours = this.ourPackId();
+    this.setShared('clan', [...packs].some((p) => p !== ours));
+  }
+
+  /** our pack: PH by name, else the one the party window matched */
+  private ourPackId(): string | null {
+    return this.groups().find((g) => (g.displayName ?? '').trim().toLowerCase() === 'ph')?.id ?? this.party()?.groupId ?? null;
   }
   toggleUser(g: ConstPartyGroup, u: ConstPartyUser): void {
     const k = `${g.id}:${u.id}`;
@@ -593,11 +603,21 @@ export class RaidScreenshotComponent {
       note: this.note().trim(),
       withFeels: this.withFeels(),
       withClan: this.withClan(),
+      dropChecked: this.dropChecked(),
       clanName: '',
     };
     this.saving.set(true);
     try {
-      await this.raidLoot.addKill(payload, this.myEmail());
+      const killId = await this.raidLoot.addKill(payload, this.myEmail());
+      // keep the screenshot with the kill (shrunk JPEG, its own doc)
+      const shot = this.compressShot();
+      if (shot) {
+        try {
+          await this.raidLoot.saveKillShot(killId, shot);
+        } catch {
+          this.toast('warn', 'Скрин не сохранился', 'Убийство записано, но без картинки');
+        }
+      }
       if (this.markAsDead()) {
         try {
           await this.rbJsonResp.setKillTime(String(boss.id), new Date(killedAt), { silent: true });
@@ -613,6 +633,25 @@ export class RaidScreenshotComponent {
       this.saving.set(false);
     }
   }
+  /** the loaded screenshot as a JPEG data URL small enough for one Firestore doc (< ~900 KB) */
+  private compressShot(): string | null {
+    const img = this.image;
+    if (!img) return null;
+    for (const [maxW, q] of [[1600, 0.72], [1400, 0.62], [1200, 0.55], [1000, 0.5]] as const) {
+      const scale = Math.min(1, maxW / img.naturalWidth);
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.naturalWidth * scale);
+      c.height = Math.round(img.naturalHeight * scale);
+      const ctx = c.getContext('2d');
+      if (!ctx) return null;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      const url = c.toDataURL('image/jpeg', q);
+      if (url.length < 900_000) return url;
+    }
+    return null;
+  }
+
   cancel(): void {
     void this.router.navigateByUrl('/raids');
   }

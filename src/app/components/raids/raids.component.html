@@ -63,6 +63,11 @@
           (click)="killStatusFilter.set('feels')"><i class="pi pi-users"></i> С филзом</button>
         <button type="button" class="rd-toggle-chip rd-toggle-chip--clan" [class.active]="killStatusFilter() === 'clan'"
           (click)="killStatusFilter.set('clan')"><i class="pi pi-flag"></i> С кланом</button>
+        <button type="button" class="rd-toggle-chip rd-toggle-chip--shot" [class.active]="killStatusFilter() === 'shot'"
+          (click)="killStatusFilter.set('shot')"><i class="pi pi-image"></i> Скрин</button>
+        <button type="button" class="rd-toggle-chip rd-toggle-chip--unchecked" [class.active]="killStatusFilter() === 'unchecked'"
+          (click)="killStatusFilter.set('unchecked')"><i class="pi pi-exclamation-circle"></i> Не проверен
+          <span class="rd-chip-n" *ngIf="uncheckedCount()">{{ uncheckedCount() }}</span></button>
       </div>
       <span class="rd-spacer"></span>
       <button pButton type="button" label="📷 Рейд по скрину" class="p-button-outlined"
@@ -74,7 +79,8 @@
     <div class="rd-kills" *ngIf="filteredKills().length; else emptyKills">
       <div class="rd-kill" *ngFor="let k of filteredKills(); trackBy: trackByKill" [attr.data-kill-id]="k.id"
         [class.is-open]="isKillExpanded(k.id)" [class.is-soldout]="isKillFullySold(k)"
-        [class.is-highlighted]="highlightedKillId() === k.id" [class.is-feels]="k.withFeels" [class.is-clan]="k.withClan">
+        [class.is-highlighted]="highlightedKillId() === k.id" [class.is-feels]="k.withFeels" [class.is-clan]="k.withClan"
+        [class.is-unchecked]="k.dropChecked === false">
         <div class="rd-kill-head" role="button" tabindex="0" (click)="toggleKillExpanded(k.id)"
           (keydown.enter)="toggleKillExpanded(k.id)">
           <i class="pi rd-kill-chevron" [ngClass]="isKillExpanded(k.id) ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
@@ -94,6 +100,16 @@
           <span class="rd-kill-feels-tag" *ngIf="k.withFeels" pTooltip="Зафармили вместе с филзом" tooltipPosition="top">
             <i class="pi pi-users"></i> С филзом
           </span>
+          <button type="button" class="rd-kill-check" [class.is-ok]="k.dropChecked !== false"
+            *ngIf="k.dropChecked === false || k.hasShot" [pTooltip]="dropCheckedTip(k)" tooltipPosition="top"
+            (click)="$event.stopPropagation(); toggleDropChecked(k)">
+            <i class="pi" [ngClass]="k.dropChecked !== false ? 'pi-verified' : 'pi-exclamation-circle'"></i>
+            {{ k.dropChecked !== false ? 'Проверен' : 'Дроп не проверен' }}
+          </button>
+          <button type="button" class="rd-kill-shot" *ngIf="k.hasShot" pTooltip="Скрин, с которого добавлен рейд" tooltipPosition="top"
+            (click)="$event.stopPropagation(); openKillShot(k)">
+            <i class="pi pi-image"></i> Скрин
+          </button>
           <span class="rd-kill-feels-tag" *ngIf="k.withClan"
             pTooltip="Зафармили вместе с кланом — на баланс идёт только отмеченный дроп" tooltipPosition="top">
             <i class="pi pi-flag"></i> С кланом
@@ -1034,6 +1050,15 @@
       </div>
     </div>
 
+    <button type="button" class="dc-card" [class.is-ok]="killDropChecked()" (click)="killDropChecked.set(!killDropChecked())" role="switch" [attr.aria-checked]="killDropChecked()">
+      <span class="dc-ic"><i class="pi" [class.pi-verified]="killDropChecked()" [class.pi-exclamation-triangle]="!killDropChecked()"></i></span>
+      <span class="dc-text">
+        <b>{{ killDropChecked() ? 'Дроп проверен' : 'Дроп не проверен' }}</b>
+        <small>{{ killDropChecked() ? 'Всё сверено — убийство сохранится как проверенное' : 'Сохранится с пометкой «Дроп не проверен» — проверишь потом и отметишь в списке' }}</small>
+      </span>
+      <span class="dc-toggle"><span class="dc-knob"></span></span>
+    </button>
+
     <label class="rd-field">
       <span>Заметка (необязательно)</span>
       <input pInputText type="text" [ngModel]="killNote()" (ngModelChange)="killNote.set($event)" />
@@ -1381,4 +1406,14 @@
     <button pButton type="button" label="Продать и попилить" icon="pi pi-money-bill" class="p-button-sm"
       [disabled]="settlingListingId()" (click)="submitSellSplit()"></button>
   </ng-template>
+</p-dialog>
+
+<!-- ======================================================= KILL SCREENSHOT === -->
+<p-dialog [visible]="shotUrl() !== null" (visibleChange)="$event || closeKillShot()" [modal]="true" [dismissableMask]="true"
+  [draggable]="false" [resizable]="false" [header]="shotTitle()" [style]="{ width: 'min(1200px, 96vw)' }">
+  <div class="rd-shot-loading" *ngIf="shotLoading()"><i class="pi pi-spin pi-spinner"></i></div>
+  <div *ngIf="!shotLoading() && shotUrl()" class="rd-shot-wrap" [class.is-zoom]="shotZoom()">
+    <img class="rd-shot no-invert" [src]="shotUrl()" alt="скриншот рейда" (click)="shotZoom.set(!shotZoom())"
+      [title]="shotZoom() ? 'Уместить в окно' : 'Увеличить'" />
+  </div>
 </p-dialog>

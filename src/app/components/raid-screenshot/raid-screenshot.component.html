@@ -243,6 +243,15 @@
 					<input pInputText type="text" [ngModel]="note()" (ngModelChange)="note.set($event)" />
 				</label>
 
+				<button type="button" class="dc-card" [class.is-ok]="dropChecked()" (click)="dropChecked.set(!dropChecked())" role="switch" [attr.aria-checked]="dropChecked()">
+				  <span class="dc-ic"><i class="pi" [class.pi-verified]="dropChecked()" [class.pi-exclamation-triangle]="!dropChecked()"></i></span>
+				  <span class="dc-text">
+				    <b>{{ dropChecked() ? 'Дроп проверен' : 'Дроп не проверен' }}</b>
+				    <small>{{ dropChecked() ? 'Всё сверено — убийство сохранится как проверенное' : 'Сохранится с пометкой «Дроп не проверен» — проверишь потом и отметишь в списке' }}</small>
+				  </span>
+				  <span class="dc-toggle"><span class="dc-knob"></span></span>
+				</button>
+
 				<div class="rs-actions">
 					<button pButton type="button" label="Отмена" class="p-button-text" (click)="cancel()"></button>
 					<button pButton type="button" icon="pi pi-check" label="Сохранить" [disabled]="saving() || busy()" (click)="save()"></button>

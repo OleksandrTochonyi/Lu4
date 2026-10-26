@@ -1,14 +1,14 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { Auth, authState } from '@angular/fire/auth';
 import { Firestore, doc, docData, setDoc } from '@angular/fire/firestore';
-import { catchError, of, switchMap } from 'rxjs';
+import { catchError, firstValueFrom, of, switchMap } from 'rxjs';
+
+import { SiteUsersService } from './site-users.service';
 
 /** tracks live here; `index.json` lists them (a browser can't list a folder) */
 const TRACKS_ROOT = '/assets/voice/users-joke/';
 /** the one doc everybody listens to */
 const BROADCAST_DOC = 'site-broadcast/sound';
-/** only this account gets the «play for everyone» panel */
-export const BROADCAST_OWNER = 'alexadmin@gmail.com';
 /** a broadcast older than this (page opened later, sleeping tab) is not played */
 const MAX_LATE_MS = 30_000;
 
@@ -18,7 +18,7 @@ export interface JokeTrack {
 }
 
 /**
- * «Воспроизвести у всех»: the owner writes {file, at, nonce} to one Firestore doc;
+ * «Воспроизвести у всех» (any admin, /admin/users): writes {file, at, nonce} to one Firestore doc;
  * every open client is subscribed and plays that track as soon as the doc changes.
  *
  * Browsers only allow sound after the user has clicked/typed on the page at least
@@ -28,6 +28,7 @@ export interface JokeTrack {
 export class BroadcastSoundService {
   private firestore = inject(Firestore);
   private auth = inject(Auth);
+  private siteUsers = inject(SiteUsersService);
 
   readonly tracks = signal<JokeTrack[]>([]);
   /** what was broadcast last (for the panel) */
@@ -51,9 +52,6 @@ export class BroadcastSoundService {
       .catch(() => null);
   }
 
-  get isOwner(): boolean {
-    return (this.auth.currentUser?.email ?? '').toLowerCase() === BROADCAST_OWNER;
-  }
 
   /** call once (AppComponent) — listens while signed in */
   start(): void {
@@ -101,7 +99,7 @@ export class BroadcastSoundService {
 
   /** play for everyone who has the site open (and for us, via the same listener) */
   async broadcast(track: JokeTrack): Promise<void> {
-    if (!this.isOwner) throw new Error('Нет доступа');
+    if (!(await firstValueFrom(this.siteUsers.isAdmin$))) throw new Error('Только для админов');
     await setDoc(doc(this.firestore, BROADCAST_DOC), {
       file: track.file,
       label: track.label,
