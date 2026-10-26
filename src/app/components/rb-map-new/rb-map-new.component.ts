@@ -308,39 +308,12 @@ export class RbMapNewComponent {
     const boss = this.selectedBoss();
     if (!boss) return;
     try {
-      await this.jsonRespService.setKillTime(boss.id, this.nowInKyivAsLocalDate(), {
+      await this.jsonRespService.setKillTime(boss.id, new Date(), {
         bossName: boss['displayName'] || boss['name'],
       });
       this.messageService.add({ severity: 'success', summary: 'Респ обновлён', detail: boss['displayName'], life: 2500 });
     } catch {
       this.messageService.add({ severity: 'error', summary: 'Не удалось обновить респ', life: 4000 });
-    }
-  }
-
-  private nowInKyivAsLocalDate(): Date {
-    try {
-      const parts = new Intl.DateTimeFormat('en-GB', {
-        timeZone: 'Europe/Kyiv',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false,
-      }).formatToParts(new Date());
-
-      const get = (type: string) => parts.find((p) => p.type === type)?.value;
-      const year = get('year');
-      const month = get('month');
-      const day = get('day');
-      const hour = get('hour');
-      const minute = get('minute');
-      const second = get('second');
-      if (!year || !month || !day || !hour || !minute || !second) return new Date();
-      return new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}`);
-    } catch {
-      return new Date();
     }
   }
 

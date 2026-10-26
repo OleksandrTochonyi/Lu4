@@ -3,8 +3,8 @@
     <!-- Kill time -->
     <div class="time-cell">
       <ng-container *ngIf="session().killDate as killDate; else noDate">
-        <span class="time-cell__date">{{ killDate | date: 'd MMM y' : 'Europe/Kyiv' }}</span>
-        <span class="time-cell__time">{{ killDate | date: 'HH:mm' : 'Europe/Kyiv' }}</span>
+        <span class="time-cell__date">{{ killDate | date: 'd MMM y' }}</span>
+        <span class="time-cell__time">{{ killDate | date: 'HH:mm' }}</span>
       </ng-container>
       <ng-template #noDate><span class="time-cell__date">—</span></ng-template>
     </div>
@@ -100,8 +100,8 @@
         </div>
         <span class="rb-cell__badge">{{ rbBadge() }}</span>
         <div class="detail-summary__meta" *ngIf="session().killDate as killDate">
-          <span><i class="pi pi-calendar"></i> {{ killDate | date: 'd MMM y' : 'Europe/Kyiv' }}</span>
-          <span><i class="pi pi-clock"></i> {{ killDate | date: 'HH:mm' : 'Europe/Kyiv' }}</span>
+          <span><i class="pi pi-calendar"></i> {{ killDate | date: 'd MMM y' }}</span>
+          <span><i class="pi pi-clock"></i> {{ killDate | date: 'HH:mm' }}</span>
         </div>
       </div>
     </div>

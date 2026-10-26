@@ -376,42 +376,9 @@ export class RbItemComponent implements OnInit {
   }
 
   setKillTimeNowKyiv(): void {
-    const nowKyiv = this.nowInKyivAsLocalDate();
+    const nowKyiv = new Date();
     this.deadTime = nowKyiv;
     this.commitDeadTime();
-  }
-
-  private nowInKyivAsLocalDate(): Date {
-    // We want the time-of-day to be "Kyiv now" even if the user's local timezone differs.
-    // Create a Date using Kyiv-local Y/M/D/H/M/S, interpreted in the user's local timezone.
-    try {
-      const parts = new Intl.DateTimeFormat('en-GB', {
-        timeZone: 'Europe/Kyiv',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false,
-      }).formatToParts(new Date());
-
-      const get = (type: string) => parts.find((p) => p.type === type)?.value;
-      const year = get('year');
-      const month = get('month');
-      const day = get('day');
-      const hour = get('hour');
-      const minute = get('minute');
-      const second = get('second');
-
-      if (!year || !month || !day || !hour || !minute || !second) {
-        return new Date();
-      }
-
-      return new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}`);
-    } catch {
-      return new Date();
-    }
   }
 
   private playRespStartSound(): void {

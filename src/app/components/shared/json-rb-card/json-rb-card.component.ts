@@ -398,7 +398,7 @@ export class JsonRbCardComponent implements OnInit {
   }
 
   setKillTimeNowKyiv(): void {
-    this.deadTime = this.nowInKyivAsLocalDate();
+    this.deadTime = new Date();
     this.commitDeadTime('kill');
   }
 
@@ -430,33 +430,6 @@ export class JsonRbCardComponent implements OnInit {
     if (last === 1) return one;
     if (last >= 2 && last <= 4) return few;
     return many;
-  }
-
-  private nowInKyivAsLocalDate(): Date {
-    try {
-      const parts = new Intl.DateTimeFormat('en-GB', {
-        timeZone: 'Europe/Kyiv',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false,
-      }).formatToParts(new Date());
-
-      const get = (type: string) => parts.find((p) => p.type === type)?.value;
-      const year = get('year');
-      const month = get('month');
-      const day = get('day');
-      const hour = get('hour');
-      const minute = get('minute');
-      const second = get('second');
-      if (!year || !month || !day || !hour || !minute || !second) return new Date();
-      return new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}`);
-    } catch {
-      return new Date();
-    }
   }
 
   toDate(value: any): Date | null {

@@ -89,10 +89,10 @@
 
 			@if (showDetails()) {
 				<td>
-					{{ displayMinResp(rb) ? (displayMinResp(rb) | date : 'HH:mm' : 'Europe/Kyiv') : '—' }}
+					{{ displayMinResp(rb) ? (displayMinResp(rb) | date : 'HH:mm') : '—' }}
 				</td>
 				<td>
-					{{ displayMaxResp(rb) ? (displayMaxResp(rb) | date : 'HH:mm' : 'Europe/Kyiv') : '—' }}
+					{{ displayMaxResp(rb) ? (displayMaxResp(rb) | date : 'HH:mm') : '—' }}
 				</td>
 			}
 

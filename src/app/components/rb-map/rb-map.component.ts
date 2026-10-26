@@ -485,7 +485,7 @@ export class RbMapComponent {
   async refreshRespSelected(): Promise<void> {
     const boss = this.selectedBoss();
     if (!boss) return;
-    const nowKyiv = this.nowInKyivAsLocalDate();
+    const nowKyiv = new Date();
     try {
       await this.rbDataService.setKillTime(boss.id, nowKyiv);
       this.messageService.add({
@@ -680,34 +680,6 @@ export class RbMapComponent {
     if (last === 1) return one;
     if (last >= 2 && last <= 4) return few;
     return many;
-  }
-
-  private nowInKyivAsLocalDate(): Date {
-    try {
-      const parts = new Intl.DateTimeFormat('en-GB', {
-        timeZone: 'Europe/Kyiv',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false,
-      }).formatToParts(new Date());
-
-      const get = (type: string) => parts.find((p) => p.type === type)?.value;
-      const year = get('year');
-      const month = get('month');
-      const day = get('day');
-      const hour = get('hour');
-      const minute = get('minute');
-      const second = get('second');
-
-      if (!year || !month || !day || !hour || !minute || !second) return new Date();
-      return new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}`);
-    } catch {
-      return new Date();
-    }
   }
 
   private readStoredLevel(key: string): number | null {
