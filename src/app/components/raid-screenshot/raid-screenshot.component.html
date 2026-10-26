@@ -99,7 +99,7 @@
 					}
 					@if (cc()?.foreign?.length) {
 						<div class="rs-doubt">
-							не наш клан:
+							не нашли в КП (чужой клан или мусор OCR — если клан, включи «С кланом» вручную):
 							@for (f of cc()!.foreign; track $index) {
 								<span class="rs-chip rs-chip--bad">{{ f.raw }}{{ f.inGame != null ? ' · ' + f.inGame : '' }}</span>
 							}

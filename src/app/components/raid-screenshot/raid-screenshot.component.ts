@@ -364,8 +364,9 @@ export class RaidScreenshotComponent {
     }
     this.packIds.set(packs);
     this.participants.set(parts);
-    // anyone besides our pack in the Command Channel → farmed with others («С кланом»)
-    this.withClan.set(!!cc && (cc.packs.length > 0 || cc.foreign.length > 0));
+    // another pack of ours in the Command Channel → «С кланом». Unmatched «foreign» names
+    // alone don't count — they're often OCR junk; switch it on by hand if it's a real clan
+    this.withClan.set(!!cc && cc.packs.length > 0);
     const dest: DropDest = this.shared() ? 'none' : 'pack';
     this.dropRows.set((drop?.items ?? []).map((i) => ({ key: rowKey(), name: i.name, qty: i.qty, dest })));
   }
