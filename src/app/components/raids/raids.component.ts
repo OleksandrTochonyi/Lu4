@@ -231,7 +231,11 @@ export class RaidsComponent {
       this.toast('error', 'Ошибка', this.msg(e));
     }
   }
-  readonly uncheckedCount = computed(() => this.kills().filter((k) => k.dropChecked === false).length);
+  /** «Дроп проверен» exists only for kills added from a screenshot */
+  isUnchecked(k: RaidKill): boolean {
+    return !!k.hasShot && k.dropChecked === false;
+  }
+  readonly uncheckedCount = computed(() => this.kills().filter((k) => this.isUnchecked(k)).length);
   dropCheckedTip(kill: RaidKill): string {
     if (kill.dropChecked === false) return 'Дроп добавлен без проверки — нажми, когда проверишь';
     const who = kill.dropCheckedBy ? this.who(kill.dropCheckedBy) : '';
@@ -376,7 +380,7 @@ export class RaidsComponent {
       if (status === 'feels' && !k.withFeels) return false;
       if (status === 'clan' && !k.withClan) return false;
       if (status === 'shot' && !k.hasShot) return false;
-      if (status === 'unchecked' && k.dropChecked !== false) return false;
+      if (status === 'unchecked' && !this.isUnchecked(k)) return false;
       if (!q) return true;
       const haystack = [
         k.bossName,
@@ -444,6 +448,8 @@ export class RaidsComponent {
   readonly killWithFeels = signal(false);
   /** «Дроп проверен» in the dialog */
   readonly killDropChecked = signal(true);
+  /** the kill being edited came from a screenshot — only then «Дроп проверен» is shown */
+  readonly killHasShot = signal(false);
   /** «Зафармили с кланом» + which clan */
   readonly killWithClan = signal(false);
   readonly killClanName = signal('');
@@ -476,6 +482,7 @@ export class RaidsComponent {
     this.killMarkAsDead.set(true);
     this.killWithFeels.set(false);
     this.killDropChecked.set(true);
+    this.killHasShot.set(false);
     this.killWithClan.set(false);
     this.killClanName.set('');
     this.customItemName.set('');
@@ -501,6 +508,7 @@ export class RaidsComponent {
     this.killMarkAsDead.set(false);
     this.killWithFeels.set(kill.withFeels);
     this.killDropChecked.set(kill.dropChecked !== false);
+    this.killHasShot.set(!!kill.hasShot);
     this.killWithClan.set(kill.withClan);
     this.killClanName.set(kill.clanName ?? '');
     this.customItemName.set('');

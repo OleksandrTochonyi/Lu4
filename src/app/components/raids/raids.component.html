@@ -80,7 +80,7 @@
       <div class="rd-kill" *ngFor="let k of filteredKills(); trackBy: trackByKill" [attr.data-kill-id]="k.id"
         [class.is-open]="isKillExpanded(k.id)" [class.is-soldout]="isKillFullySold(k)"
         [class.is-highlighted]="highlightedKillId() === k.id" [class.is-feels]="k.withFeels" [class.is-clan]="k.withClan"
-        [class.is-unchecked]="k.dropChecked === false">
+        [class.is-unchecked]="isUnchecked(k)">
         <div class="rd-kill-head" role="button" tabindex="0" (click)="toggleKillExpanded(k.id)"
           (keydown.enter)="toggleKillExpanded(k.id)">
           <i class="pi rd-kill-chevron" [ngClass]="isKillExpanded(k.id) ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
@@ -101,7 +101,7 @@
             <i class="pi pi-users"></i> С филзом
           </span>
           <button type="button" class="rd-kill-check" [class.is-ok]="k.dropChecked !== false"
-            *ngIf="k.dropChecked === false || k.hasShot" [pTooltip]="dropCheckedTip(k)" tooltipPosition="top"
+            *ngIf="k.hasShot" [pTooltip]="dropCheckedTip(k)" tooltipPosition="top"
             (click)="$event.stopPropagation(); toggleDropChecked(k)">
             <i class="pi" [ngClass]="k.dropChecked !== false ? 'pi-verified' : 'pi-exclamation-circle'"></i>
             {{ k.dropChecked !== false ? 'Проверен' : 'Дроп не проверен' }}
@@ -1034,7 +1034,7 @@
       </button>
     </div>
 
-    <button type="button" class="dc-card" [class.is-ok]="killDropChecked()" (click)="killDropChecked.set(!killDropChecked())" role="switch" [attr.aria-checked]="killDropChecked()">
+    <button type="button" class="dc-card" *ngIf="killHasShot()" [class.is-ok]="killDropChecked()" (click)="killDropChecked.set(!killDropChecked())" role="switch" [attr.aria-checked]="killDropChecked()">
       <span class="dc-ic"><i class="pi" [class.pi-verified]="killDropChecked()" [class.pi-exclamation-triangle]="!killDropChecked()"></i></span>
       <span class="dc-text">
         <b>{{ killDropChecked() ? 'Дроп проверен' : 'Дроп не проверен' }}</b>
