@@ -71,15 +71,17 @@ export interface VoiceSet {
   label: string;
 }
 
-/** one piece of an announcement: a pre-rendered clip, or text for the browser voice */
+/** one piece of an announcement: a pre-rendered clip, or text for the browser voice, or the bell */
 interface Step {
   url?: string;
   text: string;
+  bell?: boolean;
 }
 
 /**
  * The site's voice (settings live in the header's «Озвучка» popover):
  * - «РБ <имя> в респе» — fired by RespVoiceWatcher on the bookmarks pages;
+ * - 2 bells + «РБ <имя>» + bell — the bot reported a boss alive (BotAliveVoiceService, every page);
  * - short joke lines for user actions (`action()`), texts in data/action-phrases.ts.
  *
  * Voices are pre-rendered sets (Пудж, GLaDOS, …) listed in `assets/voice/voices.json`,
@@ -206,6 +208,35 @@ export class RespVoiceService {
   }
 
   /**
+   * bell + «РБ <имя>» + bell — the bot saw a boss standing alive
+   * (BotAliveVoiceService). Follows the resp-announcement switch.
+   */
+  announceAlive(key: string, bossId: string, bossName: string): void {
+    if (!this.enabled() || this.announced.has(key)) return;
+    this.announced.add(key);
+    this.play(this.aliveSteps(bossId, bossName));
+  }
+
+  /** «Тест: РБ стоит» in the voice popover — a random boss, plays even with the switch off */
+  async previewAlive(): Promise<void> {
+    const m = await this.loadManifest(this.voiceSet());
+    const bosses = Object.keys(m?.bosses ?? {});
+    const bossId = bosses.length ? bosses[Math.floor(Math.random() * bosses.length)] : '';
+    this.play(this.aliveSteps(bossId, 'Анаким'), true);
+  }
+
+  private aliveSteps(bossId: string, bossName: string): Step[] {
+    const bossFile = this.manifest()?.bosses?.[String(bossId)];
+    return [
+      { text: '', bell: true },
+      { text: '', bell: true },
+      this.fixedStep('intro', 'РБ'),
+      { url: this.url(bossFile), text: bossName },
+      { text: '', bell: true },
+    ];
+  }
+
+  /**
    * A joke line for a user action (see data/action-phrases.ts): the optional
    * `lead` («время убийства поправлено.»), then a random phrase. Never says the
    * boss name — `_boss` is accepted only so call sites can keep passing it.
@@ -267,7 +298,9 @@ export class RespVoiceService {
 
   private async playSteps(steps: Step[]): Promise<void> {
     for (const s of steps) {
-      if (s.url) {
+      if (s.bell) {
+        await this.ringBell();
+      } else if (s.url) {
         const ok = await this.playAudio(s.url);
         if (!ok) await this.speakAsync(s.text); // clip missing / blocked → browser voice
       } else {
@@ -285,6 +318,50 @@ export class RespVoiceService {
       a.onerror = () => resolve(false);
       a.play().catch(() => resolve(false));
     });
+  }
+
+  /** a synthesized bell (no file): two strikes of a few decaying partials */
+  private ringBell(): Promise<void> {
+    const Ctor = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (!Ctor) return Promise.resolve();
+    try {
+      const ctx: AudioContext = new Ctor();
+      const out = ctx.createGain();
+      out.gain.value = 0.35;
+      out.connect(ctx.destination);
+      const strike = (at: number) => {
+        // bell-like inharmonic partials, the high ones die out first
+        for (const [ratio, gain, decay] of [
+          [1, 1, 1.6],
+          [2.0, 0.55, 1.1],
+          [2.76, 0.4, 0.8],
+          [5.4, 0.25, 0.45],
+          [8.93, 0.12, 0.3],
+        ]) {
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = 880 * ratio;
+          g.gain.setValueAtTime(0.0001, at);
+          g.gain.exponentialRampToValueAtTime(gain, at + 0.005);
+          g.gain.exponentialRampToValueAtTime(0.0001, at + decay);
+          osc.connect(g).connect(out);
+          osc.start(at);
+          osc.stop(at + decay + 0.05);
+        }
+      };
+      const t = ctx.currentTime + 0.02;
+      strike(t);
+      strike(t + 0.35);
+      return new Promise((resolve) =>
+        setTimeout(() => {
+          void ctx.close().catch(() => null);
+          resolve();
+        }, 2100),
+      );
+    } catch {
+      return Promise.resolve();
+    }
   }
 
   /** fallback for pieces that have no clip yet: the first Russian browser voice */

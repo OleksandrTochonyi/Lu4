@@ -59,6 +59,13 @@
 				<p-checkbox inputId="vs-all" [binary]="true" [disabled]="!voice.enabled()" [ngModel]="voice.allTabs()" (ngModelChange)="voice.setAllTabs($event)"></p-checkbox>
 				<label for="vs-all">Все закладки, а не только открытая</label>
 			</div>
+			<div class="vs-sub" [class.is-off]="!voice.enabled()">
+				<span class="vs-sub-text">Бот увидел живого РБ: 2 колокольчика + «Эр-бэ …» + колокольчик</span>
+				<button type="button" class="vs-test" (click)="voice.previewAlive()">
+					<i class="pi pi-play"></i>
+					<span>Тест</span>
+				</button>
+			</div>
 
 			<label class="vs-switch">
 				<span class="vs-switch-text">

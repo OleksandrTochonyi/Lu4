@@ -25,6 +25,7 @@ import { ThemeService } from './services/theme.service';
 import { RespVoiceService } from './services/resp-voice.service';
 import { RbBotService } from './services/rb-bot.service';
 import { BroadcastSoundService } from './services/broadcast-sound.service';
+import { BotAliveVoiceService } from './services/bot-alive-voice.service';
 import { VoiceSettingsComponent } from './components/shared/voice-settings/voice-settings.component';
 
 const PAGE_NAMES: Record<string, string> = {
@@ -72,6 +73,7 @@ export class AppComponent {
   private voice = inject(RespVoiceService);
   private bot = inject(RbBotService);
   private broadcastSound = inject(BroadcastSoundService);
+  private botAliveVoice = inject(BotAliveVoiceService);
   private location = inject(Location);
   private destroyRef = inject(DestroyRef);
 
@@ -176,6 +178,8 @@ export class AppComponent {
   ngOnInit() {
     // «Воспроизвести у всех» from /admin/users — every open client plays it
     this.broadcastSound.start();
+    // «РБ … стоит!» to everyone with the site open when the bot reports a boss alive
+    this.botAliveVoice.start();
 
     // before the first NavigationEnd, so /login never flashes inverted
     this.theme.setAllowed(!this.isLoginPage);
