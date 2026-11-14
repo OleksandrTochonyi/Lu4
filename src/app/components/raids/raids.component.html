@@ -339,10 +339,30 @@
 
     <div class="rd-sales-h rd-clan-sales-h">
       Продажи клана
-      <span class="rd-clan-unpaid" *ngIf="clanUnpaid() > 0">не выдано {{ fmtMoney(clanUnpaid()) }}</span>
-      <span class="rd-spacer"></span>
-      <button pButton type="button" label="Всем выдано" icon="pi pi-check-circle" class="p-button-sm p-button-outlined"
-        *ngIf="canClan() && clanUnpaid() > 0" (click)="confirmSettleClan()"></button>
+    </div>
+
+    <div class="rd-outstanding" *ngIf="clanOpenCount()">
+      <div class="rd-out-h">
+        <i class="pi pi-exclamation-triangle" *ngIf="clanUnpaid() > 0"></i>
+        В процессе: {{ clanOpenCount() }} {{ clanOpenCount() === 1 ? 'продажа' : 'продаж' }},
+        к выдаче <b>{{ fmtMoney(clanUnpaid()) }}</b>
+      </div>
+      <div class="rd-out-list">
+        <span class="rd-out-item" *ngFor="let r of clanOutstanding(); trackBy: trackClanOut">
+          <button type="button" class="rd-out-chip" [class.is-zero]="r.unpaid === 0"
+            [class.is-busy]="settlingClanKey() === r.key" [disabled]="!canClan() || settlingClanKey() === r.key"
+            (click)="toggleClanGroupPaid(r)">
+            <i class="pi pi-check rd-check" [class.rd-check-show]="r.unpaid === 0"></i>
+            {{ r.name }}: {{ fmtMoney(r.unpaid) }} / {{ fmtMoney(r.total) }}
+          </button>
+          <button type="button" class="rd-out-copy" pTooltip="Копировать сумму" tooltipPosition="top"
+            (click)="copyAmount(r.unpaid || r.total)">
+            <i class="pi pi-copy"></i>
+          </button>
+        </span>
+      </div>
+      <button pButton type="button" label="Всем выдано" icon="pi pi-check-double" class="p-button-sm"
+        *ngIf="canClan()" [disabled]="clanUnpaid() === 0" (click)="confirmSettleClan()"></button>
     </div>
     <div class="rd-clan-sales" *ngIf="openClanSales().length; else clanSalesEmpty">
       <ng-container *ngFor="let s of openClanSales(); trackBy: trackClanSale">

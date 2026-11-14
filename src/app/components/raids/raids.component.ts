@@ -79,6 +79,17 @@ interface ExtraItemOption {
   catalogId: string | null;
 }
 
+/** one chip of the clan «В процессе» summary */
+interface ClanOutRow {
+  key: string;
+  name: string;
+  target: ClanShareTarget;
+  /** set for a pack paid as a whole */
+  groupId: string | null;
+  total: number;
+  unpaid: number;
+}
+
 interface DropLine {
   key: string;
   kill: RaidKill;
@@ -1166,21 +1177,74 @@ export class RaidsComponent {
     );
   });
 
-  /** not yet handed out across all clan sales */
-  readonly clanUnpaid = computed(() =>
-    round2(
-      this.clanSales().reduce(
-        (sum, s) =>
-          sum +
-          s.packs.reduce(
-            (acc, p) =>
-              acc + (p.people.length ? p.people.filter((x) => !x.paid).reduce((a, x) => a + x.amount, 0) : p.paid ? 0 : p.amount),
-            0,
-          ),
-        0,
-      ),
-    ),
-  );
+  /**
+   * «В процессе» of the clan warehouse: who is still owed what across every open
+   * (not closed) clan sale — other packs as a whole, ours as bank / leader / mercenaries.
+   */
+  readonly clanOutstanding = computed<ClanOutRow[]>(() => {
+    const rows = new Map<string, ClanOutRow>();
+    const add = (key: string, name: string, target: ClanShareTarget, groupId: string | null, amount: number, unpaid: number) => {
+      const r = rows.get(key) ?? { key, name, target, groupId, total: 0, unpaid: 0 };
+      r.total = round2(r.total + amount);
+      r.unpaid = round2(r.unpaid + unpaid);
+      rows.set(key, r);
+    };
+    for (const s of this.clanSales()) {
+      if (s.locked) continue;
+      for (const p of s.packs) {
+        const sp = p.split;
+        if (!sp) {
+          const unpaid = p.people.length ? p.people.filter((x) => !x.paid).reduce((a, x) => a + x.amount, 0) : p.paid ? 0 : p.amount;
+          add(`pack:${p.groupId}`, p.groupName, { kind: 'pack' }, p.groupId, p.amount, unpaid);
+          continue;
+        }
+        add('bank', 'Банк', { kind: 'bank' }, null, sp.bank.amount, sp.bank.paid ? 0 : sp.bank.amount);
+        add(`leader:${sp.leaderId}`, `${sp.leaderName} (лидер)`, { kind: 'leader' }, null, sp.leader.amount, sp.leader.paid ? 0 : sp.leader.amount);
+        for (const [uid, m] of Object.entries(sp.mercenaries)) {
+          add(`merc:${uid}`, m.name, { kind: 'merc', userId: uid }, null, m.amount, m.paid ? 0 : m.amount);
+        }
+      }
+    }
+    // other packs first, then our bank / leader / mercenaries
+    const rank = (r: ClanOutRow) => (r.target.kind === 'pack' ? 0 : r.target.kind === 'bank' ? 1 : r.target.kind === 'leader' ? 2 : 3);
+    return [...rows.values()].sort((a, b) => rank(a) - rank(b) || b.total - a.total);
+  });
+  readonly clanOpenCount = computed(() => this.clanSales().filter((s) => !s.locked).length);
+
+  /** not yet handed out across the open clan sales */
+  readonly clanUnpaid = computed(() => round2(this.clanOutstanding().reduce((sum, r) => sum + r.unpaid, 0)));
+
+  readonly settlingClanKey = signal<string | null>(null);
+
+  /** click a clan «В процессе» chip — marks that pack's / person's share paid in every
+   *  open clan sale (or un-marks it when it's all paid already). Sales stay open. */
+  async toggleClanGroupPaid(row: ClanOutRow): Promise<void> {
+    if (this.settlingClanKey() || !this.canClan()) return;
+    const nextPaid = row.unpaid > 0;
+    const jobs: Promise<void>[] = [];
+    for (const s of this.clanSales()) {
+      if (s.locked) continue;
+      const p = s.packs.find((x) => {
+        if (row.target.kind === 'pack') return !x.split && x.groupId === row.groupId;
+        if (!x.split) return false;
+        if (row.target.kind === 'leader') return `leader:${x.split.leaderId}` === row.key;
+        if (row.target.kind === 'merc') return !!x.split.mercenaries[row.target.userId];
+        return true;
+      });
+      if (p) jobs.push(this.raidLoot.setClanSharePaid(s, p.groupId, row.target, nextPaid));
+    }
+    if (!jobs.length) return;
+    this.settlingClanKey.set(row.key);
+    try {
+      await Promise.all(jobs);
+      this.voice.action(nextPaid ? 'raidPaid' : 'raidUnpaid');
+    } catch (e) {
+      this.toast('error', 'Ошибка', this.msg(e));
+    } finally {
+      this.settlingClanKey.set(null);
+    }
+  }
+  trackClanOut = (_: number, r: ClanOutRow) => r.key;
 
   /**
    * price → equal per pack that was at the kill. OUR pack (the payout leader's) splits
