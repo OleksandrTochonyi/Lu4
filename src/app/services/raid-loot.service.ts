@@ -192,6 +192,10 @@ export interface RaidDrop {
   comment: string;
 }
 
+/** «Выбили с мобов» records live in the same log as RB kills, under this pseudo boss */
+export const MOBS_BOSS_ID = 'mobs';
+export const MOBS_NAME = 'Выбили с мобов';
+
 export interface RaidKill {
   id: string;
   bossId: string;
@@ -211,6 +215,8 @@ export interface RaidKill {
   withClan: boolean;
   /** which clan (optional, free text) */
   clanName: string;
+  /** «Выбили с мобов» — not an RB kill: no boss, the drop goes straight to our «Дроп» */
+  fromMobs?: boolean;
   /** added from a game screenshot that's kept in `raid-kill-shots/<kill id>` */
   hasShot?: boolean;
   /** «Дроп проверен» — someone looked the drop over (absent on old kills = checked) */
@@ -393,6 +399,7 @@ function normalizeKill(raw: any): RaidKill {
     withFeels: !!raw?.withFeels,
     withClan: !!raw?.withClan,
     clanName: String(raw?.clanName ?? ''),
+    fromMobs: raw?.fromMobs === true,
     hasShot: raw?.hasShot === true,
     dropChecked: raw?.dropChecked !== false,
     dropCheckedBy: String(raw?.dropCheckedBy ?? ''),
@@ -570,14 +577,18 @@ export class RaidLootService {
       createdBy: actorEmail || 'неизвестно',
       createdAt: Date.now(),
     });
-    this.activityLog.log('Отметил убийство РБ', data.bossName);
-    this.voice.action('raidKill', { id: data.bossId, name: data.bossName });
+    if (data.fromMobs) {
+      this.activityLog.log('Добавил дроп с мобов', data.drops.map((d) => d.name).join(', '));
+    } else {
+      this.activityLog.log('Отметил убийство РБ', data.bossName);
+      this.voice.action('raidKill', { id: data.bossId, name: data.bossName });
+    }
     return ref.id;
   }
 
   async updateKill(id: string, data: Partial<NewRaidKill>): Promise<void> {
     await updateDoc(doc(this.firestore, `raid-kills/${id}`), { ...data });
-    this.activityLog.log('Изменил убийство РБ', data.bossName ?? '');
+    this.activityLog.log(data.fromMobs ? 'Изменил дроп с мобов' : 'Изменил убийство РБ', data.fromMobs ? '' : (data.bossName ?? ''));
     this.voice.action('raidKillEdit');
   }
 

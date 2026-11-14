@@ -2501,3 +2501,52 @@
 .rd-add-item:hover {
   background: #eef2ff;
 }
+
+/* «Выбили с мобов» — same log as RB kills, marked apart */
+.rd-kill.is-mobs {
+  border-left: 4px solid #2dd4bf;
+}
+.rd-kill-mobs-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: #0f766e;
+  background: #ccfbf1;
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+  flex: none;
+}
+.rd-kill-mobs-tag .pi {
+  font-size: 0.7rem;
+}
+.rd-kill-mobs-note {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rd-chips-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 0.15rem 0.15rem;
+  background: #e2e8f0;
+}
+.rd-toggle-chip--rb,
+.rd-toggle-chip--mobs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.rd-toggle-chip--rb .pi,
+.rd-toggle-chip--mobs .pi {
+  font-size: 0.72rem;
+}
+.rd-toggle-chip--mobs.active {
+  background: #ccfbf1 !important;
+  border-color: #5eead4 !important;
+  color: #0f766e !important;
+}

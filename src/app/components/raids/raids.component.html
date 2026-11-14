@@ -68,11 +68,20 @@
         <button type="button" class="rd-toggle-chip rd-toggle-chip--unchecked" [class.active]="killStatusFilter() === 'unchecked'"
           (click)="killStatusFilter.set('unchecked')"><i class="pi pi-exclamation-circle"></i> Не проверен
           <span class="rd-chip-n" *ngIf="uncheckedCount()">{{ uncheckedCount() }}</span></button>
+        <span class="rd-chips-sep"></span>
+        <button type="button" class="rd-toggle-chip rd-toggle-chip--rb" [class.active]="killSourceFilter() === 'rb'"
+          (click)="toggleKillSource('rb')" pTooltip="Только убийства РБ" tooltipPosition="top"><i class="pi pi-flag-fill"></i> Только РБ</button>
+        <button type="button" class="rd-toggle-chip rd-toggle-chip--mobs" [class.active]="killSourceFilter() === 'mobs'"
+          (click)="toggleKillSource('mobs')" pTooltip="Только то, что выбили с мобов" tooltipPosition="top"><i class="pi pi-bolt"></i> С мобов
+          <span class="rd-chip-n" *ngIf="mobsCount()">{{ mobsCount() }}</span></button>
       </div>
       <span class="rd-spacer"></span>
       <button pButton type="button" label="📷 Рейд по скрину" class="p-button-outlined"
         pTooltip="Вставь скриншот после убийства — РБ, дроп и паки заполнятся сами" tooltipPosition="top"
         (click)="openScreenshotPage()"></button>
+      <button pButton type="button" icon="pi pi-bolt" label="Выбили с мобов" class="p-button-outlined"
+        pTooltip="Дроп с мобов: что упало и кто был — попадёт на наш склад" tooltipPosition="top"
+        (click)="openKillDialog(true)"></button>
       <button pButton type="button" icon="pi pi-plus" label="Добавить РБ" (click)="openKillDialog()"></button>
     </div>
 
@@ -80,17 +89,21 @@
       <div class="rd-kill" *ngFor="let k of filteredKills(); trackBy: trackByKill" [attr.data-kill-id]="k.id"
         [class.is-open]="isKillExpanded(k.id)" [class.is-soldout]="isKillFullySold(k)"
         [class.is-highlighted]="highlightedKillId() === k.id" [class.is-feels]="k.withFeels" [class.is-clan]="k.withClan"
-        [class.is-unchecked]="isUnchecked(k)">
+        [class.is-unchecked]="isUnchecked(k)" [class.is-mobs]="k.fromMobs">
         <div class="rd-kill-head" role="button" tabindex="0" (click)="toggleKillExpanded(k.id)"
           (keydown.enter)="toggleKillExpanded(k.id)">
           <i class="pi rd-kill-chevron" [ngClass]="isKillExpanded(k.id) ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
           <span class="rd-kill-badge" [class.is-soldout]="isKillFullySold(k) && hasStock(k)"
             [class.is-nodrop]="isKillNoDrop(k)">
-            <i class="pi" [ngClass]="isKillNoDrop(k) ? 'pi-times' : (isKillFullySold(k) ? 'pi-check' : 'pi-flag-fill')"></i>
+            <i class="pi" [ngClass]="isKillNoDrop(k) ? 'pi-times' : (isKillFullySold(k) ? 'pi-check' : (k.fromMobs ? 'pi-bolt' : 'pi-flag-fill'))"></i>
           </span>
           <span class="rd-kill-title">
             <b>{{ k.bossName }}</b>
             <span class="rd-kill-lvl" *ngIf="k.bossLevel">ур. {{ k.bossLevel }}</span>
+            <span class="rd-kill-lvl rd-kill-mobs-note" *ngIf="k.fromMobs && k.note">{{ k.note }}</span>
+          </span>
+          <span class="rd-kill-mobs-tag" *ngIf="k.fromMobs" pTooltip="Выбили с мобов, не с РБ" tooltipPosition="top">
+            <i class="pi pi-bolt"></i> Мобы
           </span>
           <span class="rd-kill-nodrop-tag" *ngIf="isKillNoDrop(k)"
             [pTooltip]="k.withFeels ? 'Фармили с филзом — нам с этого ничего не досталось' : 'С этого убийства не выпало ничего'"
@@ -932,10 +945,14 @@
 <!-- ==================================================== MARK KILL DIALOG === -->
 <p-dialog [visible]="killDialogOpen()" (visibleChange)="$event || closeKillDialog()" [modal]="true"
   [draggable]="false" [dismissableMask]="true" [style]="{ width: 'min(720px, 96vw)' }"
-  [header]="editingKillId() ? 'Редактировать убийство' : 'Добавить РБ'">
+  [header]="killFromMobs() ? (editingKillId() ? 'Редактировать: выбили с мобов' : 'Выбили с мобов') : (editingKillId() ? 'Редактировать убийство' : 'Добавить РБ')">
   <div class="rd-form">
+    <div class="rd-clan-hint" *ngIf="killFromMobs()">
+      <i class="pi pi-bolt"></i>
+      Дроп с мобов: отметь, <b>кто был</b> и <b>что упало</b> — всё попадёт на наш склад («Дроп на складе»), как после РБ.
+    </div>
     <div class="rd-form-row">
-      <label class="rd-field rd-field--grow">
+      <label class="rd-field rd-field--grow" *ngIf="!killFromMobs()">
         <span>Рейд-босс (по уровню)</span>
         <p-dropdown [options]="bossOptions()" [group]="true" optionGroupLabel="label" optionGroupChildren="items"
           optionLabel="label" optionValue="value" [filter]="true" filterBy="label" [ngModel]="killBossId()" (ngModelChange)="onKillBossChange($event)"
@@ -948,7 +965,7 @@
       </label>
     </div>
 
-    <div class="rd-mark-dead" *ngIf="!editingKillId()">
+    <div class="rd-mark-dead" *ngIf="!editingKillId() && !killFromMobs()">
       <p-toggleswitch inputId="kill-mark-dead" [ngModel]="killMarkAsDead()"
         (ngModelChange)="killMarkAsDead.set($event)" />
       <label for="kill-mark-dead">
@@ -957,7 +974,7 @@
       </label>
     </div>
 
-    <div class="rd-mark-dead rd-mark-feels">
+    <div class="rd-mark-dead rd-mark-feels" *ngIf="!killFromMobs()">
       <p-toggleswitch inputId="kill-with-feels" [ngModel]="killWithFeels()"
         (ngModelChange)="setKillWithFeels($event)" />
       <label for="kill-with-feels">
@@ -966,7 +983,7 @@
       </label>
     </div>
 
-    <div class="rd-mark-dead rd-mark-clan">
+    <div class="rd-mark-dead rd-mark-clan" *ngIf="!killFromMobs()">
       <p-toggleswitch inputId="kill-with-clan" [ngModel]="killWithClan()"
         (ngModelChange)="setKillWithClan($event)" />
       <label for="kill-with-clan">
@@ -1008,7 +1025,7 @@
     </div>
 
     <div class="rd-field">
-      <span>Дроп — из таблицы дропа босса или любой предмет вручную</span>
+      <span>{{ killFromMobs() ? 'Что выбили' : 'Дроп — из таблицы дропа босса или любой предмет вручную' }}</span>
       <div class="rd-clan-hint" *ngIf="killShared()">
         <i class="pi pi-info-circle"></i>
         С филзом / кланом: у каждого предмета выбери, куда он идёт — <b>«наш склад»</b> (вкладка «Дроп»),
@@ -1045,12 +1062,12 @@
       </div>
       <ng-template #lootEmpty>
         <div class="rd-muted rd-loot-empty">
-          {{ killBossId() ? 'Для этого босса в базе нет таблицы дропа — добавь предметы вручную ниже' : 'Сначала выберите рейд-босса' }}
+          {{ killFromMobs() ? 'Пока пусто — добавь предметы кнопкой ниже' : killBossId() ? 'Для этого босса в базе нет таблицы дропа — добавь предметы вручную ниже' : 'Сначала выберите рейд-босса' }}
         </div>
       </ng-template>
 
       <button type="button" class="rd-add-item" (click)="itemPickerOpen.set(true)">
-        <i class="pi pi-plus"></i> Добавить любой предмет
+        <i class="pi pi-plus"></i> {{ killFromMobs() ? 'Добавить предмет' : 'Добавить любой предмет' }}
       </button>
     </div>
 
@@ -1064,7 +1081,7 @@
     </button>
 
     <label class="rd-field">
-      <span>Заметка (необязательно)</span>
+      <span>{{ killFromMobs() ? 'Комментарий (необязательно) — где фармили и т.п.' : 'Заметка (необязательно)' }}</span>
       <input pInputText type="text" [ngModel]="killNote()" (ngModelChange)="killNote.set($event)" />
     </label>
   </div>

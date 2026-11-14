@@ -37,6 +37,8 @@ import {
   clanPackSettled,
   clanSaleSettled,
   MercShare,
+  MOBS_BOSS_ID,
+  MOBS_NAME,
   NewRaidKill,
   PayoutConfig,
   PayoutTarget,
@@ -381,10 +383,20 @@ export class RaidsComponent {
   /** all kills / only ones with drop still unsold / only fully sold-out ones / farmed with Feels */
   readonly killStatusFilter = signal<'all' | 'open' | 'closed' | 'feels' | 'clan' | 'shot' | 'unchecked'>('all');
 
+  /** RB kills / «Выбили с мобов» / both */
+  readonly killSourceFilter = signal<'all' | 'rb' | 'mobs'>('all');
+  toggleKillSource(source: 'rb' | 'mobs'): void {
+    this.killSourceFilter.update((cur) => (cur === source ? 'all' : source));
+  }
+  readonly mobsCount = computed(() => this.kills().filter((k) => k.fromMobs).length);
+
   readonly filteredKills = computed(() => {
     const q = this.killSearch().trim().toLowerCase();
     const status = this.killStatusFilter();
+    const source = this.killSourceFilter();
     return this.kills().filter((k) => {
+      if (source === 'rb' && k.fromMobs) return false;
+      if (source === 'mobs' && !k.fromMobs) return false;
       const soldOut = this.isKillFullySold(k);
       if (status === 'open' && soldOut) return false;
       if (status === 'closed' && !soldOut) return false;
@@ -398,8 +410,10 @@ export class RaidsComponent {
         this.fmtDate(k.killedAt),
         ...k.participants.map((p) => p.name),
         ...k.drops.map((d) => d.name),
+        k.note,
         k.withFeels ? 'филз' : '',
         k.withClan ? 'клан' : '',
+        k.fromMobs ? 'мобы' : '',
       ]
         .join(' ')
         .toLowerCase();
@@ -452,6 +466,8 @@ export class RaidsComponent {
   readonly killBossId = signal<string | null>(null);
   readonly killDate = signal<string>('');
   readonly killNote = signal('');
+  /** the dialog is logging «Выбили с мобов», not an RB kill */
+  readonly killFromMobs = signal(false);
   /** also push this boss's kill time to the shared resp tracker (rb-resp-time,
    *  same store the Bookmarks page uses) using the "Дата и время" above */
   readonly killMarkAsDead = signal(true);
@@ -483,8 +499,10 @@ export class RaidsComponent {
     return this.localInputFromDate(new Date());
   }
 
-  openKillDialog(): void {
+  /** @param mobs «Выбили с мобов»: no boss, items by hand, straight to our «Дроп» */
+  openKillDialog(mobs = false): void {
     this.bookmarkedBossIds.set(readBookmarkedBossIds());
+    this.killFromMobs.set(mobs);
     this.editingKillId.set(null);
     this.editingOriginalDrops = [];
     this.killBossId.set(null);
@@ -512,6 +530,7 @@ export class RaidsComponent {
   openEditKill(kill: RaidKill): void {
     this.bookmarkedBossIds.set(readBookmarkedBossIds());
     this.editingKillId.set(kill.id);
+    this.killFromMobs.set(!!kill.fromMobs);
     this.editingOriginalDrops = kill.drops;
     this.killDate.set(this.localInputFromDate(new Date(kill.killedAt)));
     this.killNote.set(kill.note ?? '');
@@ -588,7 +607,7 @@ export class RaidsComponent {
     );
   }
   /** the kill being edited is shared (Feels / another clan) → each drop picks where it goes */
-  readonly killShared = computed(() => this.killWithClan() || this.killWithFeels());
+  readonly killShared = computed(() => !this.killFromMobs() && (this.killWithClan() || this.killWithFeels()));
   /** new rows: our «Дроп» on a normal kill, «не наш» on a shared one */
   private defaultDest(): DropDest {
     return this.killShared() ? 'none' : 'pack';
@@ -759,9 +778,14 @@ export class RaidsComponent {
 
   async submitKill(): Promise<void> {
     if (this.savingKill()) return;
-    const boss = this.selectedBoss();
-    if (!boss) {
+    const mobs = this.killFromMobs();
+    const boss = mobs ? null : this.selectedBoss();
+    if (!mobs && !boss) {
       this.toast('warn', 'Выберите рейд-босса', '');
+      return;
+    }
+    if (mobs && !this.killLootCheckedCount()) {
+      this.toast('warn', 'Добавьте, что выбили', '');
       return;
     }
     const packs = this.killSelectedGroups();
@@ -793,31 +817,34 @@ export class RaidsComponent {
           icon: r.loot.imgUrl || null,
           grade: r.loot.grade ?? null,
           qty: Math.max(1, Math.round(r.qty || 1)),
-          dest: r.dest,
-          ours: r.dest === 'pack',
+          // from mobs everything is ours
+          dest: mobs ? 'pack' : r.dest,
+          ours: mobs || r.dest === 'pack',
           comment: (r.comment ?? '').trim(),
         };
       });
 
+    const title = boss?.name ?? MOBS_NAME;
     const killedAt = this.killDate() ? new Date(this.killDate()).getTime() : Date.now();
     const payload: NewRaidKill = {
-      bossId: boss.id,
-      bossName: boss.name,
+      bossId: boss?.id ?? MOBS_BOSS_ID,
+      bossName: title,
       bossIcon: null,
-      bossLevel: boss.level ?? null,
+      bossLevel: boss?.level ?? null,
+      fromMobs: mobs,
       killedAt,
       packIds: packs.map((g) => g.id),
       packNames: packs.map((g) => g.displayName),
       participants,
       drops,
       note: this.killNote().trim(),
-      withFeels: this.killWithFeels(),
+      withFeels: !mobs && this.killWithFeels(),
       dropChecked: this.killDropChecked(),
       // who / when — only when it flips to «проверен» here
       ...(this.killDropChecked() && this.kills().find((k) => k.id === this.editingKillId())?.dropChecked !== true
         ? { dropCheckedBy: this.myEmail() || 'неизвестно', dropCheckedAt: Date.now() }
         : {}),
-      withClan: this.killWithClan(),
+      withClan: !mobs && this.killWithClan(),
       clanName: '',
     };
 
@@ -826,16 +853,16 @@ export class RaidsComponent {
       const editId = this.editingKillId();
       if (editId) {
         await this.raidLoot.updateKill(editId, payload);
-        this.toast('success', 'Убийство обновлено', boss.name);
+        this.toast('success', mobs ? 'Запись обновлена' : 'Убийство обновлено', title);
       } else {
         await this.raidLoot.addKill(payload, this.myEmail());
-        this.toast('success', 'Убийство записано', boss.name);
+        this.toast('success', mobs ? 'Дроп с мобов записан' : 'Убийство записано', title);
       }
       // optionally also mark the boss "killed" in the shared resp tracker
       // (rb-resp-time — same store the Bookmarks page reads/writes), using the
       // kill's own "Дата и время" as the death time. New kills only — editing an
       // old record must never move the bookmarks' kill time.
-      if (!editId && this.killMarkAsDead()) {
+      if (boss && !editId && this.killMarkAsDead()) {
         try {
           // the kill itself is already logged by raid-loot — don't double-log
           await this.rbJsonResp.setKillTime(boss.id, new Date(killedAt), { silent: true });
@@ -2476,6 +2503,8 @@ export class RaidsComponent {
   });
 
   /** kills by the date they happened, sales (and their payout shares) by the date sold */
+  /** RB kills only — mob farming isn't a kill for the counters / attendance */
+  readonly periodRbKills = computed(() => this.periodKills().filter((k) => !k.fromMobs));
   readonly periodKills = computed(() => {
     const { from, to } = this.statsRange();
     return this.kills().filter((k) => k.killedAt >= from && k.killedAt <= to);
@@ -2490,7 +2519,7 @@ export class RaidsComponent {
   });
 
   readonly statsSummary = computed(() => {
-    const kills = this.periodKills();
+    const kills = this.periodRbKills();
     const sales = this.periodSales();
     const events = this.periodEvents();
     const sum = (list: PayoutEvent[]) => list.reduce((acc, e) => acc + e.amount, 0);
@@ -2607,7 +2636,7 @@ export class RaidsComponent {
 
   /** who showed up to the period's kills, most present first */
   readonly attendanceStats = computed(() => {
-    const kills = this.periodKills();
+    const kills = this.periodRbKills();
     const map = new Map<string, { key: string; name: string; group: string; kills: number }>();
     for (const k of kills) {
       const seen = new Set<string>();
